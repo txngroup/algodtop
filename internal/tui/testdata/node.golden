@@ -1,4 +1,4 @@
-algodtop  host algod-host  10:52:14  daemon up 3d 4h  store 2.1GB  nodes 5: 3 OK, 1 Warn, 1 Critical                    
+algod.top  host algod-host  10:52:14  daemon up 3d 4h  store 2.1GB  nodes 5: 3 OK, 1 Warn, 1 Critical                   
 mainnet  round 52184330  lag 0.6s  ver 4.4.1  up 2d 2h     range 1h  live                                               
   OK                                                                                                                    
 CONSENSUS                                                   NETWORK                                                     

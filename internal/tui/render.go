@@ -81,7 +81,30 @@ type Model struct {
 	Message   string
 	Err       string
 	WriteText []string // W: config contents to confirm
+	// Scroll is the first row of the node screen's open pane. The last
+	// draw sets paneRows and paneTotal, which bound it.
 	Scroll    int
+	paneRows  int
+	paneTotal int
+}
+
+// window picks the rows of a pane's list that fit in room lines, from the
+// scroll offset. A list that does not fit gets a footer line, so it shows
+// room-1 rows.
+func (m *Model) window(total, room int) (from, to int, footer string) {
+	m.paneTotal = total
+	if total <= room {
+		m.paneRows = total
+		return 0, total, ""
+	}
+	rows := max(room-1, 0)
+	m.paneRows = max(rows, 1)
+	from = max(0, min(m.Scroll, total-rows))
+	to = min(total, from+rows)
+	if rows == 0 {
+		return from, to, m.Style.c(cDim, fmt.Sprintf(" %d rows; the window is too short to show them", total))
+	}
+	return from, to, m.Style.c(cDim, fmt.Sprintf(" rows %d-%d of %d   up/down, pgup/pgdn, home/end scroll", from+1, to, total))
 }
 
 func (m *Model) fmtTime(t time.Time) time.Time {
@@ -152,7 +175,7 @@ func (m *Model) header() string {
 		}
 	}
 	var parts []string
-	parts = append(parts, m.Style.c(cBold, "algodtop"), "host "+m.Status.Host, t)
+	parts = append(parts, m.Style.c(cBold, "algod.top"), "host "+m.Status.Host, t)
 	if m.Status.Live {
 		parts = append(parts, m.Style.c(cYellow, "no daemon: live only, no history"))
 	} else {
@@ -160,6 +183,9 @@ func (m *Model) header() string {
 		parts = append(parts, "daemon up "+Dur(up), "store "+Bytes(float64(m.Status.StoreBytes))+"B")
 		if m.Status.Paused {
 			parts = append(parts, m.Style.c(cRed, "WRITES PAUSED"))
+		}
+		if m.Status.Latest != "" {
+			parts = append(parts, m.Style.c(cYellow, "newer release: algod.top upgrade"))
 		}
 	}
 	summary := fmt.Sprintf("nodes %d: %d OK", len(m.Nodes), ok)
@@ -622,24 +648,27 @@ func renderNode(m *Model) []string {
 	}
 	lines = append(lines, "")
 	room := m.H - len(lines) - 1
+	m.paneTotal, m.paneRows = 0, 0
 	switch m.Pane {
 	case PanePeers:
 		lines = append(lines, m.peersPane(n, room)...)
 	case PaneEvents:
 		lines = append(lines, m.Style.c(cBold, "EVENTS (e)")+"   p peers  l log templates")
-		for i := len(m.NodeEv) - 1; i >= 0 && room > 1; i-- {
-			lines = append(lines, m.eventLine(m.NodeEv[i], false))
-			room--
+		from, to, footer := m.window(len(m.NodeEv), room-1)
+		// Newest first.
+		for i := from; i < to; i++ {
+			lines = append(lines, m.eventLine(m.NodeEv[len(m.NodeEv)-1-i], false))
+		}
+		if footer != "" {
+			lines = append(lines, footer)
 		}
 	case PaneLogs:
 		lines = append(lines, m.Style.c(cBold, "LOG TEMPLATES (l)")+"   p peers  e events")
 		if m.Status.Live {
 			lines = append(lines, m.Style.c(cDim, " log templates need the daemon"))
 		}
-		for _, t := range m.Templ {
-			if room <= 1 {
-				break
-			}
+		from, to, footer := m.window(len(m.Templ), room-1)
+		for _, t := range m.Templ[from:to] {
 			lvl := t.Level
 			if lvl == "warning" {
 				lvl = m.Style.c(cYellow, "warn")
@@ -647,7 +676,9 @@ func renderNode(m *Model) []string {
 				lvl = m.Style.c(cRed, "error")
 			}
 			lines = append(lines, fmt.Sprintf(" %9s  %-6s %s", Num(t.Count), lvl, t.Template))
-			room--
+		}
+		if footer != "" {
+			lines = append(lines, footer)
 		}
 	}
 	return lines
@@ -729,11 +760,8 @@ func (m *Model) peersPane(n *api.NodeView, room int) []string {
 		}
 	}
 	lines = append(lines, m.Style.c(cBold, h.String()))
-	for _, p := range peers {
-		if len(lines) >= room {
-			lines = append(lines, m.Style.c(cDim, fmt.Sprintf(" ... %d more", len(peers)-len(lines)+2)))
-			break
-		}
+	from, to, footer := m.window(len(peers), room+1-len(lines))
+	for _, p := range peers[from:to] {
 		ph := hist[p.IP]
 		cl := "-"
 		if len(ph.Clusters) > 0 {
@@ -763,12 +791,16 @@ func (m *Model) peersPane(n *api.NodeView, room int) []string {
 		}
 		lines = append(lines, b.String())
 	}
+	if footer != "" {
+		lines = append(lines, footer)
+	}
 	return lines
 }
 
 // HelpKeys is the key table, shared with ? and --help.
 var HelpKeys = [][2]string{
 	{"Up, Down, Enter, Esc", "Select a node, open it, go back"},
+	{"PgUp, PgDn, Home, End", "On a node, scroll the open pane; Up and Down scroll too"},
 	{"<, >", "Change the sort column"},
 	{"p, e, l", "Peers, events or log templates pane"},
 	{"r", "Cycle the range: 1h, 6h, 24h, 7d, 30d, 1y, all"},
@@ -796,17 +828,17 @@ func renderHelp(m *Model) []string {
 
 // EmptyHelp is shown when no daemon, config or node was found.
 var EmptyHelp = []string{
-	"algodtop found no daemon, no config file and no algod data directory.",
+	"algod.top found no daemon, no config file and no algod data directory.",
 	"",
 	"Point it at a node:",
-	"  algodtop -d ~/.mainnet                  a local data directory",
-	"  algodtop -u http://127.0.0.1:8080       an algod REST URL (token from $ALGOD_TOKEN)",
-	"  algodtop -u ssh://relay1/~/.mainnet     a remote node over SSH, nothing installed",
-	"  algodtop -H ssh://hub                   the terminal UI of a daemon on another host",
+	"  algod.top -d ~/.mainnet                 a local data directory",
+	"  algod.top -u http://127.0.0.1:8080      an algod REST URL (token from $ALGOD_TOKEN)",
+	"  algod.top -u ssh://relay1/~/.mainnet    a remote node over SSH, nothing installed",
+	"  algod.top -H ssh://hub                  the terminal UI of a daemon on another host",
 	"",
 	"Keep history with the daemon:",
-	"  algodtop daemon --discover              find local nodes and write them to the config",
-	"  algodtop daemon                         run the collector, store and web UI",
+	"  algod.top daemon --discover             find local nodes and write them to the config",
+	"  algod.top daemon                        run the collector, store and web UI",
 	"",
 	"Press q to quit.",
 }

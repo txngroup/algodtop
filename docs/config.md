@@ -1,4 +1,4 @@
-# algodtop config reference
+# algod.top config reference
 
 The config is one JSON file. Unknown keys are an error, so a typo fails at load rather than being ignored. Durations are strings such as `10s`, `5m`, `30d`, `1y` or `forever`. Paths accept `~` and forward slashes on every platform.
 
@@ -14,10 +14,10 @@ The config is one JSON file. Unknown keys are an error, so a typo fails at load 
 
 | Key | Default | Meaning |
 |---|---|---|
-| `store_dir` | the data directory above | algodtop's own data |
+| `store_dir` | the data directory above | algod.top's own data |
 | `socket` | `<store_dir>/algodtop.sock` | API socket for the terminal UI |
 | `nodes` | | Monitored algod nodes |
-| `remotes` | | Hosts running an algodtop agent |
+| `remotes` | | Hosts running an algod.top agent |
 | `web` | | TCP listener and auth |
 | `retention` | | Guaranteed window per tier |
 | `disk` | | Disk floor |
@@ -28,13 +28,14 @@ The config is one JSON file. Unknown keys are an error, so a typo fails at load 
 | `ntp` | | Clock offset check |
 | `runtime` | | Go runtime limits |
 | `agent` | | Agent mode settings |
+| `update_check` | true | Look for a newer release daily and show it in the UIs. The hub only. |
 
 ## nodes
 
 | Key | Meaning |
 |---|---|
 | `name` | Letters, digits, `.`, `_` and `-` |
-| `datadir` | A local data directory. algodtop reads `algod.net`, `algod.pid`, the tokens, `config.json`, `genesis.json` and `node.log` from it. |
+| `datadir` | A local data directory. algod.top reads `algod.net`, `algod.pid`, the tokens, `config.json`, `genesis.json` and `node.log` from it. |
 | `url` | Instead of `datadir`: `http(s)://host:port`, or `ssh://[user@]host[:port]/<datadir>` for SSH without install |
 | `token`, `admin_token` | Tokens for `url` nodes. Prefer the file forms. |
 | `token_file`, `admin_token_file` | Files holding the tokens |
@@ -52,9 +53,11 @@ The admin token is needed for `/v2/node/peers` and `/v2/participation`. It is se
 |---|---|
 | `name` | Prefix for the remote's nodes, as in `relay1/mainnet` |
 | `host` | SSH agent: an `~/.ssh/config` alias or `ssh://user@host:port` |
-| `agent_path` | Absolute path of the agent on the remote, default `~/.local/bin/algodtop` |
+| `agent_path` | Absolute path of the agent on the remote, default `~/.local/bin/algod.top` |
+| `agent_config` | The agent's config file, as `remote add` found it. A path under `/etc` means a system agent. |
+| `root` | `su` or `sudo`: how to become root on the host, for the one step of a system agent's install that needs it. algod.top asks and saves it. |
 | `url` | TLS agent: `https://host:port` |
-| `token_file` / `token` | TLS agent token (see `algodtop passwd --agent-token`) |
+| `token_file` / `token` | TLS agent token (see `algod.top passwd --agent-token`) |
 | `ca_file` | The agent's certificate or CA, to pin a self-signed agent |
 | `cert_file`, `key_file` | Client certificate for mutual TLS |
 
@@ -65,9 +68,9 @@ The admin token is needed for `/v2/node/peers` and `/v2/participation`. It is se
 | `listen` | `127.0.0.1:8090` | Web UI address. `""` disables the listener. |
 | `tls` | | `self-signed` to generate and keep a certificate |
 | `tls_cert`, `tls_key` | | A certificate to use instead |
-| `password_hash` | | Set with `algodtop passwd` |
-| `read_only_password_hash` | | Set with `algodtop passwd --read-only` |
-| `read_only_token_hashes` | | Set with `algodtop passwd --token` |
+| `password_hash` | | Set with `algod.top passwd` |
+| `read_only_password_hash` | | Set with `algod.top passwd --read-only` |
+| `read_only_token_hashes` | | Set with `algod.top passwd --token` |
 | `session_ttl` | `7d` | Login session lifetime |
 | `allow_unauthenticated_remote` | false | Allow a non-loopback listener with no password |
 | `allow_config_edits` | false | Let the Settings page edit nodes and retention |
@@ -82,13 +85,13 @@ The admin token is needed for `/v2/node/peers` and `/v2/participation`. It is se
 | `1h` | `forever` |
 | `peer_addresses` | `1y`, after which sessions keep only /24 aggregates |
 
-Shortening a window deletes data at the next maintenance pass, and the deletion is recorded as an event. `algodtop check` previews it.
+Shortening a window deletes data at the next maintenance pass, and the deletion is recorded as an event. `algod.top check` previews it.
 
 ## disk
 
 | Key | Default | Meaning |
 |---|---|---|
-| `floor_percent` | 5 | Free space below which algodtop deletes its oldest data |
+| `floor_percent` | 5 | Free space below which algod.top deletes its oldest data |
 | `at_floor` | `delete` | `pause` stops writing instead and never deletes inside a window |
 
 ## intervals
@@ -108,7 +111,7 @@ Shortening a window deletes data at the next maintenance pass, and the deletion 
 
 Expressions:
 
-- Booleans: `down`, `stalled`, `catchup`, `agent_unreachable`, and `rule:<name>` for any health rule (`down`, `health`, `stalled`, `disk`, `key_expiry`, `account_offline`, `key_mismatch`, `no_votes`, `clock`, `catchup`, `key_expiry_warn`, `incentive_lost`, `disk_fill`, `no_outgoing`, `error_rate`, `version_behind`, `algodtop`).
+- Booleans: `down`, `stalled`, `catchup`, `agent_unreachable`, and `rule:<name>` for any health rule (`down`, `health`, `stalled`, `disk`, `key_expiry`, `account_offline`, `key_mismatch`, `no_votes`, `clock`, `catchup`, `key_expiry_warn`, `incentive_lost`, `disk_fill`, `no_outgoing`, `error_rate`, `version_behind`, `algod.top`).
 - Comparisons `<var> <op> <value>` with `>`, `>=`, `<`, `<=`, `==`, `!=`. Variables: `lag`, `round_time`, `round_p99`, `cpu`, `rss`, `disk_free_pct`, `disk_days`, `peers`, `peers_out`, `peers_in`, `pool`, `tpb`, `error_rate`, `clock_offset`, `key_days`, `net_in`, `net_out`, `health`. Values take units: `30s`, `500ms`, `4GiB`, `10%`, or `warn` and `critical` for `health`.
 - `a or b` combines two expressions.
 
@@ -122,8 +125,8 @@ Channels live only in the config file. The web UI and the API cannot create or c
 "channels": {
   "ntfy":  {"type": "webhook", "url": "https://ntfy.sh/topic", "template": "{{.Node}}: {{.Message}}"},
   "slack": {"type": "webhook", "url": "https://hooks.slack.com/...", "template": "{\"text\": {{json .Message}}}"},
-  "mail":  {"type": "smtp", "smtp": {"addr": "smtp.example.com:587", "from": "algodtop@example.com", "to": ["ops@example.com"], "username": "u", "password_file": "~/.smtp"}},
-  "mac":   {"type": "command", "command": ["osascript", "-e", "display notification \"algodtop alert\""]}
+  "mail":  {"type": "smtp", "smtp": {"addr": "smtp.example.com:587", "from": "algod.top@example.com", "to": ["ops@example.com"], "username": "u", "password_file": "~/.smtp"}},
+  "mac":   {"type": "command", "command": ["osascript", "-e", "display notification \"algod.top alert\""]}
 }
 ```
 
@@ -147,6 +150,6 @@ A webhook posts the notification JSON (`alert`, `node`, `state`, `severity`, `me
 | `agent.buffer` | `7d` | How long an agent keeps pulled data |
 | `agent.buffer_cap_mib` | 1024 | Size cap for unpulled data |
 | `agent.listen` | | TLS agent listener, for hosts the hub cannot reach over SSH |
-| `agent.token_hash` | | Set with `algodtop passwd --agent-token` |
+| `agent.token_hash` | | Set with `algod.top passwd --agent-token` |
 | `agent.tls_cert`, `agent.tls_key` | self-signed | |
 | `agent.client_ca` | | Accept hub client certificates signed by this CA |

@@ -1,16 +1,16 @@
-algodtop  host algod-host  10:52:14  daemon up 3d 4h  store 2.1GB  nodes 5: 3 OK, 1 Warn, 1 Critical                    
+algod.top  host algod-host  10:52:14  daemon up 3d 4h  store 2.1GB  nodes 5: 3 OK, 1 Warn, 1 Critical                   
                                                                                                                         
-algodtop found no daemon, no config file and no algod data directory.                                                   
+algod.top found no daemon, no config file and no algod data directory.                                                  
                                                                                                                         
 Point it at a node:                                                                                                     
-  algodtop -d ~/.mainnet                  a local data directory                                                        
-  algodtop -u http://127.0.0.1:8080       an algod REST URL (token from $ALGOD_TOKEN)                                   
-  algodtop -u ssh://relay1/~/.mainnet     a remote node over SSH, nothing installed                                     
-  algodtop -H ssh://hub                   the terminal UI of a daemon on another host                                   
+  algod.top -d ~/.mainnet                 a local data directory                                                        
+  algod.top -u http://127.0.0.1:8080      an algod REST URL (token from $ALGOD_TOKEN)                                   
+  algod.top -u ssh://relay1/~/.mainnet    a remote node over SSH, nothing installed                                     
+  algod.top -H ssh://hub                  the terminal UI of a daemon on another host                                   
                                                                                                                         
 Keep history with the daemon:                                                                                           
-  algodtop daemon --discover              find local nodes and write them to the config                                 
-  algodtop daemon                         run the collector, store and web UI                                           
+  algod.top daemon --discover             find local nodes and write them to the config                                 
+  algod.top daemon                        run the collector, store and web UI                                           
                                                                                                                         
 Press q to quit.                                                                                                        
                                                                                                                         

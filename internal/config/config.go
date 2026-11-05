@@ -145,7 +145,13 @@ type Config struct {
 	Logs        Logs            `json:"logs,omitzero"`
 	NTP         NTP             `json:"ntp,omitzero"`
 	Agent       Agent           `json:"agent,omitzero"`
+	// UpdateCheck, when false, stops the hub's daily look for a newer
+	// release. A newer one shows in the terminal and web UIs.
+	UpdateCheck *bool `json:"update_check,omitempty"`
 }
+
+// UpdateCheckOn reports whether the hub looks for newer releases.
+func (c *Config) UpdateCheckOn() bool { return c.UpdateCheck == nil || *c.UpdateCheck }
 
 // Web configures the TCP listener.
 type Web struct {
@@ -213,6 +219,10 @@ type Remote struct {
 	CertFile  string            `json:"cert_file,omitempty"`
 	KeyFile   string            `json:"key_file,omitempty"`
 	Disabled  bool              `json:"disabled,omitempty"`
+	// Root is how the operator becomes root on the host, "su" or "sudo",
+	// for the one step of a system agent's install or upgrade that needs
+	// it. algodtop asks once and saves the answer here.
+	Root string `json:"root,omitempty"`
 }
 
 // Retention holds the guaranteed window per tier.
@@ -386,6 +396,9 @@ func (c *Config) Validate() error {
 		names[r.Name] = true
 		if (r.Host == "") == (r.URL == "") {
 			errs = append(errs, fmt.Errorf("remote %q: set exactly one of host (SSH agent) or url (TLS agent)", r.Name))
+		}
+		if r.Root != "" && r.Root != "su" && r.Root != "sudo" {
+			errs = append(errs, fmt.Errorf("remote %q: root must be su or sudo, not %q", r.Name, r.Root))
 		}
 	}
 	// Hub names from names may reuse their own remote's name, which is the

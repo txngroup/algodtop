@@ -36,7 +36,9 @@ func (db *DB) Snapshot() (string, error) {
 		if rel == "LOCK" {
 			return nil
 		}
-		if top == "snapshots" || strings.HasSuffix(rel, ".sock") {
+		// bin holds a system service's own copy of algodtop, which is
+		// not data.
+		if top == "snapshots" || top == "bin" || strings.HasSuffix(rel, ".sock") {
 			if d.IsDir() {
 				return filepath.SkipDir
 			}

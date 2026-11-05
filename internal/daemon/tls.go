@@ -96,7 +96,7 @@ func GenerateCert(host string, parent *x509.Certificate, parentKey *ecdsa.Privat
 	serial, _ := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 120))
 	tmpl := &x509.Certificate{
 		SerialNumber: serial,
-		Subject:      pkix.Name{CommonName: host, Organization: []string{"algodtop"}},
+		Subject:      pkix.Name{CommonName: host, Organization: []string{"algod.top"}},
 		NotBefore:    time.Now().Add(-time.Hour),
 		NotAfter:     time.Now().AddDate(10, 0, 0),
 		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,

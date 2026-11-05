@@ -5,11 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="go-import" content="algod.top git https://github.com/txngroup/algodtop">
 <meta name="go-source" content="algod.top https://github.com/txngroup/algodtop https://github.com/txngroup/algodtop/tree/main{/dir} https://github.com/txngroup/algodtop/blob/main{/dir}/{file}#L{line}">
-<meta name="description" content="algodtop monitors Algorand nodes (algod): a terminal UI, a daemon that keeps history, and a web UI.">
-<title>algodtop: monitoring for Algorand nodes</title>
+<meta name="description" content="algod.top monitors Algorand nodes (algod): a terminal UI, a daemon that keeps history, and a web UI.">
+<title>algod.top: monitoring for Algorand nodes</title>
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="canonical" href="https://algod.top/">
 <meta property="og:type" content="website">
-<meta property="og:title" content="algodtop">
+<meta property="og:title" content="algod.top">
 <meta property="og:description" content="Monitoring for Algorand nodes: a terminal UI, a daemon that keeps history, and a web UI. One binary.">
 <meta property="og:url" content="https://algod.top/">
 <meta property="og:image" content="https://algod.top/img/social.png">
@@ -21,19 +24,18 @@
 <body>
 <header class="top">
 <nav>
-<a class="brand" href="/">algod<span>top</span></a>
+<a class="brand" href="/">algod<span>.top</span></a>
 <a href="/docs/">Docs</a>
 </nav>
 </header>
 
 <main>
 <section class="hero">
-<h1>algod<span>top</span></h1>
+<h1>algod<span>.top</span></h1>
 <p class="lede">Monitoring for algod nodes. A terminal UI in the style of <code>top</code>, a daemon that keeps history, and a web UI. It is one binary, with no database or other service to run.</p>
 <div class="install">
-<pre><code>go install algod.top@latest            # a command named algod.top
-go install algod.top/algodtop@latest   # the same program, named algodtop</code></pre>
-<p class="note">Use either one. The docs call it <code>algodtop</code>. It needs Go 1.27 or later and runs on Linux, macOS and Windows. To try it without installing, run <code>go run algod.top@latest</code>. Then read the <a href="/docs/#quick-start">quick start</a>.</p>
+<pre><code>go install algod.top@latest</code></pre>
+<p class="note">It needs Go 1.27 or later and runs on Linux, macOS and Windows. To try it without installing, run <code>go run algod.top@latest</code>. To update it here and on every server, run <code>algod.top upgrade</code>. Then read the <a href="/docs/#quick-start">quick start</a>.</p>
 </div>
 <figure class="shot">
 <picture>
@@ -76,9 +78,9 @@ go install algod.top/algodtop@latest   # the same program, named algodtop</code>
 
 <section class="band">
 <h2>Start in a minute</h2>
-<pre><code>algodtop                    # find the nodes on this machine and show them live
-algodtop daemon --discover  # keep their history and serve the web UI on 127.0.0.1:8090
-algodtop service            # start the daemon at login or boot</code></pre>
+<pre><code>algod.top                    # find the nodes on this machine and show them live
+algod.top daemon --discover  # keep their history and serve the web UI on 127.0.0.1:8090
+algod.top service            # start the daemon at login or boot</code></pre>
 <p>The <a href="/docs/">documentation</a> covers configuration, remote hosts, alerts and storage.</p>
 </section>
 </main>

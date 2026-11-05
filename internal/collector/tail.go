@@ -207,7 +207,7 @@ func (t *tailer) resume() {
 					af.Seek(t.st.Offset, io.SeekStart)
 					t.f = af
 					t.drainAll(false)
-					t.n.event(model.EvLogRotation, model.SevInfo, "node.log rotated while algodtop was down; read the rest of the archive", nil)
+					t.n.event(model.EvLogRotation, model.SevInfo, "node.log rotated while algod.top was down; read the rest of the archive", nil)
 				}
 				af.Close()
 				t.f = nil

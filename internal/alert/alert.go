@@ -534,7 +534,7 @@ func Send(ctx context.Context, ch config.Chan, n Notification) error {
 			}
 			auth = smtp.PlainAuth("", s.Username, pass, host)
 		}
-		subj := fmt.Sprintf("[algodtop] %s %s on %s", strings.ToUpper(n.State), n.Alert, n.Node)
+		subj := fmt.Sprintf("[algod.top] %s %s on %s", strings.ToUpper(n.State), n.Alert, n.Node)
 		msg := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n%s\r\n\r\nnode: %s\r\nhost: %s\r\nseverity: %s\r\ntime: %s\r\n",
 			s.From, strings.Join(s.To, ", "), subj, n.Message, n.Node, n.Host, n.Severity, time.Unix(0, n.Time).UTC().Format(time.RFC3339))
 		return smtp.SendMail(s.Addr, auth, s.From, s.To, []byte(msg))

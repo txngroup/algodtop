@@ -129,7 +129,7 @@ func sshError(t Target, err error, stderr string) error {
 	case strings.Contains(low, "host key verification failed"), strings.Contains(low, "no matching host key"):
 		return fmt.Errorf("ssh %s: the host key is not in known_hosts; run `ssh %s` once to accept it (%s)", t.Host, t.Dest(), msg)
 	case strings.Contains(low, "permission denied"):
-		return fmt.Errorf("ssh %s: permission denied; algodtop needs key or agent login without a password prompt (%s)", t.Host, msg)
+		return fmt.Errorf("ssh %s: permission denied; algod.top needs key or agent login without a password prompt (%s)", t.Host, msg)
 	case msg != "":
 		return fmt.Errorf("ssh %s: %v: %s", t.Host, err, msg)
 	}
@@ -400,6 +400,16 @@ func CheckSSH() error {
 // SSH sessions often skip the shell profile, so the hub runs the agent by
 // the absolute path recorded at install rather than relying on PATH.
 func RemoteBinary(p string) string { return remotePath(p) }
+
+// AgentBinary is the remote command for an agent at path. With no path it
+// runs ~/.local/bin/algod.top, or ~/.local/bin/algodtop from before the
+// rename, whichever exists.
+func AgentBinary(path string) string {
+	if path != "" {
+		return remotePath(path)
+	}
+	return `sh -c 'b="$HOME/.local/bin/algod.top"; [ -x "$b" ] || b="$HOME/.local/bin/algodtop"; exec "$b" "$@"' algod.top`
+}
 
 // controlPath returns the ControlMaster socket for this target, or false
 // when connection sharing is off. The name is a short hash of the target,

@@ -74,3 +74,16 @@ func TestAge(t *testing.T) {
 		}
 	}
 }
+
+func TestParse(t *testing.T) {
+	b := Parse("v0.0.0-20261105090230-8526abb4ba52")
+	if b.Time.Format(time.RFC3339) != "2026-11-05T09:02:30Z" || b.Revision != "8526abb4ba52" {
+		t.Errorf("%+v", b)
+	}
+	if got := b.Describe(time.Date(2026, 11, 5, 12, 0, 0, 0, time.UTC)); got != "2026-11-05 09:02 UTC (8526abb4), 2 hours old" {
+		t.Error(got)
+	}
+	if b := Parse("dev"); !b.Time.IsZero() || b.Version != "dev" {
+		t.Errorf("%+v", b)
+	}
+}

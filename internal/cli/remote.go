@@ -53,16 +53,20 @@ func cmdRemote(args []string) int {
 	fs := newFlags(prog + " remote")
 	nameF := fs.str("", "name", "NAME", "Remote name, default the host alias")
 	nodeNameF := fs.str("", "node-name", "NAME", "add: hub name for the agent's only node, such as the SSH node it replaced")
-	pathF := fs.str("", "path", "PATH", "Agent path on the remote, default ~/.local/bin/algodtop (add also tries /usr/local/bin/algodtop)")
+	pathF := fs.str("", "path", "PATH", "Agent path on the remote, default ~/.local/bin/algod.top (add also tries /usr/local/bin/algod.top)")
 	verF := fs.str("", "version", "VERSION", "Release to install: a version or latest, default this binary's version")
 	dirF := fs.str("", "release-dir", "DIR", "A local release directory with checksums.txt and its signature")
 	binF := fs.str("", "binary", "PATH", "A local binary (development only, needs --unsigned)")
 	unsignedF := fs.flag("", "unsigned", "Allow --binary without a release signature (development only)")
+	rootF := fs.str("", "root", "su|sudo", "How to become root on HOST when a system agent needs it, default ask")
 	yesF := fs.flag("y", "yes", "Do not ask for confirmation")
 	cfgF := fs.str("c", "config", "PATH", "Hub config file")
 	helpF := fs.flag("h", "help", "Show help")
 	if err := fs.parse(args); err != nil {
 		return errf("%v", err)
+	}
+	if v := rootF.String(); v != "" && v != "su" && v != "sudo" {
+		return errf("--root must be su or sudo")
 	}
 	if helpF.Bool() || len(fs.args) < 2 {
 		fmt.Printf("Usage: %s remote install|add|upgrade|sync|remove HOST [flags]\n\n  add  use an agent that already runs on HOST, such as a system service\n\n%s", prog, fs.usage())
@@ -79,19 +83,14 @@ func cmdRemote(args []string) int {
 	if !ok {
 		cfg.Path = config.DefaultPath()
 	}
-	t, err := remote.ParseURL(sshURL(host))
+	r, err := newRemoteCmd(cfg, host, nameF.String())
 	if err != nil {
 		return errf("%v", err)
 	}
-	name := nameF.String()
-	if name == "" {
-		name = strings.ReplaceAll(t.Host, ".", "-")
-	}
-	ssh := &remote.SSH{Target: t}
 	ctx, cancel := signalContext()
 	defer cancel()
-	r := &remoteCmd{cfg: cfg, ssh: ssh, name: name, yes: yesF.Bool(), path: pathF.String(), ver: verF.String(), dir: dirF.String(),
-		bin: binF.String(), unsigned: unsignedF.Bool(), hostArg: host, nodeName: nodeNameF.String()}
+	r.yes, r.path, r.ver, r.dir, r.bin, r.unsigned, r.nodeName, r.root = yesF.Bool(), pathF.String(), verF.String(), dirF.String(),
+		binF.String(), unsignedF.Bool(), nodeNameF.String(), rootF.String()
 	switch action {
 	case "install":
 		return r.install(ctx)
@@ -115,6 +114,25 @@ type remoteCmd struct {
 	hostArg                   string
 	yes, unsigned             bool
 	host                      remote.Host
+	root                      string        // su or sudo, from --root
+	files                     *releaseCache // the release an upgrade installs
+}
+
+// newRemoteCmd prepares a remote command for a host. Without a name it
+// uses the saved remote for that host, so `remote upgrade node1` finds a
+// remote saved as partmon1, or else the host alias.
+func newRemoteCmd(cfg *config.Config, host, name string) (*remoteCmd, error) {
+	t, err := remote.ParseURL(sshURL(host))
+	if err != nil {
+		return nil, err
+	}
+	if name == "" {
+		name = strings.ReplaceAll(t.Host, ".", "-")
+		if x, ok := remoteForHost(cfg, host); ok {
+			name = x.Name
+		}
+	}
+	return &remoteCmd{cfg: cfg, ssh: &remote.SSH{Target: t}, name: name, hostArg: host}, nil
 }
 
 func (r *remoteCmd) confirm(q string) bool {
@@ -234,12 +252,15 @@ func (r *remoteCmd) install(ctx context.Context) int {
 		if h.OS == "linux" {
 			// A user service would run as the wrong account. A system service
 			// runs as the owner and lets the algodtop group reach its socket.
-			fmt.Printf("\nInstalling a service for that account needs sudo, which algodtop never runs for you. Finish with:\n\n")
-			fmt.Printf("  ssh -t %s sudo %s service install --system --agent\n", r.hostArg, path)
-			fmt.Printf("  %s remote add %s --name %s\n", prog, r.hostArg, r.name)
-			return 0
+			// Installing it needs root once.
+			fmt.Printf("\nA system service runs the agent as that account. Installing it needs root once:")
+			if rc := r.runAsRoot(ctx, path, "service", "install", "--system", "--agent"); rc != 0 {
+				fmt.Printf("Then record it on the hub: %s remote add %s --name %s\n", prog, r.hostArg, r.name)
+				return rc
+			}
+			return r.add(ctx)
 		}
-		fmt.Println("Installing a service for that account needs sudo. algodtop never runs sudo; run these yourself:")
+		fmt.Println("Installing a service for that account needs root. Run these on the host:")
 		for _, f := range foreign {
 			owner := f[strings.LastIndexByte(f, ' ')+1:]
 			fmt.Printf("  sudo -u %s %s agent --discover\n", owner, path)
@@ -282,45 +303,6 @@ func (r *remoteCmd) saveRemote(path string) {
 	if err := r.cfg.Save(r.cfg.Path); err != nil {
 		fmt.Fprintf(os.Stderr, "warn: could not update %s: %v\n", r.cfg.Path, err)
 	}
-}
-
-func (r *remoteCmd) upgrade(ctx context.Context) int {
-	h, err := r.ssh.Detect(ctx)
-	if err != nil {
-		return errf("%v", err)
-	}
-	r.host = h
-	bin, desc, err := r.binary(ctx)
-	if err != nil {
-		return errf("%v", err)
-	}
-	path := r.agentPath()
-	if r.systemAgent() {
-		// The SSH user cannot replace a binary that root installed. Copy it
-		// to the user's own directory and let the service install move it.
-		path = remote.DefaultPath(h)
-		if !r.confirm(fmt.Sprintf("copy %s to %s on %s?", desc, path, r.hostArg)) {
-			return 1
-		}
-		if err := r.ssh.Copy(ctx, h, path, bin); err != nil {
-			return errf("copy: %v", err)
-		}
-		fmt.Printf("copied. The agent on %s is a system service; finish the upgrade there with:\n\n  ssh -t %s sudo %s service install --system --agent\n", r.hostArg, r.hostArg, path)
-		return 0
-	}
-	if !r.confirm(fmt.Sprintf("replace %s on %s with %s?", path, r.hostArg, desc)) {
-		return 1
-	}
-	if err := r.ssh.Copy(ctx, h, path, bin); err != nil {
-		return errf("copy: %v", err)
-	}
-	if sp := remote.PlanService(h, path); sp.Restart != "" {
-		if out, err := r.ssh.Shell(ctx, sp.Restart); err != nil {
-			fmt.Printf("warn: restart failed: %v %s\n", err, strings.TrimSpace(string(out)))
-		}
-	}
-	fmt.Println("upgraded")
-	return 0
 }
 
 // sync pushes the hub's alert rules and channels into the agent config.
@@ -372,7 +354,7 @@ func (r *remoteCmd) remove(ctx context.Context) int {
 		if !r.confirm(fmt.Sprintf("drop %q from the hub config? The system service on %s keeps running until you remove it there.", r.name, r.hostArg)) {
 			return 1
 		}
-		fmt.Printf("To stop the agent on %s: ssh -t %s sudo %s service uninstall --system --agent\n", r.hostArg, r.hostArg, path)
+		fmt.Printf("To stop the agent on %s: %s\n", r.hostArg, sshT(r.hostArg, rootCommand(r.knownRoot(), path, "service", "uninstall", "--system", "--agent")))
 	} else {
 		sp := remote.PlanService(h, path)
 		if !r.confirm(fmt.Sprintf("stop the agent service on %s, remove %s and the service file, and drop %q from the hub config? (the agent's buffer is kept)", r.hostArg, path, r.name)) {

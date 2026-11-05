@@ -19,6 +19,7 @@ import (
 
 	"algod.top/internal/model"
 	"algod.top/internal/query"
+	"algod.top/internal/release"
 	"algod.top/internal/store"
 )
 
@@ -79,6 +80,7 @@ func (s *Server) routes() {
 	m.HandleFunc("DELETE /api/silences", s.write(s.handleDeleteSilence))
 	m.HandleFunc("POST /api/admin/snapshot", s.write(s.handleSnapshot))
 	m.HandleFunc("POST /api/admin/reload", s.write(s.handleReload))
+	m.HandleFunc("POST /api/admin/upgrade", s.socketOnly(s.handleUpgrade))
 	m.HandleFunc("GET /api/config", s.read(s.handleConfig))
 	m.HandleFunc("PUT /api/config", s.write(s.handlePutConfig))
 	m.HandleFunc("GET /api/discovered", s.read(s.handleDiscovered))
@@ -798,6 +800,65 @@ func (s *Server) handleSnapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]string{"path": p})
+}
+
+// socketOnly serves a handler on the unix socket and hides it on TCP.
+// Anyone who can open the socket already runs as the daemon's account or
+// belongs to its group.
+func (s *Server) socketOnly(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.auth != nil {
+			http.NotFound(w, r)
+			return
+		}
+		h(w, r)
+	}
+}
+
+// handleUpgrade takes a release from algodtop upgrade as a multipart form
+// with the checksums file, its signature and the binary, whose file name
+// is its release name. The hub's checks are not trusted: the daemon
+// verifies the signature and the version itself.
+func (s *Server) handleUpgrade(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 320<<20)
+	if err := r.ParseMultipartForm(64 << 20); err != nil {
+		httpError(w, http.StatusBadRequest, "upgrade: "+err.Error())
+		return
+	}
+	defer r.MultipartForm.RemoveAll()
+	read := func(field string) ([]byte, string, error) {
+		f, h, err := r.FormFile(field)
+		if err != nil {
+			return nil, "", fmt.Errorf("upgrade: no %s: %w", field, err)
+		}
+		defer f.Close()
+		b, err := io.ReadAll(f)
+		return b, h.Filename, err
+	}
+	var rel release.Files
+	var err error
+	if rel.Checksums, _, err = read("checksums"); err == nil {
+		if rel.Signature, _, err = read("signature"); err == nil {
+			rel.Binary, rel.Name, err = read("binary")
+		}
+	}
+	if err != nil {
+		httpError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	res, err := s.hub.Upgrade(r.Context(), rel)
+	if err != nil {
+		var ie *release.InstallError
+		if errors.As(err, &ie) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusConflict)
+			json.NewEncoder(w).Encode(ie)
+			return
+		}
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, res)
 }
 
 func (s *Server) handleReload(w http.ResponseWriter, r *http.Request) {

@@ -39,11 +39,13 @@ export function mount(root, app) {
     el.append(h("h2", null, "Daemon"), h("dl", { class: "kvl", style: { margin: "8px 0 16px" } },
       h("dt", null, "host"), h("dd", null, st.host || "-"),
       h("dt", null, "version"), h("dd", null, (st.version || "-") + (st.version_time ? ", committed " + fmtDateTime(ns(st.version_time)) + " (" + fmtDur((Date.now() - ns(st.version_time)) / 1000) + " ago)" : "")),
+      st.latest ? h("dt", null, "newer release") : null,
+      st.latest ? h("dd", null, "committed " + fmtDateTime(ns(st.latest_time)) + ". Run ", h("code", null, "algod.top upgrade"), " on this machine to install it here and on every remote agent.") : null,
       h("dt", null, "platform"), h("dd", null, st.platform || "-"),
       h("dt", null, "started"), h("dd", null, st.started ? fmtDateTime(ns(st.started)) + " (" + fmtDur((Date.now() - ns(st.started)) / 1000) + " ago)" : "-"),
       h("dt", null, "store"), h("dd", null, fmt(st.store_bytes || 0, "bytes") + "  " + Object.entries(st.tier_bytes || {}).map(([k, v]) => k + " " + fmt(v, "bytes")).join(", ")),
       h("dt", null, "retention"), h("dd", null, Object.entries(st.retention || {}).map(([k, v]) => k + " " + v).join(", ")),
-      h("dt", null, "algodtop itself"), h("dd", null, st.self ? "CPU " + (st.self.cpu || 0).toFixed(1) + "%, RSS " + fmt(st.self.rss || 0, "bytes") + ", " + st.self.sse_clients + " live viewers, " + (st.self.samples || 0).toLocaleString("en-US") + " samples stored" : "-"),
+      h("dt", null, "algod.top itself"), h("dd", null, st.self ? "CPU " + (st.self.cpu || 0).toFixed(1) + "%, RSS " + fmt(st.self.rss || 0, "bytes") + ", " + st.self.sse_clients + " live viewers, " + (st.self.samples || 0).toLocaleString("en-US") + " samples stored" : "-"),
       h("dt", null, "session"), h("dd", null, session.auth_required ? "logged in as " + session.role + " " : "no password set; this listener allows writes from this machine ",
         session.auth_required ? h("button", { type: "button", class: "small", on: { click: async () => { await logout(); location.reload(); } } }, "log out") : null)));
 
@@ -121,7 +123,7 @@ export function mount(root, app) {
     el.appendChild(ds.length ? h("div", { class: "table-wrap" }, h("table", { class: "t" },
       h("thead", null, h("tr", null, ["name", "data dir", "network", "running"].map((k) => h("th", null, k)))),
       h("tbody", null, ds.map((d) => h("tr", null, h("td", null, d.name), h("td", { class: "mono" }, d.datadir), h("td", null, d.network || ""), h("td", null, d.running ? "yes" : "no")))))) : h("p", { class: "muted" }, "None."));
-    if (ds.length) el.appendChild(h("p", { class: "note" }, "Run algodtop daemon --discover to add them, or add them to the config file."));
+    if (ds.length) el.appendChild(h("p", { class: "note" }, "Run algod.top daemon --discover to add them, or add them to the config file."));
   }
 
   load();

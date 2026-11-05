@@ -69,6 +69,7 @@ function renderStatusLine() {
     if (st.store_bytes) parts.push("store " + fmt(st.store_bytes, "bytes"));
     if (st.live) parts.push("no daemon: live only, no history");
     if (st.paused) parts.push("writes paused");
+    if (st.latest) parts.push("a newer release exists: algod.top upgrade");
   }
   const sum = [];
   if (counts.ok) sum.push(counts.ok + " OK");
@@ -128,7 +129,7 @@ async function boot() {
   try {
     await loadSession();
   } catch (e) {
-    document.getElementById("app").textContent = "Cannot reach the algodtop API: " + e.message;
+    document.getElementById("app").textContent = "Cannot reach the algod.top API: " + e.message;
     return;
   }
   if (session.auth_required && session.role === "none") {

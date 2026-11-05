@@ -154,7 +154,8 @@ func DialHub(hub, tokenFile string) (*Client, error) {
 			return nil, err
 		}
 		s := &remote.SSH{Target: t}
-		bin := "algodtop"
+		// A hub of any version: try the new name, then the old one.
+		bin := `sh -c 'if command -v algod.top >/dev/null 2>&1; then exec algod.top "$@"; fi; exec algodtop "$@"' algod.top`
 		if t.Path != "" && t.Path != "/" {
 			bin = remote.RemoteBinary(strings.TrimPrefix(t.Path, "/"))
 			if strings.HasPrefix(t.Path, "/") && !strings.HasPrefix(t.Path, "/~") {

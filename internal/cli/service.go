@@ -33,7 +33,11 @@ const (
 	systemStore       = "/var/lib/algodtop"
 	systemAgentConfig = "/etc/algodtop/agent.json"
 	systemAgentStore  = "/var/lib/algodtop-agent"
-	systemBin         = "/usr/local/bin/algodtop"
+	systemBin         = "/usr/local/bin/algod.top"
+	// legacySystemBin is where installs before the rename put the binary.
+	// An install points it at systemBin, so the old name and hubs that
+	// run it as the agent relay get the new binary.
+	legacySystemBin = "/usr/local/bin/algodtop"
 	// systemGroup may use a system service's socket. Its members reach the
 	// daemon's terminal UI, and the hub pulls from the agent over SSH as
 	// one of them.
@@ -48,6 +52,9 @@ type svcOpts struct {
 	system bool
 	runAs  string
 	config string
+	// inPlace runs a system service from /usr/local/bin rather than its
+	// own copy, when its account cannot run a binary in its store.
+	inPlace bool
 }
 
 // svcEnv is the machine the service is for.
@@ -84,12 +91,15 @@ type svcPlan struct {
 	socket      string
 	store       string
 	runAs       string
-	bin         string // the binary the service runs
+	bin         string // the binary people run; the service's too, except a system service
 	copyBin     bool   // install copies this binary to bin first
-	listen      string
-	log         string // launchd log file
-	operator    string // added to systemGroup by a system install
-	problem     string // why install cannot go ahead
+	// svcBin is a system service's own copy, in its store and owned by
+	// the account it runs as, so the service can upgrade itself.
+	svcBin   string
+	listen   string
+	log      string // launchd log file
+	operator string // added to systemGroup by a system install
+	problem  string // why install cannot go ahead
 }
 
 func cmdService(args []string) int {
@@ -253,7 +263,7 @@ func buildPlan(env svcEnv, o svcOpts, f svcFacts) svcPlan {
 	case env.goos == "darwin":
 		p.mode, p.name = "launchd", label
 		if o.system {
-			p.problem = "On macOS algodtop installs a launchd user agent, which starts at login. A system daemon in /Library/LaunchDaemons is not supported yet. Run the install without --system."
+			p.problem = "On macOS algod.top installs a launchd user agent, which starts at login. A system daemon in /Library/LaunchDaemons is not supported yet. Run the install without --system."
 			return p
 		}
 	case env.goos == "linux" && env.systemd:
@@ -262,7 +272,7 @@ func buildPlan(env svcEnv, o svcOpts, f svcFacts) svcPlan {
 			p.mode = "systemd-system"
 		}
 	default:
-		p.problem = fmt.Sprintf("algodtop can install a service under systemd on Linux and launchd on macOS, and this machine has neither.\n"+
+		p.problem = fmt.Sprintf("algod.top can install a service under systemd on Linux and launchd on macOS, and this machine has neither.\n"+
 			"Start `%s %s` from your init system, or from cron with a line such as:\n\n  @reboot %s %s >>%s 2>&1\n",
 			prog, role, shellJoin(env.exe), role, path.Join(env.home, "algodtop.log"))
 		return p
@@ -318,7 +328,7 @@ func buildPlan(env svcEnv, o svcOpts, f svcFacts) svcPlan {
 			}
 		}
 		if p.runAs == "root" {
-			p.problem = "algodtop never needs root. Pass --run-as with the account that owns the algod data directories."
+			p.problem = "algod.top never needs root. Pass --run-as with the account that owns the algod data directories."
 			return p
 		}
 	} else {
@@ -375,7 +385,7 @@ func buildPlan(env svcEnv, o svcOpts, f svcFacts) svcPlan {
 			dir = path.Join(env.home, ".config")
 		}
 		p.file = path.Join(dir, "systemd", "user", name+".service")
-		p.content = svc.SystemdUnit(svc.Spec{Name: name, Description: "algodtop " + role, Args: args})
+		p.content = svc.SystemdUnit(svc.Spec{Name: name, Description: "algod.top " + role, Args: args})
 		p.socket, p.store = userSocket(f, o.agent)
 	case "systemd-system":
 		if !strings.HasPrefix(p.bin, "/usr/") && !strings.HasPrefix(p.bin, "/opt/") {
@@ -384,7 +394,7 @@ func buildPlan(env svcEnv, o svcOpts, f svcFacts) svcPlan {
 		}
 		// The service's group is systemGroup, so the state directory and
 		// the socket belong to it and its members can reach the socket.
-		spec := svc.Spec{Name: name, Description: "algodtop " + role, System: true, User: p.runAs, Group: systemGroup, After: []string{"algorand.service"}}
+		spec := svc.Spec{Name: name, Description: "algod.top " + role, System: true, User: p.runAs, Group: systemGroup, After: []string{"algorand.service"}}
 		store := systemStore
 		if o.agent {
 			store = systemAgentStore
@@ -397,6 +407,13 @@ func buildPlan(env svcEnv, o svcOpts, f svcFacts) svcPlan {
 			spec.StateDir = path.Base(store)
 		}
 		args = append(args, "--socket-group", systemGroup)
+		// People and the hub's ssh relay run the root-owned copy in
+		// /usr/local/bin. The service runs its own copy, which belongs to
+		// its account, so `algodtop upgrade` can replace it without root.
+		if !o.inPlace {
+			p.svcBin = path.Join(p.store, "bin", "algod.top")
+			args[0] = p.svcBin
+		}
 		spec.Args = args
 		p.file = "/etc/systemd/system/" + name + ".service"
 		p.content = svc.SystemdUnit(spec)
@@ -463,13 +480,18 @@ func installCommand(env svcEnv, o svcOpts, system bool) string {
 func shellJoin(args ...string) string {
 	q := make([]string, len(args))
 	for i, a := range args {
-		if a != "" && strings.Trim(a, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_./=:@%+,") == "" {
+		if shellSafe(a) {
 			q[i] = a
 		} else {
 			q[i] = remote.ShellQuote(a)
 		}
 	}
 	return strings.Join(q, " ")
+}
+
+// shellSafe reports whether a word needs no quotes in a POSIX shell.
+func shellSafe(a string) bool {
+	return a != "" && strings.Trim(a, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_./=:@%+,") == ""
 }
 
 // planFor gathers facts and builds the plan. Without --system it picks a
@@ -567,6 +589,12 @@ func serviceShow(env svcEnv, o svcOpts) int {
 	fmt.Printf("  %s\n\nThat will:\n", cmd)
 	if p.copyBin {
 		fmt.Printf("- copy this binary to %s\n", p.bin)
+		if fi, err := os.Lstat(legacySystemBin); err == nil && fi.Mode().IsRegular() && p.bin == systemBin {
+			fmt.Printf("- replace the old %s with a link to it\n", legacySystemBin)
+		}
+	}
+	if p.svcBin != "" {
+		fmt.Printf("- copy it to %s for the service, owned by %s, so `%s upgrade` can replace it without root\n", p.svcBin, p.runAs, prog)
 	}
 	if p.writeConfig != nil {
 		fmt.Printf("- write %s with the nodes found here:\n", p.config)
@@ -654,6 +682,13 @@ func serviceInstall(env svcEnv, o svcOpts) int {
 			return errf("copy %s: %v", p.bin, err)
 		}
 		fmt.Printf("copied %s to %s\n", env.exe, p.bin)
+		if p.bin == systemBin {
+			if linked, err := linkLegacy(); err != nil {
+				fmt.Printf("warn: %s still holds an old binary: %v\n", legacySystemBin, err)
+			} else if linked {
+				fmt.Printf("pointed %s at %s\n", legacySystemBin, systemBin)
+			}
+		}
 	}
 	if p.writeConfig != nil {
 		if err := p.writeConfig.Validate(); err != nil {
@@ -678,6 +713,18 @@ func serviceInstall(env svcEnv, o svcOpts) int {
 				return errf("%v", err)
 			}
 			joined = added
+		}
+		if err := installServiceBinary(env.exe, p.svcBin, p.store, p.runAs, systemGroup); err != nil {
+			return errf("%v", err)
+		}
+		fmt.Printf("copied %s to %s\n", env.exe, p.svcBin)
+		if err := runsAs(p.svcBin, p.runAs); err != nil {
+			// Perhaps the store's filesystem is mounted noexec.
+			fmt.Printf("warn: %s cannot run %s (%v)\n      The service runs %s instead, and upgrading it needs root.\n", p.runAs, p.svcBin, err, p.bin)
+			os.RemoveAll(filepath.Dir(p.svcBin))
+			o.inPlace = true
+			again, _ := planFor(env, o, false)
+			p.content, p.svcBin = again.content, ""
 		}
 	}
 	if err := os.MkdirAll(filepath.Dir(p.file), 0o755); err != nil {
@@ -710,14 +757,18 @@ func serviceInstall(env svcEnv, o svcOpts) int {
 		agentFlag := map[bool]string{true: " --agent"}[o.agent]
 		fmt.Printf("Config:    %s, then `sudo systemctl reload %s`\n", p.config, p.name)
 		if o.agent {
-			fmt.Printf("Hub:       on the machine that runs your hub, `algodtop remote add HOST --path %s`\n", p.bin)
+			fmt.Printf("Hub:       on the machine that runs your hub, `%s remote add HOST --path %s`\n", prog, p.bin)
 		} else {
 			fmt.Printf("Terminal:  %s, as a member of the %s group\n", name, systemGroup)
 		}
 		if p.listen != "" {
 			fmt.Printf("Web UI:    http://%s on this host, or `ssh -L %s:%s HOST` from another\n", p.listen, portOf(p.listen), p.listen)
 		}
-		fmt.Printf("Upgrade:   run `sudo NEW-BINARY service install --system%s` again\n", agentFlag)
+		if o.agent {
+			fmt.Printf("Upgrade:   `%s upgrade` on the hub, which upgrades this agent with the rest\n", prog)
+		} else {
+			fmt.Printf("Upgrade:   %s upgrade\n", prog)
+		}
 		fmt.Printf("Remove:    sudo %s service uninstall --system%s\n", name, agentFlag)
 		if joined {
 			fmt.Printf("\nAdded %s to the %s group. It applies to new logins, so log in again before using the socket.\n", p.operator, systemGroup)
@@ -728,11 +779,7 @@ func serviceInstall(env svcEnv, o svcOpts) int {
 		if p.listen != "" {
 			fmt.Printf("Web UI:    http://%s\n", p.listen)
 		}
-		if p.mode == "launchd" {
-			fmt.Printf("Upgrade:   launchctl kickstart -k gui/%d/%s\n", env.uid, p.name)
-		} else {
-			fmt.Printf("Upgrade:   systemctl --user restart %s\n", p.name)
-		}
+		fmt.Printf("Upgrade:   %s upgrade\n", prog)
 		fmt.Printf("Remove:    %s service uninstall%s\n", prog, map[bool]string{true: " --agent"}[o.agent])
 		if n := p.lingerNote(env); n != "" {
 			fmt.Printf("\n%s\n", n)
@@ -805,6 +852,65 @@ func copyBinary(src, dst string) error {
 	return os.Rename(tmp, dst)
 }
 
+// linkLegacy replaces an old /usr/local/bin/algodtop with a symlink to
+// systemBin. It leaves the path alone when nothing is there.
+func linkLegacy() (bool, error) {
+	fi, err := os.Lstat(legacySystemBin)
+	if err != nil {
+		return false, nil
+	}
+	if fi.Mode()&fs.ModeSymlink != 0 {
+		if t, err := os.Readlink(legacySystemBin); err == nil && t == systemBin {
+			return false, nil
+		}
+	}
+	tmp := legacySystemBin + ".link"
+	os.Remove(tmp)
+	if err := os.Symlink(systemBin, tmp); err != nil {
+		return false, err
+	}
+	if err := os.Rename(tmp, legacySystemBin); err != nil {
+		os.Remove(tmp)
+		return false, err
+	}
+	return true, nil
+}
+
+// installServiceBinary copies algod.top into a system service's store as
+// bin/algodtop, owned by the account the service runs as. A new store
+// gets the owner and mode that systemd's StateDirectory would give it.
+func installServiceBinary(src, dst, store, owner, group string) error {
+	u, err := user.Lookup(owner)
+	if err != nil {
+		return fmt.Errorf("account %s: %w", owner, err)
+	}
+	g, err := user.LookupGroup(group)
+	if err != nil {
+		return fmt.Errorf("group %s: %w", group, err)
+	}
+	uid, _ := strconv.Atoi(u.Uid)
+	gid, _ := strconv.Atoi(g.Gid)
+	if _, err := os.Stat(store); errors.Is(err, fs.ErrNotExist) {
+		if err := os.MkdirAll(store, 0o750); err != nil {
+			return err
+		}
+		if err := os.Chown(store, uid, gid); err != nil {
+			return err
+		}
+	}
+	dir := filepath.Dir(dst)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	if err := os.Chown(dir, uid, gid); err != nil {
+		return err
+	}
+	if err := copyBinary(src, dst); err != nil {
+		return fmt.Errorf("copy %s: %w", dst, err)
+	}
+	return os.Chown(dst, uid, gid)
+}
+
 // chownConfig gives the service account its config, and the directory
 // when algodtop created it, so the daemon can save edits from the web UI.
 func chownConfig(path, owner string) error {
@@ -868,13 +974,23 @@ func serviceUninstall(env svcEnv, o svcOpts) int {
 	if len(keep) > 0 {
 		fmt.Printf("kept %s; delete them if you no longer need that history\n", strings.Join(keep, " and "))
 	}
+	if p.mode == "systemd-system" && p.store != "" {
+		// The service's own copy is not history.
+		if err := os.RemoveAll(filepath.Join(p.store, "bin")); err == nil {
+			fmt.Printf("removed %s\n", filepath.Join(p.store, "bin"))
+		}
+	}
 	if p.mode == "systemd-system" {
 		// The daemon and the agent share the binary and the group.
 		other := bareServicePlan(env, svcOpts{agent: !o.agent, system: true})
 		if _, err := os.Stat(other.file); err == nil {
 			fmt.Printf("%s still uses %s and the %s group\n", other.name, systemBin, systemGroup)
 		} else {
-			fmt.Printf("kept %s and the %s group; `rm %s` and `groupdel %s` remove them\n", systemBin, systemGroup, systemBin, systemGroup)
+			bins := []string{systemBin}
+			if _, err := os.Lstat(legacySystemBin); err == nil {
+				bins = append(bins, legacySystemBin)
+			}
+			fmt.Printf("kept %s and the %s group; `rm %s` and `groupdel %s` remove them\n", strings.Join(bins, " and "), systemGroup, strings.Join(bins, " "), systemGroup)
 		}
 	}
 	return 0
@@ -997,7 +1113,7 @@ func windowsServiceHelp(agent bool) string {
 		sub, name = "agent", "algodtop-agent"
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "algodtop cannot install a Windows service yet. Run these from an elevated prompt, as the account that owns the algod data directory:\n\n")
+	fmt.Fprintf(&b, "algod.top cannot install a Windows service yet. Run these from an elevated prompt, as the account that owns the algod data directory:\n\n")
 	fmt.Fprintf(&b, "  sc.exe create %s binPath= \"\\\"%s\\\" %s\" start= auto obj= .\\%s password= <password>\n", name, exe, sub, os.Getenv("USERNAME"))
 	fmt.Fprintf(&b, "  sc.exe failure %s reset= 86400 actions= restart/5000/restart/5000/restart/60000\n\n", name)
 	b.WriteString("Until the Windows service handler ships, Task Scheduler (\"At log on\", restart on failure) runs the daemon the same way.\n")

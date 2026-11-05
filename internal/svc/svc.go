@@ -25,7 +25,7 @@ type Spec struct {
 }
 
 // Header is the first line of every file this package writes.
-const Header = "Written by algodtop. `algodtop service install` rewrites it and `algodtop service uninstall` removes it."
+const Header = "Written by algod.top. `algod.top service install` rewrites it and `algod.top service uninstall` removes it."
 
 // SystemdUnit renders a systemd unit with restart-on-failure and the low
 // CPU and I/O priority from DESIGN.md section 16.

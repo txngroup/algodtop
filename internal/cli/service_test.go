@@ -115,7 +115,8 @@ func TestServicePlanLinuxSystem(t *testing.T) {
 	}
 	for _, want := range []string{
 		"User=algorand\nGroup=algodtop\n",
-		"ExecStart=/usr/local/bin/algodtop daemon --config /etc/algodtop/config.json --store-dir /var/lib/algodtop --socket-group algodtop\n",
+		// The service runs its own copy, which its account may replace.
+		"ExecStart=/var/lib/algodtop/bin/algod.top daemon --config /etc/algodtop/config.json --store-dir /var/lib/algodtop --socket-group algodtop\n",
 		"StateDirectory=algodtop\n",
 		"After=network-online.target algorand.service\n",
 		"WantedBy=multi-user.target\n",
@@ -127,11 +128,21 @@ func TestServicePlanLinuxSystem(t *testing.T) {
 	if got := shellJoin(p.controlCmds(env, "start")[1]...); got != "systemctl enable algodtop" {
 		t.Error(got)
 	}
+	if p.bin != "/usr/local/bin/algod.top" || !p.copyBin || p.svcBin != "/var/lib/algodtop/bin/algod.top" {
+		t.Errorf("bin %q copy %v svcBin %q", p.bin, p.copyBin, p.svcBin)
+	}
+
+	// A store its account cannot run binaries from: the service runs the
+	// root-owned copy.
+	if p := buildPlan(env, svcOpts{system: true, inPlace: true}, sys); p.svcBin != "" ||
+		!strings.Contains(p.content, "ExecStart=/usr/local/bin/algod.top daemon ") {
+		t.Errorf("in place: %q\n%s", p.svcBin, p.content)
+	}
 
 	// A binary already in a system directory runs in place.
 	inPlace := env
 	inPlace.exe = "/usr/bin/algodtop"
-	if p := buildPlan(inPlace, svcOpts{system: true}, sys); p.copyBin || p.bin != "/usr/bin/algodtop" {
+	if p := buildPlan(inPlace, svcOpts{system: true}, sys); p.copyBin || p.bin != "/usr/bin/algodtop" || p.svcBin != "/var/lib/algodtop/bin/algod.top" {
 		t.Errorf("%+v", p)
 	}
 
@@ -159,7 +170,7 @@ func TestServicePlanLinuxSystem(t *testing.T) {
 	if p.writeConfig == nil || p.writeConfig.Web.ListenAddr() != "" {
 		t.Fatalf("agent config %+v", p.writeConfig)
 	}
-	if !strings.Contains(p.content, "ExecStart=/usr/local/bin/algodtop agent --config /etc/algodtop/agent.json --store-dir /var/lib/algodtop-agent --socket-group algodtop\n") ||
+	if !strings.Contains(p.content, "ExecStart=/var/lib/algodtop-agent/bin/algod.top agent --config /etc/algodtop/agent.json --store-dir /var/lib/algodtop-agent --socket-group algodtop\n") ||
 		!strings.Contains(p.content, "StateDirectory=algodtop-agent\n") {
 		t.Error(p.content)
 	}

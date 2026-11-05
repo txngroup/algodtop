@@ -58,9 +58,9 @@ func normArch(a string) string {
 // DefaultPath is where install puts the agent.
 func DefaultPath(h Host) string {
 	if h.OS == "windows" {
-		return h.Home + `\algodtop\algodtop.exe`
+		return h.Home + `\algodtop\algod.top.exe`
 	}
-	return "~/.local/bin/algodtop"
+	return "~/.local/bin/algod.top"
 }
 
 // Copy writes the binary through the ssh pipe, so no scp is needed. Unix

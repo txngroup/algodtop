@@ -249,7 +249,7 @@ func Evaluate(s *collector.State, c Context) Status {
 func finish(st Status, s *collector.State, c Context, add func(string, Level, float64, string, ...any), disable func(string, string)) Status {
 	d := c.Daemon
 	if d.Paused {
-		add("algodtop", Critical, 0, "algodtop paused writes at the disk floor")
+		add("algodtop", Critical, 0, "algod.top paused writes at the disk floor")
 	}
 	if drops := d.DroppedSeries[s.Name]; len(drops) > 0 {
 		names := make([]string, 0, len(drops))
@@ -259,19 +259,19 @@ func finish(st Status, s *collector.State, c Context, add func(string, Level, fl
 		if len(names) > 3 {
 			names = append(names[:3], "...")
 		}
-		add("algodtop", Warn, 0, "algodtop dropped series over the cap: %s", strings.Join(names, ", "))
+		add("algodtop", Warn, 0, "algod.top dropped series over the cap: %s", strings.Join(names, ", "))
 	}
 	if msg := d.FloorDeleted[s.Name]; msg != "" {
 		add("algodtop", Warn, 0, "disk floor, %s", msg)
 	}
 	if s.MissedScrapes > 0 && s.Up && !s.Reachable {
-		add("algodtop", Warn, float64(s.MissedScrapes), "algodtop missed scrapes")
+		add("algodtop", Warn, float64(s.MissedScrapes), "algod.top missed scrapes")
 	}
 	if f, ok := d.SharedVolume[s.Name]; ok {
-		add("algodtop", Warn, f*100, "algodtop's data shares a volume with this node at %.0f%% free", f*100)
+		add("algodtop", Warn, f*100, "algod.top's data shares a volume with this node at %.0f%% free", f*100)
 	}
 	if d.ProjectedOver {
-		add("algodtop", Warn, 0, "projected algodtop disk use exceeds free space minus the floor")
+		add("algodtop", Warn, 0, "projected algod.top disk use exceeds free space minus the floor")
 	}
 	for _, u := range s.Unavailable {
 		disable(u, "not available on this platform")

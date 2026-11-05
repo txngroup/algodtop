@@ -20,6 +20,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"algod.top/internal/version"
 )
 
 // PublicKey is the release signing key, base64. It is public, so every
@@ -51,12 +53,29 @@ func URL(ver, name string) string {
 }
 
 // BinaryName returns the release file name for an OS and architecture.
-func BinaryName(goos, goarch string) string {
-	n := fmt.Sprintf("algodtop_%s_%s", goos, goarch)
+func BinaryName(goos, goarch string) string { return binaryName("algod.top", goos, goarch) }
+
+// legacyName is the file name in releases made before the program took
+// the name algod.top.
+func legacyName(goos, goarch string) string { return binaryName("algodtop", goos, goarch) }
+
+func binaryName(prog, goos, goarch string) string {
+	n := fmt.Sprintf("%s_%s_%s", prog, goos, goarch)
 	if goos == "windows" {
 		n += ".exe"
 	}
 	return n
+}
+
+// nameIn picks the platform's file name that a checksums file lists, so
+// an older release with the old names still installs.
+func nameIn(checksums []byte, goos, goarch string) string {
+	if _, err := lookup(checksums, BinaryName(goos, goarch)); err != nil {
+		if _, err := lookup(checksums, legacyName(goos, goarch)); err == nil {
+			return legacyName(goos, goarch)
+		}
+	}
+	return BinaryName(goos, goarch)
 }
 
 func key() (ed25519.PublicKey, error) {
@@ -87,7 +106,7 @@ func VerifyWith(pub ed25519.PublicKey, checksums, sig []byte, name string, binar
 		s = sig
 	}
 	if !ed25519.Verify(pub, checksums, s) {
-		return errors.New("release: checksums signature is not valid for the algodtop release key")
+		return errors.New("release: checksums signature is not valid for the algod.top release key")
 	}
 	want, err := lookup(checksums, name)
 	if err != nil {
@@ -133,63 +152,125 @@ func Checksums(dir string, names []string) ([]byte, error) {
 // FromDir reads and verifies a binary from a local release directory
 // holding checksums.txt, checksums.txt.sig and the binaries.
 func FromDir(dir, goos, goarch string) ([]byte, error) {
-	name := BinaryName(goos, goarch)
-	sums, err := os.ReadFile(filepath.Join(dir, "checksums.txt"))
-	if err != nil {
-		return nil, err
-	}
-	sig, err := os.ReadFile(filepath.Join(dir, "checksums.txt.sig"))
-	if err != nil {
-		return nil, err
-	}
-	bin, err := os.ReadFile(filepath.Join(dir, name))
-	if err != nil {
-		return nil, err
-	}
-	if err := Verify(sums, sig, name, bin); err != nil {
-		return nil, err
-	}
-	return bin, nil
+	f, err := FilesFromDir(dir, goos, goarch)
+	return f.Binary, err
 }
+
+// FilesFromDir reads and verifies one platform's files from a local
+// release directory.
+func FilesFromDir(dir, goos, goarch string) (Files, error) {
+	var f Files
+	var err error
+	if f.Checksums, err = os.ReadFile(filepath.Join(dir, "checksums.txt")); err != nil {
+		return Files{}, err
+	}
+	f.Name = nameIn(f.Checksums, goos, goarch)
+	if f.Signature, err = os.ReadFile(filepath.Join(dir, "checksums.txt.sig")); err != nil {
+		return Files{}, err
+	}
+	if f.Binary, err = os.ReadFile(filepath.Join(dir, f.Name)); err != nil {
+		return Files{}, err
+	}
+	if err := f.Verify(); err != nil {
+		return Files{}, err
+	}
+	return f, nil
+}
+
+// Files is one platform's binary from a release, with the signed
+// checksums file that vouches for it. The hub forwards all three to an
+// agent, which checks the signature again before it installs anything.
+type Files struct {
+	Version   string // the release's pseudo-version, when known
+	Name      string // the release file name, such as algodtop_linux_amd64
+	Checksums []byte
+	Signature []byte
+	Binary    []byte
+}
+
+// Verify checks the files against the built-in release key.
+func (f Files) Verify() error { return Verify(f.Checksums, f.Signature, f.Name, f.Binary) }
 
 // Fetch downloads a release on the hub, so the remote needs no internet
 // access, and verifies it.
 func Fetch(ctx context.Context, ver, goos, goarch string) ([]byte, error) {
+	f, err := FetchFiles(ctx, ver, goos, goarch)
+	return f.Binary, err
+}
+
+// FetchFiles downloads and verifies one platform's files of a release.
+// "latest" is resolved to a version first, so the three downloads come
+// from the same release even if a new one is published meanwhile.
+func FetchFiles(ctx context.Context, ver, goos, goarch string) (Files, error) {
 	if _, err := key(); err != nil {
-		return nil, err
+		return Files{}, err
 	}
-	get := func(name string) ([]byte, error) {
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, URL(ver, name), nil)
+	if ver == "latest" {
+		v, err := Latest(ctx)
 		if err != nil {
-			return nil, err
+			return Files{}, err
 		}
-		req.Header.Set("User-Agent", "algodtop")
-		c := &http.Client{Timeout: 10 * time.Minute}
-		resp, err := c.Do(req)
-		if err != nil {
-			return nil, err
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode != 200 {
-			return nil, fmt.Errorf("GET %s: %s", URL(ver, name), resp.Status)
-		}
-		return io.ReadAll(io.LimitReader(resp.Body, 256<<20))
+		ver = v
 	}
-	sums, err := get("checksums.txt")
+	f := Files{Version: ver}
+	var err error
+	if f.Checksums, err = get(ctx, URL(ver, "checksums.txt")); err != nil {
+		return Files{}, err
+	}
+	f.Name = nameIn(f.Checksums, goos, goarch)
+	if f.Signature, err = get(ctx, URL(ver, "checksums.txt.sig")); err != nil {
+		return Files{}, err
+	}
+	if f.Binary, err = get(ctx, URL(ver, f.Name)); err != nil {
+		return Files{}, err
+	}
+	if err := f.Verify(); err != nil {
+		return Files{}, err
+	}
+	return f, nil
+}
+
+func get(ctx context.Context, url string) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
-	sig, err := get("checksums.txt.sig")
+	req.Header.Set("User-Agent", "algodtop")
+	c := &http.Client{Timeout: 10 * time.Minute}
+	resp, err := c.Do(req)
 	if err != nil {
 		return nil, err
 	}
-	name := BinaryName(goos, goarch)
-	bin, err := get(name)
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("GET %s: %s", url, resp.Status)
+	}
+	return io.ReadAll(io.LimitReader(resp.Body, 256<<20))
+}
+
+// Latest returns the newest release's version. GitHub redirects
+// releases/latest to releases/tag/TAG, and the tag is the pseudo-version
+// without its "v0.0.0-".
+func Latest(ctx context.Context) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, BaseURL+"/latest", nil)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	if err := Verify(sums, sig, name, bin); err != nil {
-		return nil, err
+	req.Header.Set("User-Agent", "algodtop")
+	c := &http.Client{Timeout: 30 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	resp, err := c.Do(req)
+	if err != nil {
+		return "", err
 	}
-	return bin, nil
+	resp.Body.Close()
+	loc := resp.Header.Get("Location")
+	i := strings.LastIndex(loc, "/tag/")
+	if resp.StatusCode/100 != 3 || i < 0 {
+		return "", fmt.Errorf("GET %s/latest: %s, no release tag in the redirect", BaseURL, resp.Status)
+	}
+	v := "v0.0.0-" + loc[i+len("/tag/"):]
+	if _, ok := version.TimeOf(v); !ok {
+		return "", fmt.Errorf("the latest release tag %q is not a version", loc[i+len("/tag/"):])
+	}
+	return v, nil
 }

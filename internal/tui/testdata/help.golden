@@ -1,7 +1,8 @@
-algodtop  host algod-host  10:52:14  daemon up 3d 4h  store 2.1GB  nodes 5: 3 OK, 1 Warn, 1 Critical                    
+algod.top  host algod-host  10:52:14  daemon up 3d 4h  store 2.1GB  nodes 5: 3 OK, 1 Warn, 1 Critical                   
                                                                                                                         
 KEYS                                                                                                                    
   Up, Down, Enter, Esc    Select a node, open it, go back                                                               
+  PgUp, PgDn, Home, End   On a node, scroll the open pane; Up and Down scroll too                                       
   <, >                    Change the sort column                                                                        
   p, e, l                 Peers, events or log templates pane                                                           
   r                       Cycle the range: 1h, 6h, 24h, 7d, 30d, 1y, all                                                
@@ -17,4 +18,3 @@ KEYS
   q                       Quit                                                                                          
                                                                                                                         
 The time cursor turns the screen into a view of the past: every value shows the state at that moment.                   
-Press any key to go back.                                                                                               

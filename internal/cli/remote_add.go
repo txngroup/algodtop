@@ -25,7 +25,7 @@ import (
 func (r *remoteCmd) add(ctx context.Context) int {
 	paths := []string{r.path}
 	if r.path == "" {
-		paths = []string{systemBin, "~/.local/bin/algodtop"}
+		paths = []string{systemBin, legacySystemBin, "~/.local/bin/algod.top", "~/.local/bin/algodtop"}
 	}
 	var st api.DaemonStatus
 	var nodes []api.NodeView
@@ -41,7 +41,7 @@ func (r *remoteCmd) add(ctx context.Context) int {
 		errs = append(errs, fmt.Sprintf("  %s: %v", p, err))
 	}
 	if used == "" {
-		return errf("no agent answers on %s:\n%s\nInstall one there with `sudo algodtop service install --system --agent`, or pass --path", r.hostArg, strings.Join(errs, "\n"))
+		return errf("no agent answers on %s:\n%s\nInstall one there with `%s remote install %s`, or pass --path", r.hostArg, strings.Join(errs, "\n"), prog, r.hostArg)
 	}
 	if !st.Agent {
 		return errf("%s on %s answers as a daemon, not an agent. Install the agent there with `sudo %s service install --system --agent`", used, r.hostArg, used)
@@ -100,6 +100,9 @@ func (r *remoteCmd) add(ctx context.Context) int {
 	for i := range r.cfg.Remotes {
 		if r.cfg.Remotes[i].Name == r.name {
 			r.cfg.Remotes[i].AgentConfig = st.ConfigPath
+			if r.root != "" {
+				r.cfg.Remotes[i].Root = r.root
+			}
 			r.cfg.Remotes[i].Names = nil
 			if len(names) > 0 {
 				r.cfg.Remotes[i].Names = names
@@ -190,10 +193,10 @@ func (r *remoteCmd) systemSync() int {
 	}
 	b, _ := json.MarshalIndent(map[string]any{"alerts": r.cfg.Alerts, "channels": r.cfg.Channels, "heartbeat": r.cfg.Heartbeat}, "", "  ")
 	fmt.Printf(`The agent on %s is a system service, and %s belongs to its account, so
-algodtop cannot write it over SSH. Merge these settings into it on the host,
-then run `+"`sudo systemctl reload algodtop-agent`"+`:
+algod.top cannot write it over SSH. Merge these settings into it on the host,
+then run `+"`%s`"+`:
 
 %s
-`, r.hostArg, cfgPath, indent(string(b)))
+`, r.hostArg, cfgPath, asRoot(r.knownRoot(), "systemctl reload algodtop-agent"), indent(string(b)))
 	return 1
 }

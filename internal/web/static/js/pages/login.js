@@ -24,7 +24,7 @@ export function mount(root, app, done) {
       }
     },
   } },
-  h("h1", null, "algodtop"),
+  h("h1", null, "algod.top"),
   h("p", { class: "muted" }, "This daemon needs a password. The read-only password shows status and charts; the full password also allows annotations, silences and settings."),
   h("label", null, "Password", h("br"), pw),
   btn, msg);

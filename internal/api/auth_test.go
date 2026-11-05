@@ -1,7 +1,10 @@
 package api
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"mime/multipart"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -11,10 +14,14 @@ import (
 
 	"algod.top/internal/model"
 	"algod.top/internal/query"
+	"algod.top/internal/release"
 	"algod.top/internal/store"
 )
 
-type stubHub struct{ db *store.DB }
+type stubHub struct {
+	db       *store.DB
+	upgraded *release.Files
+}
 
 func (h *stubHub) Nodes() []NodeView                                 { return []NodeView{} }
 func (h *stubHub) Node(string) (NodeView, bool)                      { return NodeView{}, false }
@@ -34,6 +41,13 @@ func (h *stubHub) ConfigJSON() ([]byte, error)             { return []byte("{}")
 func (h *stubHub) PutConfig(context.Context, []byte) error { return nil }
 func (h *stubHub) AgentBatches(context.Context, string, time.Duration) ([]byte, string, error) {
 	return nil, "", nil
+}
+func (h *stubHub) Upgrade(_ context.Context, f release.Files) (release.Result, error) {
+	h.upgraded = &f
+	if f.Name != "algodtop_linux_amd64" {
+		return release.Result{}, &release.InstallError{Code: release.CodePlatform, Msg: "wrong platform"}
+	}
+	return release.Result{From: "a", To: "b", Restart: true}, nil
 }
 
 func newTestServer(t *testing.T, ac AuthConfig) *httptest.Server {
@@ -176,3 +190,53 @@ func decodeBody(r *http.Response, v any) {
 }
 
 func jsonDecode(r *http.Response, v any) { _ = decodeJSON(r.Body, v) }
+
+// TestUpgradeSocketOnly: the upgrade endpoint answers on the unix socket,
+// which has no Auth, and is hidden on TCP.
+func TestUpgradeSocketOnly(t *testing.T) {
+	db, err := store.Open(store.Options{Dir: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	post := func(srv *httptest.Server, name string) *http.Response {
+		var body bytes.Buffer
+		mw := multipart.NewWriter(&body)
+		for _, p := range [][2]string{{"checksums", "checksums.txt"}, {"signature", "checksums.txt.sig"}, {"binary", name}} {
+			w, _ := mw.CreateFormFile(p[0], p[1])
+			w.Write([]byte(p[0]))
+		}
+		mw.Close()
+		resp, err := http.Post(srv.URL+"/api/admin/upgrade", mw.FormDataContentType(), &body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return resp
+	}
+	hub := &stubHub{db: db}
+	sock := httptest.NewServer(New(Options{Hub: hub}))
+	defer sock.Close()
+	resp := post(sock, "algodtop_linux_amd64")
+	var res release.Result
+	json.NewDecoder(resp.Body).Decode(&res)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK || !res.Restart || hub.upgraded == nil || string(hub.upgraded.Binary) != "binary" || string(hub.upgraded.Signature) != "signature" {
+		t.Fatalf("%s %+v %+v", resp.Status, res, hub.upgraded)
+	}
+	resp = post(sock, "algodtop_plan9_mips")
+	var ie release.InstallError
+	json.NewDecoder(resp.Body).Decode(&ie)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusConflict || ie.Code != release.CodePlatform {
+		t.Errorf("%s %+v", resp.Status, ie)
+	}
+
+	hub.upgraded = nil
+	tcp := httptest.NewServer(New(Options{Hub: hub, Auth: NewAuth(AuthConfig{})}))
+	defer tcp.Close()
+	resp = post(tcp, "algodtop_linux_amd64")
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound || hub.upgraded != nil {
+		t.Errorf("TCP: %s, upgraded %v", resp.Status, hub.upgraded != nil)
+	}
+}
