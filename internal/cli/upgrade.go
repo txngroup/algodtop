@@ -445,7 +445,7 @@ func (r *remoteCmd) upgrade(ctx context.Context) int {
 	}
 	res, err := c.upgrade(ctx, f)
 	c.Close()
-	system := strings.HasPrefix(st.ConfigPath, "/etc/") || r.systemAgent()
+	system := remote.SystemAgentSocketFor(st.ConfigPath) != "" || r.systemAgent()
 	switch {
 	case err == nil && res.Same:
 		fmt.Printf("%s: already runs %s\n", label, res.To)
@@ -532,6 +532,14 @@ func (r *remoteCmd) switchSystemAgent(ctx context.Context, f release.Files, runn
 	}
 	r.host = h
 	tmp := remote.DefaultPath(h)
+	if h.OS == "windows" {
+		// A Windows service always runs its own copy. Installing it again
+		// from the new release puts the service right.
+		if err := r.ssh.Copy(ctx, h, tmp, f.Binary); err != nil {
+			return errf("%s: copy: %v", label, err)
+		}
+		return r.installWindows(ctx, tmp, nil)
+	}
 	fmt.Printf("%s: the system agent runs %s from a binary root owns. It needs root once to move onto its own copy, which it then upgrades itself.\n", label, running)
 	if !r.confirm(fmt.Sprintf("copy %s to %s on %s?", f.Version, tmp, r.hostArg)) {
 		return 1

@@ -139,8 +139,13 @@ func sshError(t Target, err error, stderr string) error {
 // ShellQuote quotes a string for a POSIX shell.
 func ShellQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'" }
 
-// remotePath renders a path for a POSIX shell, expanding a leading ~/.
+// remotePath renders a path for the remote shell: a POSIX shell, which
+// expands a leading ~/, or cmd, the default Windows OpenSSH shell, for a
+// Windows path such as C:\Users\me\algod.top.exe.
 func remotePath(p string) string {
+	if windowsPath(p) {
+		return `"` + p + `"`
+	}
 	if p == "~" {
 		return `"$HOME"`
 	}
@@ -401,20 +406,39 @@ func CheckSSH() error {
 // the absolute path recorded at install rather than relying on PATH.
 func RemoteBinary(p string) string { return remotePath(p) }
 
+// windowsPath reports whether p is a Windows path, such as C:\x or
+// \\server\share\x.
+func windowsPath(p string) bool {
+	return (len(p) >= 3 && p[1] == ':' && (p[2] == '\\' || p[2] == '/')) || strings.HasPrefix(p, `\\`)
+}
+
 // SystemAgentSocket is the socket of a system agent service on Linux, as
 // `algod.top service install --system --agent` sets it up.
 const SystemAgentSocket = "/var/lib/algodtop-agent/agent.sock"
 
+// SystemAgentSocketFor is the socket of a system agent with this config,
+// or "" for a user agent. On Linux the config is under /etc. On Windows
+// the service keeps agent.json and agent.sock together under
+// %ProgramData%\algodtop-agent.
+func SystemAgentSocketFor(agentConfig string) string {
+	switch {
+	case strings.HasPrefix(agentConfig, "/etc/"):
+		return SystemAgentSocket
+	case windowsPath(agentConfig) && strings.HasSuffix(strings.ToLower(agentConfig), `\algodtop-agent\agent.json`):
+		return agentConfig[:len(agentConfig)-len("agent.json")] + "agent.sock"
+	}
+	return ""
+}
+
 // AgentRelay is the remote command the hub runs to reach an agent:
-// `stdio --agent` through the binary at path. For a system agent, whose
-// config is under /etc, it names the service's socket and adds
-// --no-start, so the relay neither reaches nor starts a temporary agent
-// as the SSH user while the service restarts. A relay of any version
-// takes these flags.
+// `stdio --agent` through the binary at path. For a system agent it names
+// the service's socket and adds --no-start, so the relay neither reaches
+// nor starts a temporary agent as the SSH user while the service
+// restarts. A relay of any version takes these flags.
 func AgentRelay(path, agentConfig string) string {
 	cmd := AgentBinary(path) + " stdio --agent"
-	if strings.HasPrefix(agentConfig, "/etc/") {
-		cmd += " --no-start --socket " + SystemAgentSocket
+	if s := SystemAgentSocketFor(agentConfig); s != "" {
+		cmd += " --no-start --socket " + remotePath(s)
 	}
 	return cmd
 }

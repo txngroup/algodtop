@@ -24,6 +24,9 @@ jobs:
         run: go vet ./...
       - name: test
         run: go test -race -timeout 15m ./...
+        env:
+          # The Windows runner is elevated, so it can install a real service.
+          ALGODTOP_TEST_WINSVC: ${{ matrix.os == 'windows-latest' && '1' || '' }}
       - name: build
         shell: bash
         env:

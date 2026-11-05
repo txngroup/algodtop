@@ -172,6 +172,7 @@ algod.top passwd --token      # a read-only bearer token for scripts and -H http
 <li>It shows the command, such as <code>ssh -t host 'su -c "$HOME/.local/bin/algod.top service install --system --agent"'</code>, and runs it once you agree, so you type the password in your terminal.</li>
 <li>It then records the agent in the hub config.</li>
 </ul>
+<p>On a Windows host, <code>remote install</code> installs the agent as a Windows service over SSH. The SSH account must be an administrator, whose OpenSSH sessions Windows runs elevated.</p>
 <p>An agent installed some other way joins with <code>algod.top remote add host</code>, which checks that the agent answers before it saves anything. The hub names agent nodes <code>&lt;remote&gt;/&lt;node&gt;</code>. If the hub already watched that host over SSH, <code>remote add</code> offers to replace that node. The agent's node then takes over its name and history. <code>algod.top remote sync</code> and <code>remove</code> cover the rest, and <a href="#upgrade">Upgrading</a> covers new releases.</p>
 
 <h2 id="service">Running as a service</h2>
@@ -181,7 +182,7 @@ algod.top passwd --token      # a read-only bearer token for scripts and -H http
 <tr><td>macOS</td><td>A launchd user agent, <code>~/Library/LaunchAgents/top.algod.daemon.plist</code>. It starts at login and logs to <code>~/Library/Logs/algodtop.log</code>.</td></tr>
 <tr><td>Linux, algod runs as you</td><td>A systemd user unit, <code>~/.config/systemd/user/algodtop.service</code>. It starts at login, or at boot after <code>sudo loginctl enable-linger $USER</code>. Logs: <code>journalctl --user -u algodtop</code>.</td></tr>
 <tr><td>Linux, algod runs as another account</td><td>A system service like <code>algorand.service</code>, from <code>sudo algod.top service install --system</code>. See below.</td></tr>
-<tr><td>Windows</td><td><code>algod.top service</code> prints the <code>sc.exe</code> commands. It does not install a Windows service yet.</td></tr>
+<tr><td>Windows</td><td>A Windows service, from <code>algod.top service install</code> in an elevated prompt. See below.</td></tr>
 </table>
 <p>A package install runs algod as the <code>algorand</code> account from <code>/var/lib/algorand</code>. The system service does the same: it runs as the owner of the data directory, from boot.</p>
 <ul>
@@ -191,6 +192,13 @@ algod.top passwd --token      # a read-only bearer token for scripts and -H http
 <li>It creates an <code>algodtop</code> group that may use the service's socket, and adds the person running the install to it. Members can use the terminal UI without sudo after they log in again.</li>
 </ul>
 <p>Running <code>algod.top daemon</code> in a terminal or tmux needs no service. The install refuses while such a daemon uses the same store.</p>
+<p>On Windows, run <code>algod.top service install</code>, or <code>algod.top service install --agent</code>, from PowerShell or Terminal opened with Run as administrator. It finds the nodes on the machine, including those FUNC runs from go-algo-win, and registers a service that starts at boot:</p>
+<ul>
+<li>It runs as LocalSystem, so it can read the figures of an algod that FUNC runs under its own service account.</li>
+<li>It keeps its config, socket, store, its own copy of algod.top and its log in <code>C:\ProgramData\algodtop</code>, or <code>C:\ProgramData\algodtop-agent</code>, open only to SYSTEM and Administrators. Use the terminal UI and CLI from an elevated prompt.</li>
+<li>The service manager restarts it after a failure, and after <code>algod.top upgrade</code> installs a new release.</li>
+<li>Its log is <code>log\algod.top.log</code> in that directory.</li>
+</ul>
 
 <h2 id="upgrade">Upgrading</h2>
 <p>On the hub, run:</p>
@@ -199,7 +207,7 @@ algod.top passwd --token      # a read-only bearer token for scripts and -H http
 <ul>
 <li>The hub downloads the release and sends it over the SSH connection it already uses, so servers need no internet access.</li>
 <li>The daemon or agent checks the release signature with its own built-in key, and refuses a release older than the one it runs.</li>
-<li>It replaces its binary and restarts in the same process, so systemd and launchd see no change. The agent buffers meanwhile, so the hub misses no data.</li>
+<li>It replaces its binary and restarts in the same process, so systemd and launchd see no change. A Windows service stops, and the service manager starts it again on the new binary. The agent buffers meanwhile, so the hub misses no data.</li>
 </ul>
 <p>An agent installed as a system service before this release runs a binary that root owns, so it needs root once more. <code>algod.top upgrade</code> says so, copies the release to the host, and runs the service install there with your <code>su</code> or <code>sudo</code>, as for a new agent. After that, upgrades need no root.</p>
 <p>The daemon looks for a newer release once a day. When one exists, the status line of both UIs and the Settings page say so. Set <code>"update_check": false</code> in the config to stop the check. The daemon never upgrades by itself.</p>

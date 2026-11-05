@@ -510,7 +510,13 @@ func runDaemon(args []string, agent bool) int {
 		}
 	}
 	logger := log.New(os.Stderr, prog+": ", log.LstdFlags)
-	o := daemon.Options{ConfigPath: cfg.Path, Config: cfg, Agent: agent, Logger: logger}
+	service := underServiceManager()
+	if service {
+		// A Windows service has no console. Its log sits beside its config.
+		logger = log.New(serviceLog(cfg.Path), prog+": ", log.LstdFlags)
+		removeOldBinary()
+	}
+	o := daemon.Options{ConfigPath: cfg.Path, Config: cfg, Agent: agent, Logger: logger, Supervised: service}
 	if !agent {
 		o.Static = web.FS
 	}
@@ -520,6 +526,10 @@ func runDaemon(args []string, agent bool) int {
 			return errf("another %s daemon is using %s", prog, cfg.StorePath())
 		}
 		return errf("%v", err)
+	}
+	if service {
+		name := map[bool]string{true: "algodtop-agent", false: "algodtop"}[agent]
+		return runService(name, d.Run, func() bool { return d.RestartExe() != "" }, logger.Printf)
 	}
 	ctx, cancel := signalContext()
 	defer cancel()
@@ -778,11 +788,14 @@ func cmdStdio(args []string) int {
 		if agentF.Bool() {
 			path = filepath.Join(filepath.Dir(path), "agent.sock")
 		}
-		if runtime.GOOS == "linux" {
+		switch runtime.GOOS {
+		case "linux":
 			also = []string{systemSocket()}
 			if agentF.Bool() {
 				also = []string{systemAgentSocket()}
 			}
+		case "windows":
+			also = []string{windowsSocket(agentF.Bool())}
 		}
 	}
 	// An agent or daemon service installed on this machine owns its

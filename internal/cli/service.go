@@ -49,6 +49,9 @@ const (
 func systemSocket() string      { return filepath.Join(systemStore, "algodtop.sock") }
 func systemAgentSocket() string { return remote.SystemAgentSocket }
 
+// windowsSocket is the Windows service's socket.
+func windowsSocket(agent bool) string { return windowsPlan(os.Getenv("ProgramData"), agent).socket }
+
 type svcOpts struct {
 	agent  bool
 	system bool
@@ -72,6 +75,8 @@ type svcEnv struct {
 	linger    string // loginctl's Linger for the current account: yes, no or ""
 	sudoUser  string // $SUDO_USER, the person behind a root install
 	exeOwner  string // the account that owns this binary
+	// programData is %ProgramData% on Windows, where a service lives.
+	programData string
 }
 
 // svcFacts is what the service will monitor.
@@ -139,6 +144,9 @@ func cmdService(args []string) int {
 		}
 	}
 	env := currentEnv()
+	if env.goos == "windows" {
+		return windowsService(sub, env, o)
+	}
 	switch sub {
 	case "show":
 		return serviceShow(env, o)
@@ -153,7 +161,7 @@ func cmdService(args []string) int {
 }
 
 func currentEnv() svcEnv {
-	e := svcEnv{goos: runtime.GOOS, uid: os.Getuid(), xdgConfig: os.Getenv("XDG_CONFIG_HOME")}
+	e := svcEnv{goos: runtime.GOOS, uid: os.Getuid(), xdgConfig: os.Getenv("XDG_CONFIG_HOME"), programData: os.Getenv("ProgramData")}
 	e.exe, _ = os.Executable()
 	e.home, _ = os.UserHomeDir()
 	if u, err := user.Current(); err == nil {
@@ -260,7 +268,7 @@ func buildPlan(env svcEnv, o svcOpts, f svcFacts) svcPlan {
 	}
 	switch {
 	case env.goos == "windows":
-		p.problem = windowsServiceHelp(o.agent)
+		p.problem = fmt.Sprintf("On Windows, `%s service install` registers a Windows service from an elevated prompt.", prog)
 		return p
 	case env.goos == "darwin":
 		p.mode, p.name = "launchd", label
@@ -1030,10 +1038,6 @@ func bareServicePlan(env svcEnv, o svcOpts) svcPlan {
 }
 
 func serviceStatus(env svcEnv, o svcOpts) int {
-	if env.goos == "windows" {
-		fmt.Println(windowsServiceHelp(o.agent))
-		return 0
-	}
 	plans := []svcPlan{bareServicePlan(env, svcOpts{agent: o.agent})}
 	if env.goos == "linux" {
 		plans = append(plans, bareServicePlan(env, svcOpts{agent: o.agent, system: true}))
@@ -1069,8 +1073,11 @@ func daemonSockets(cfg *config.Config, ok bool) []string {
 		paths = append(paths, cfg.SocketPath())
 	}
 	paths = append(paths, config.DefaultSocket())
-	if runtime.GOOS == "linux" {
+	switch runtime.GOOS {
+	case "linux":
 		paths = append(paths, systemSocket())
+	case "windows":
+		paths = append(paths, windowsSocket(false))
 	}
 	return slices.Compact(paths)
 }
@@ -1079,6 +1086,9 @@ func daemonSockets(cfg *config.Config, ok bool) []string {
 // of the daemon, or of the agent, are installed on this machine.
 func servicesInstalled(agent bool) (system, user bool) {
 	env := currentEnv()
+	if env.goos == "windows" {
+		return winSvc != nil && winSvc.exists(windowsPlan(env.programData, agent).name), false
+	}
 	if env.goos == "linux" {
 		_, err := os.Stat(bareServicePlan(env, svcOpts{agent: agent, system: true}).file)
 		system = err == nil
@@ -1139,6 +1149,9 @@ func hintFor(err error) string {
 // systemSocketHint explains a system service's socket that this account
 // cannot reach, or returns "".
 func systemSocketHint(path string, err error) string {
+	if runtime.GOOS == "windows" && (path == windowsSocket(false) || path == windowsSocket(true)) && errors.Is(err, fs.ErrPermission) {
+		return fmt.Sprintf("the %s Windows service's socket %s is for Administrators. Run this from an elevated prompt (Run as administrator)", prog, path)
+	}
 	if runtime.GOOS != "linux" || (path != systemSocket() && path != systemAgentSocket()) || !errors.Is(err, fs.ErrPermission) {
 		return ""
 	}
@@ -1164,27 +1177,6 @@ func systemSocketHint(path string, err error) string {
 		return fmt.Sprintf("%s joined the %s group after this login began. Log in again to use the system service's socket %s", u.Username, systemGroup, path)
 	}
 	return fmt.Sprintf("the %s system service's socket %s refused this account. Install the service again with this binary to open it to the %s group", prog, path, systemGroup)
-}
-
-// windowsServiceHelp prints the sc.exe command that registers the
-// service. A service that runs as a user account needs that account's
-// password at install time, so algodtop prints the command rather than
-// collecting the password itself. The service control handler needs
-// golang.org/x/sys/windows/svc, which is pending approval (DESIGN.md
-// section 22); until then run the daemon under a wrapper such as WinSW or
-// from Task Scheduler at logon.
-func windowsServiceHelp(agent bool) string {
-	exe, _ := os.Executable()
-	sub, name := "daemon", "algodtop"
-	if agent {
-		sub, name = "agent", "algodtop-agent"
-	}
-	var b strings.Builder
-	fmt.Fprintf(&b, "algod.top cannot install a Windows service yet. Run these from an elevated prompt, as the account that owns the algod data directory:\n\n")
-	fmt.Fprintf(&b, "  sc.exe create %s binPath= \"\\\"%s\\\" %s\" start= auto obj= .\\%s password= <password>\n", name, exe, sub, os.Getenv("USERNAME"))
-	fmt.Fprintf(&b, "  sc.exe failure %s reset= 86400 actions= restart/5000/restart/5000/restart/60000\n\n", name)
-	b.WriteString("Until the Windows service handler ships, Task Scheduler (\"At log on\", restart on failure) runs the daemon the same way.\n")
-	return b.String()
 }
 
 // toolPath finds a system tool. A root shell from plain su keeps the

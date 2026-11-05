@@ -176,7 +176,7 @@ func (r *remoteCmd) probe(ctx context.Context, path string) (api.DaemonStatus, [
 func (r *remoteCmd) systemAgent() bool {
 	for _, x := range r.cfg.Remotes {
 		if x.Name == r.name {
-			return strings.HasPrefix(x.AgentConfig, "/etc/")
+			return remote.SystemAgentSocketFor(x.AgentConfig) != ""
 		}
 	}
 	return false
@@ -192,11 +192,15 @@ func (r *remoteCmd) systemSync() int {
 		}
 	}
 	b, _ := json.MarshalIndent(map[string]any{"alerts": r.cfg.Alerts, "channels": r.cfg.Channels, "heartbeat": r.cfg.Heartbeat}, "", "  ")
+	reload := asRoot(r.knownRoot(), "systemctl reload algodtop-agent")
+	if strings.Contains(cfgPath, `\`) {
+		reload = prog + " reload --agent, from an elevated prompt"
+	}
 	fmt.Printf(`The agent on %s is a system service, and %s belongs to its account, so
 algod.top cannot write it over SSH. Merge these settings into it on the host,
 then run `+"`%s`"+`:
 
 %s
-`, r.hostArg, cfgPath, asRoot(r.knownRoot(), "systemctl reload algodtop-agent"), indent(string(b)))
+`, r.hostArg, cfgPath, reload, indent(string(b)))
 	return 1
 }

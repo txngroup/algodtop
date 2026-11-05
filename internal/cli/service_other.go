@@ -3,7 +3,9 @@
 package cli
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"os/user"
@@ -57,3 +59,12 @@ func runsAs(path, account string) error {
 	}
 	return nil
 }
+
+// Only Windows has a service control manager to run under.
+func underServiceManager() bool { return false }
+
+func serviceLog(string) io.Writer { return io.Discard }
+
+func runService(string, func(context.Context) error, func() bool, func(string, ...any)) int { return 1 }
+
+func removeOldBinary() {}

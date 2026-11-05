@@ -80,8 +80,15 @@ func TestParseURLRejectsOptions(t *testing.T) {
 
 func TestAgentRelay(t *testing.T) {
 	// A system agent: straight to its socket, never a temporary agent.
-	if got := AgentRelay("/usr/local/bin/algodtop", "/etc/algodtop/agent.json"); got != "'/usr/local/bin/algodtop' stdio --agent --no-start --socket /var/lib/algodtop-agent/agent.sock" {
+	if got := AgentRelay("/usr/local/bin/algodtop", "/etc/algodtop/agent.json"); got != "'/usr/local/bin/algodtop' stdio --agent --no-start --socket '/var/lib/algodtop-agent/agent.sock'" {
 		t.Error(got)
+	}
+	// A Windows service: cmd quotes, and its socket beside its config.
+	if got := AgentRelay(`C:\Users\a\AppData\Local\algodtop\algod.top.exe`, `C:\ProgramData\algodtop-agent\agent.json`); got != `"C:\Users\a\AppData\Local\algodtop\algod.top.exe" stdio --agent --no-start --socket "C:\ProgramData\algodtop-agent\agent.sock"` {
+		t.Error(got)
+	}
+	if SystemAgentSocketFor(`C:\Users\a\AppData\Roaming\algodtop\agent.json`) != "" {
+		t.Error("a user agent's config taken for a service's")
 	}
 	// A user agent may run for the life of the connection.
 	if got := AgentRelay("~/.local/bin/algod.top", "~/.config/algodtop/agent.json"); got != `"$HOME"/'.local/bin/algod.top' stdio --agent` {
