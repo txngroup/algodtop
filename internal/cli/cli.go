@@ -510,7 +510,13 @@ func runDaemon(args []string, agent bool) int {
 		}
 	}
 	logger := log.New(os.Stderr, prog+": ", log.LstdFlags)
-	o := daemon.Options{ConfigPath: cfg.Path, Config: cfg, Agent: agent, Logger: logger}
+	service := underServiceManager()
+	if service {
+		// A Windows service has no console. Its log sits beside its config.
+		logger = log.New(serviceLog(cfg.Path), prog+": ", log.LstdFlags)
+		removeOldBinary()
+	}
+	o := daemon.Options{ConfigPath: cfg.Path, Config: cfg, Agent: agent, Logger: logger, Supervised: service}
 	if !agent {
 		o.Static = web.FS
 	}
@@ -520,6 +526,10 @@ func runDaemon(args []string, agent bool) int {
 			return errf("another %s daemon is using %s", prog, cfg.StorePath())
 		}
 		return errf("%v", err)
+	}
+	if service {
+		name := map[bool]string{true: "algodtop-agent", false: "algodtop"}[agent]
+		return runService(name, d.Run, func() bool { return d.RestartExe() != "" }, logger.Printf)
 	}
 	ctx, cancel := signalContext()
 	defer cancel()
@@ -761,7 +771,7 @@ func cmdStdio(args []string) int {
 	}
 	path := sockF.String()
 	var cfg *config.Config
-	var also []string // a system service's socket, tried after the user's
+	var also []string // a system service's socket
 	if path == "" {
 		cp := cfgF.String()
 		if agentF.Bool() && cp == "" {
@@ -778,31 +788,44 @@ func cmdStdio(args []string) int {
 		if agentF.Bool() {
 			path = filepath.Join(filepath.Dir(path), "agent.sock")
 		}
-		if runtime.GOOS == "linux" {
+		switch runtime.GOOS {
+		case "linux":
 			also = []string{systemSocket()}
 			if agentF.Bool() {
 				also = []string{systemAgentSocket()}
 			}
+		case "windows":
+			also = []string{windowsSocket(agentF.Bool())}
 		}
 	}
-	conn, err := net.Dial("unix", fsx.SocketAddr(path))
-	for _, p := range also {
-		if err == nil {
-			break
+	// An agent or daemon service installed on this machine owns its
+	// socket. stdio tries it first and never starts a second agent beside
+	// it, which would hold the service's socket or store while the
+	// service restarts, as it does after an upgrade.
+	sysInstalled, userInstalled := false, false
+	if sockF.String() == "" {
+		sysInstalled, userInstalled = servicesInstalled(agentF.Bool())
+	}
+	tries := socketOrder(path, also, sysInstalled)
+	conn, used, err := dialFirst(tries)
+	if h := hintFor(err); h != "" {
+		return errf("%s", h)
+	}
+	installed := sysInstalled || userInstalled
+	if err != nil && installed {
+		role := map[bool]string{true: "agent", false: "daemon"}[agentF.Bool()]
+		fmt.Fprintf(os.Stderr, "%s: the %s service is installed but not answering yet; waiting up to 2 minutes\n", prog, role)
+		deadline := time.Now().Add(2 * time.Minute)
+		for err != nil && time.Now().Before(deadline) {
+			time.Sleep(time.Second)
+			conn, used, err = dialFirst(tries)
 		}
-		c, perr := net.Dial("unix", fsx.SocketAddr(p))
-		if perr == nil {
-			conn, err, path = c, nil, p
-			break
-		}
-		// A system service exists but refuses this account: say so,
-		// rather than start a second agent beside it.
-		if h := systemSocketHint(p, perr); h != "" {
-			return errf("%s", h)
-		}
+	}
+	if err == nil {
+		path = used
 	}
 	var stop func()
-	if err != nil && agentF.Bool() && !noStartF.Bool() {
+	if err != nil && agentF.Bool() && !noStartF.Bool() && !installed && cfg != nil {
 		// No agent service: run one in this process for the connection.
 		logger := log.New(os.Stderr, prog+" agent: ", log.LstdFlags)
 		if len(cfg.Nodes) == 0 {

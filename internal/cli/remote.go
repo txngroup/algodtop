@@ -212,7 +212,11 @@ func (r *remoteCmd) install(ctx context.Context) int {
 	if err != nil {
 		return errf("%v", err)
 	}
-	fmt.Printf("plan:\n  1. copy %s (%s) to %s\n  2. run discovery on the remote and show the agent config\n  3. install a user-level service\n  4. add remote %q to %s\n", desc, sizeStr(len(bin)), path, r.name, r.cfg.Path)
+	service := "a user-level service"
+	if h.OS == "windows" {
+		service = "a Windows service, as an administrator"
+	}
+	fmt.Printf("plan:\n  1. copy %s (%s) to %s\n  2. run discovery on the remote and show the agent config\n  3. install the agent as %s\n  4. add remote %q to %s\n", desc, sizeStr(len(bin)), path, service, r.name, r.cfg.Path)
 	if !r.confirm("copy the binary and run discovery?") {
 		return 1
 	}
@@ -222,6 +226,9 @@ func (r *remoteCmd) install(ctx context.Context) int {
 	found, err := r.ssh.Discover(ctx, path)
 	if err != nil {
 		return errf("discovery: %v", err)
+	}
+	if h.OS == "windows" {
+		return r.installWindows(ctx, path, found)
 	}
 	var dirs []string
 	for _, f := range found {
@@ -254,10 +261,12 @@ func (r *remoteCmd) install(ctx context.Context) int {
 			// runs as the owner and lets the algodtop group reach its socket.
 			// Installing it needs root once.
 			fmt.Printf("\nA system service runs the agent as that account. Installing it needs root once:")
-			if rc := r.runAsRoot(ctx, path, "service", "install", "--system", "--agent"); rc != 0 {
+			method, rc := r.runAsRoot(ctx, path, "service", "install", "--system", "--agent")
+			if rc != 0 {
 				fmt.Printf("Then record it on the hub: %s remote add %s --name %s\n", prog, r.hostArg, r.name)
 				return rc
 			}
+			r.root = method
 			return r.add(ctx)
 		}
 		fmt.Println("Installing a service for that account needs root. Run these on the host:")
@@ -354,7 +363,11 @@ func (r *remoteCmd) remove(ctx context.Context) int {
 		if !r.confirm(fmt.Sprintf("drop %q from the hub config? The system service on %s keeps running until you remove it there.", r.name, r.hostArg)) {
 			return 1
 		}
-		fmt.Printf("To stop the agent on %s: %s\n", r.hostArg, sshT(r.hostArg, rootCommand(r.knownRoot(), path, "service", "uninstall", "--system", "--agent")))
+		if h.OS == "windows" {
+			fmt.Printf("To stop the agent on %s, as an administrator: ssh %s %s service uninstall --agent\n", r.hostArg, shellJoin(r.hostArg), remote.RemoteBinary(path))
+		} else {
+			fmt.Printf("To stop the agent on %s: %s\n", r.hostArg, sshT(r.hostArg, rootCommand(r.knownRoot(), path, "service", "uninstall", "--system", "--agent")))
+		}
 	} else {
 		sp := remote.PlanService(h, path)
 		if !r.confirm(fmt.Sprintf("stop the agent service on %s, remove %s and the service file, and drop %q from the hub config? (the agent's buffer is kept)", r.hostArg, path, r.name)) {
@@ -380,6 +393,30 @@ func (r *remoteCmd) remove(ctx context.Context) int {
 }
 
 func remoteQuote(p string) string { return remote.RemoteBinary(p) }
+
+// installWindows installs the agent on a Windows host as a Windows
+// service, which takes an administrator. Windows OpenSSH runs an
+// administrator's session elevated, so the hub runs the install over SSH
+// once confirmed, then records the agent.
+func (r *remoteCmd) installWindows(ctx context.Context, path string, found []algod.Found) int {
+	fmt.Println("\nnodes found:")
+	for _, f := range found {
+		fmt.Printf("  %-12s %-10s %s\n", f.Name, f.Network, f.DataDir)
+	}
+	cmd := remote.RemoteBinary(path) + " service install --agent"
+	fmt.Printf("\nOn Windows the agent runs as a service, as LocalSystem, which an administrator installs:\n\n  ssh %s %s\n\n", shellJoin(r.hostArg), cmd)
+	if !r.confirm("run it now?") {
+		fmt.Printf("Run it as an administrator on the host, then record it on the hub: %s remote add %s --name %s --path %s\n", prog, r.hostArg, r.name, shellJoin(path))
+		return 1
+	}
+	out, err := r.ssh.Run(ctx, cmd, nil)
+	fmt.Print(indent(strings.TrimSpace(string(out))))
+	if err != nil {
+		return errf("%v\nThe SSH account must be an administrator: Windows OpenSSH runs an administrator's session elevated. Or run the command on the host from an elevated prompt, then %s remote add %s --path %s", err, prog, r.hostArg, shellJoin(path))
+	}
+	r.path = path
+	return r.add(ctx)
+}
 
 func indent(s string) string {
 	var b strings.Builder

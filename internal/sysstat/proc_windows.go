@@ -3,9 +3,12 @@
 package sysstat
 
 import (
+	"errors"
 	"strings"
 	"syscall"
 	"unsafe"
+
+	"golang.org/x/sys/windows"
 
 	"algod.top/internal/algod"
 )
@@ -190,12 +193,47 @@ func listAlgod() []algod.Process {
 	snapshotProcs(func(e *syscall.ProcessEntry32) {
 		name := syscall.UTF16ToString(e.ExeFile[:])
 		if strings.EqualFold(name, "algod.exe") {
-			// The command line of another process needs NtQuery calls;
-			// discovery matches PIDs against algod.pid instead.
-			out = append(out, algod.Process{PID: int(e.ProcessID), Args: []string{name}})
+			// Discovery reads -d from the command line. Without the right
+			// to read it, discovery matches PIDs against algod.pid.
+			args, ok := commandLine(e.ProcessID)
+			if !ok {
+				args = []string{name}
+			}
+			out = append(out, algod.Process{PID: int(e.ProcessID), Args: args})
 		}
 	})
 	return out
+}
+
+// commandLine reads another process's command line. Windows 8.1 and later
+// answer ProcessCommandLineInformation to a handle with limited query
+// rights, which an administrator or LocalSystem has to a service's algod,
+// such as one FUNC runs as its own account.
+func commandLine(pid uint32) ([]string, bool) {
+	h, err := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION, false, pid)
+	if err != nil {
+		return nil, false
+	}
+	defer windows.CloseHandle(h)
+	buf := make([]byte, 4096)
+	for {
+		var n uint32
+		err := windows.NtQueryInformationProcess(h, windows.ProcessCommandLineInformation, unsafe.Pointer(&buf[0]), uint32(len(buf)), &n)
+		if err == nil {
+			break
+		}
+		if (errors.Is(err, windows.STATUS_INFO_LENGTH_MISMATCH) || errors.Is(err, windows.STATUS_BUFFER_TOO_SMALL)) && n > uint32(len(buf)) && n < 1<<20 {
+			buf = make([]byte, n)
+			continue
+		}
+		return nil, false
+	}
+	line := (*windows.NTUnicodeString)(unsafe.Pointer(&buf[0])).String()
+	args, err := windows.DecomposeCommandLine(line)
+	if err != nil || len(args) == 0 {
+		return nil, false
+	}
+	return args, true
 }
 
 func alive(pid int) bool {

@@ -198,7 +198,7 @@ func TestServicePlanProblems(t *testing.T) {
 		t.Error(p.problem)
 	}
 	win := svcEnv{goos: "windows"}
-	if p := buildPlan(win, svcOpts{}, f); p.mode != "" || !strings.Contains(p.problem, "sc.exe create algodtop") {
+	if p := buildPlan(win, svcOpts{}, f); p.mode != "" || !strings.Contains(p.problem, "service install") {
 		t.Error(p.problem)
 	}
 }

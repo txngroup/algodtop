@@ -50,6 +50,10 @@ type Options struct {
 	OnListen func(addr string)
 	// Exe is the binary an upgrade replaces, default the running one.
 	Exe string
+	// Supervised means a service manager restarts the process when Run
+	// returns after an upgrade. Windows cannot exec, so a Windows service
+	// restarts that way.
+	Supervised bool
 }
 
 // Daemon is a running algodtop daemon or agent.

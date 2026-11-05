@@ -261,9 +261,10 @@ func sameFile(a, b string) bool {
 }
 
 // waitVersion polls a restarting daemon or agent until it answers with
-// the wanted version, for up to a minute.
+// the wanted version, for up to 3 minutes: opening a large store can take
+// the better part of one.
 func waitVersion(ctx context.Context, want string, dial func() (*apiConn, error)) bool {
-	deadline := time.Now().Add(time.Minute)
+	deadline := time.Now().Add(3 * time.Minute)
 	for time.Now().Before(deadline) {
 		select {
 		case <-ctx.Done():
@@ -379,8 +380,18 @@ func (c *apiConn) upgrade(ctx context.Context, f release.Files) (release.Result,
 }
 
 // dialAgent connects to the agent on the remote through its stdio relay.
+// It never starts an agent, and for a system agent it goes straight to
+// the service's socket.
 func (r *remoteCmd) dialAgent(ctx context.Context, path string) (*apiConn, error) {
-	cmd := r.ssh.Command(ctx, remote.RemoteBinary(path)+" stdio --agent --no-start")
+	cfgPath := ""
+	if x, ok := r.saved(); ok {
+		cfgPath = x.AgentConfig
+	}
+	relay := remote.AgentRelay(path, cfgPath)
+	if !strings.Contains(relay, "--no-start") {
+		relay += " --no-start"
+	}
+	cmd := r.ssh.Command(ctx, relay)
 	conn, err := remote.DialCommand(cmd, r.hostArg)
 	if err != nil {
 		return nil, err
@@ -434,14 +445,14 @@ func (r *remoteCmd) upgrade(ctx context.Context) int {
 	}
 	res, err := c.upgrade(ctx, f)
 	c.Close()
-	system := strings.HasPrefix(st.ConfigPath, "/etc/") || r.systemAgent()
+	system := remote.SystemAgentSocketFor(st.ConfigPath) != "" || r.systemAgent()
 	switch {
 	case err == nil && res.Same:
 		fmt.Printf("%s: already runs %s\n", label, res.To)
 	case err == nil && res.Restart:
 		fmt.Printf("%s: installed %s, restarting\n", label, res.To)
 		if !r.waitAgent(ctx, res.To) {
-			return errf("%s: the agent did not answer with %s within a minute; check it on %s", label, res.To, r.hostArg)
+			return errf("%s: the agent did not answer with %s within 3 minutes; check it on %s", label, res.To, r.hostArg)
 		}
 		fmt.Printf("%s: upgraded from %s to %s\n", label, res.From, res.To)
 	case err == nil:
@@ -521,6 +532,14 @@ func (r *remoteCmd) switchSystemAgent(ctx context.Context, f release.Files, runn
 	}
 	r.host = h
 	tmp := remote.DefaultPath(h)
+	if h.OS == "windows" {
+		// A Windows service always runs its own copy. Installing it again
+		// from the new release puts the service right.
+		if err := r.ssh.Copy(ctx, h, tmp, f.Binary); err != nil {
+			return errf("%s: copy: %v", label, err)
+		}
+		return r.installWindows(ctx, tmp, nil)
+	}
 	fmt.Printf("%s: the system agent runs %s from a binary root owns. It needs root once to move onto its own copy, which it then upgrades itself.\n", label, running)
 	if !r.confirm(fmt.Sprintf("copy %s to %s on %s?", f.Version, tmp, r.hostArg)) {
 		return 1
@@ -528,12 +547,18 @@ func (r *remoteCmd) switchSystemAgent(ctx context.Context, f release.Files, runn
 	if err := r.ssh.Copy(ctx, h, tmp, f.Binary); err != nil {
 		return errf("%s: copy: %v", label, err)
 	}
-	if rc := r.runAsRoot(ctx, tmp, "service", "install", "--system", "--agent"); rc != 0 {
-		return rc
+	method, rc := r.runAsRoot(ctx, tmp, "service", "install", "--system", "--agent")
+	if rc != 0 {
+		// The install may have worked and only given up waiting for a
+		// slow agent. Ask the agent once before calling it a failure.
+		if method == "" || !r.answersWith(ctx, f.Version) {
+			return rc
+		}
+		fmt.Printf("%s: the install reported a problem, but the agent answers with %s\n", label, f.Version)
+	} else if !r.waitAgent(ctx, f.Version) {
+		return errf("%s: the agent did not answer with %s within 3 minutes; check it on %s", label, f.Version, r.hostArg)
 	}
-	if !r.waitAgent(ctx, f.Version) {
-		return errf("%s: the agent did not answer with %s within a minute; check it on %s", label, f.Version, r.hostArg)
-	}
+	r.saveRoot(method)
 	if r.agentPath() == legacySystemBin {
 		// The install linked the old name to the new one.
 		r.savePath(systemBin)
@@ -542,30 +567,42 @@ func (r *remoteCmd) switchSystemAgent(ctx context.Context, f release.Files, runn
 	return 0
 }
 
-// runAsRoot runs algodtop at path on the remote as root, with su or sudo
+// runAsRoot runs algod.top at path on the remote as root, with su or sudo
 // over `ssh -t`, after showing the command. It needs a terminal, since
-// su and sudo ask for a password.
-func (r *remoteCmd) runAsRoot(ctx context.Context, path string, args ...string) int {
+// su and sudo ask for a password. It returns the method it ran with, or
+// "" when it ran nothing. The caller saves the method once the result
+// checks out.
+func (r *remoteCmd) runAsRoot(ctx context.Context, path string, args ...string) (string, int) {
 	method, err := r.rootMethod()
 	if err != nil {
-		return errf("%v", err)
+		return "", errf("%v", err)
 	}
 	cmd := rootCommand(method, path, args...)
 	fmt.Printf("\n  %s\n\n", sshT(r.hostArg, cmd))
 	if !term.IsTerminal(int(os.Stdin.Fd())) {
 		fmt.Println("Run that in a terminal, since it asks for a password.")
-		return 1
+		return "", 1
 	}
 	if !r.confirm("run it now?") {
-		return 1
+		return "", 1
 	}
 	c := r.ssh.Command(ctx, cmd, "-t")
 	c.Stdin, c.Stdout, c.Stderr = os.Stdin, os.Stdout, os.Stderr
 	if err := c.Run(); err != nil {
-		return errf("%s on %s: %v", method, r.hostArg, err)
+		return method, errf("%s on %s: %v", method, r.hostArg, err)
 	}
-	r.saveRoot(method)
-	return 0
+	return method, 0
+}
+
+// answersWith asks the agent once whether it runs a version.
+func (r *remoteCmd) answersWith(ctx context.Context, want string) bool {
+	c, err := r.dialAgent(ctx, r.agentPath())
+	if err != nil {
+		return false
+	}
+	defer c.Close()
+	var st api.DaemonStatus
+	return c.get(ctx, "/api/status", &st) == nil && (want == "" || shortVersion(st.Version) == want)
 }
 
 // lastRoot is the answer to the previous root question, the default for
@@ -581,10 +618,7 @@ func (r *remoteCmd) rootMethod() (string, error) {
 	if x, ok := r.saved(); ok && x.Root != "" {
 		return x.Root, nil
 	}
-	def := lastRoot
-	if def == "" {
-		def = "sudo"
-	}
+	def := cmp.Or(lastRoot, r.usualRoot(), "sudo")
 	if !term.IsTerminal(int(os.Stdin.Fd())) {
 		return def, nil
 	}
@@ -600,6 +634,24 @@ func (r *remoteCmd) rootMethod() (string, error) {
 			return a, nil
 		}
 	}
+}
+
+// usualRoot is the way to become root that most remotes have saved, the
+// default for one that has none.
+func (r *remoteCmd) usualRoot() string {
+	n := map[string]int{}
+	for _, x := range r.cfg.Remotes {
+		if x.Root != "" {
+			n[x.Root]++
+		}
+	}
+	if n["su"] > n["sudo"] {
+		return "su"
+	}
+	if n["sudo"] > 0 {
+		return "sudo"
+	}
+	return ""
 }
 
 // knownRoot is the saved or given way to become root, for printed hints.

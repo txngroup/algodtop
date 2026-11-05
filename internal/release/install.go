@@ -91,7 +91,11 @@ func Install(ctx context.Context, f Files, exe string, cur version.Build) (Resul
 	if err := f.Verify(); err != nil {
 		return res, &InstallError{CodeSignature, err.Error()}
 	}
-	tmp, err := os.CreateTemp(filepath.Dir(exe), ".algod.top-new-*")
+	pattern := ".algod.top-new-*"
+	if runtime.GOOS == "windows" {
+		pattern += ".exe" // so Windows will run it for its version
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(exe), pattern)
 	if err != nil {
 		if errors.Is(err, fs.ErrPermission) || errors.Is(err, syscall.EROFS) {
 			return res, &InstallError{CodeNotWritable, fmt.Sprintf("cannot replace %s: this account may not write %s", exe, filepath.Dir(exe))}

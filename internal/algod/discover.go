@@ -134,7 +134,10 @@ func scanLocations() []string {
 	home, _ := os.UserHomeDir()
 	switch runtime.GOOS {
 	case "windows":
-		// Added once the official installer defines its locations.
+		// FUNC keeps its nodes under %ProgramData%\func.
+		if pd := os.Getenv("ProgramData"); pd != "" {
+			out = append(out, funcDirs(filepath.Join(pd, "func"))...)
+		}
 	default:
 		if home != "" {
 			ents, _ := os.ReadDir(home)
@@ -148,7 +151,26 @@ func scanLocations() []string {
 			}
 		}
 		out = append(out, "/var/lib/algorand")
+		// FUNC's app directory on macOS and on Linux.
+		out = append(out, funcDirs("/usr/local/share/func")...)
+		out = append(out, funcDirs("/usr/share/func")...)
 	}
 	sort.Strings(out)
+	return out
+}
+
+// funcDirs are the data directories that FUNC (github.com/GalaxyPay/func)
+// manages under its app directory: <parent>/algorand and <parent>/voi,
+// where <parent> is the app directory unless <app>/<name>.data names
+// another. Discovery keeps those that hold a node.
+func funcDirs(app string) []string {
+	var out []string
+	for _, name := range []string{"algorand", "voi"} {
+		parent := app
+		if b, err := os.ReadFile(filepath.Join(app, name+".data")); err == nil && strings.TrimSpace(string(b)) != "" {
+			parent = strings.TrimSpace(string(b))
+		}
+		out = append(out, filepath.Join(parent, name))
+	}
 	return out
 }

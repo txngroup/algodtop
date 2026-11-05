@@ -16,7 +16,9 @@ import (
 // running binary, then stops so the process can start again from it:
 // Run returns, and the command that called it execs the new binary in
 // the same process, which a service manager keeps tracking. Windows
-// cannot exec, so there the new binary waits for the next start.
+// cannot exec: a Windows service stops with an error code and its
+// recovery action restarts it, and elsewhere on Windows the new binary
+// waits for the next start.
 func (d *Daemon) Upgrade(ctx context.Context, f release.Files) (release.Result, error) {
 	d.upgradeMu.Lock()
 	defer d.upgradeMu.Unlock()
@@ -39,7 +41,7 @@ func (d *Daemon) Upgrade(ctx context.Context, f release.Files) (release.Result, 
 		return res, nil
 	}
 	d.logf("installed %s over %s in %s", res.To, res.From, res.Path)
-	if runtime.GOOS == "windows" || d.stop == nil {
+	if (runtime.GOOS == "windows" && !d.o.Supervised) || d.stop == nil {
 		return res, nil
 	}
 	d.emitEvent(model.Event{Kind: "algodtop-upgrade", Severity: model.SevInfo, Msg: fmt.Sprintf("algodtop upgraded from %s to %s and restarts", res.From, res.To)})
