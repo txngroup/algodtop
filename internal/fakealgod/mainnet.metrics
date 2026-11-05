@@ -1,0 +1,1925 @@
+# HELP algod_telemetry_drops_total telemetry messages dropped due to full queues
+# TYPE algod_telemetry_drops_total counter
+algod_telemetry_drops_total 0
+# HELP algod_telemetry_errs_total telemetry messages dropped due to server error
+# TYPE algod_telemetry_errs_total counter
+algod_telemetry_errs_total 0
+# HELP algod_ram_usage number of bytes runtime.ReadMemStats().HeapInuse
+# TYPE algod_ram_usage gauge
+algod_ram_usage 0
+# HELP algod_crypto_vrf_generate_total Total number of calls to GenerateVRFSecrets
+# TYPE algod_crypto_vrf_generate_total counter
+algod_crypto_vrf_generate_total 0
+# HELP algod_crypto_vrf_prove_total Total number of calls to VRFSecrets.Prove
+# TYPE algod_crypto_vrf_prove_total counter
+algod_crypto_vrf_prove_total 0
+# HELP algod_crypto_vrf_hash_total Total number of calls to VRFProof.Hash
+# TYPE algod_crypto_vrf_hash_total counter
+algod_crypto_vrf_hash_total 0
+# HELP algod_crypto_vrf_verify_total Total number of calls to VRFVerifier.Verify
+# TYPE algod_crypto_vrf_verify_total counter
+algod_crypto_vrf_verify_total 0
+# HELP algod_crypto_signature_secrets_generate_total Total number of calls to GenerateSignatureSecrets
+# TYPE algod_crypto_signature_secrets_generate_total counter
+algod_crypto_signature_secrets_generate_total 0
+# HELP algod_crypto_signature_secrets_sign_total Total number of calls to SignatureSecrets.Sign
+# TYPE algod_crypto_signature_secrets_sign_total counter
+algod_crypto_signature_secrets_sign_total 0
+# HELP algod_crypto_signature_secrets_bytes_sign_total Total number of calls to SignatureSecrets.signBytes
+# TYPE algod_crypto_signature_secrets_bytes_sign_total counter
+algod_crypto_signature_secrets_bytes_sign_total 0
+# HELP algod_crypto_signature_secrets_verify_total Total number of calls to SignatureVerifier.Verify
+# TYPE algod_crypto_signature_secrets_verify_total counter
+algod_crypto_signature_secrets_verify_total 18
+# HELP algod_crypto_vrf_bytes_verify_total Total number of calls to SignatureVerifier.VerifyBytes
+# TYPE algod_crypto_vrf_bytes_verify_total counter
+algod_crypto_vrf_bytes_verify_total 779
+# HELP algod_ledger_logic_ok Total transaction scripts executed and accepted
+# TYPE algod_ledger_logic_ok counter
+algod_ledger_logic_ok 4266
+# HELP algod_ledger_logic_rej Total transaction scripts executed and rejected
+# TYPE algod_ledger_logic_rej counter
+algod_ledger_logic_rej 0
+# HELP algod_ledger_logic_err Total transaction scripts executed and errored
+# TYPE algod_ledger_logic_err counter
+algod_ledger_logic_err 0
+# HELP algod_ledger_logic_cost Total cost of transaction scripts executed
+# TYPE algod_ledger_logic_cost counter
+algod_ledger_logic_cost 2716431
+# HELP algod_verify_msig_4 Total transactions with 1-4 msigs
+# TYPE algod_verify_msig_4 counter
+algod_verify_msig_4 1196
+# HELP algod_verify_msig_5_10 Total transactions with 5-10 msigs
+# TYPE algod_verify_msig_5_10 counter
+algod_verify_msig_5_10 0
+# HELP algod_verify_msig_11 Total transactions with 11+ msigs
+# TYPE algod_verify_msig_11 counter
+algod_verify_msig_11 0
+# HELP algod_verify_msig_lsig_4 Total transaction scripts with 1-4 msigs
+# TYPE algod_verify_msig_lsig_4 counter
+algod_verify_msig_lsig_4 0
+# HELP algod_verify_msig_lsig_5_10 Total transaction scripts with 5-10 msigs
+# TYPE algod_verify_msig_lsig_5_10 counter
+algod_verify_msig_lsig_5_10 0
+# HELP algod_verify_msig_lsig_10 Total transaction scripts with 11+ msigs
+# TYPE algod_verify_msig_lsig_10 counter
+algod_verify_msig_lsig_10 0
+# HELP algod_network_p2p_stream_setup_timeouts_total number of connections dialed for gossip that were closed for carrying no gossip stream after the setup timeout
+# TYPE algod_network_p2p_stream_setup_timeouts_total counter
+algod_network_p2p_stream_setup_timeouts_total 0
+# HELP algod_network_p2p_inbound_evictions_total number of inbound connections that had not become gossip peers, closed to keep room for new peers
+# TYPE algod_network_p2p_inbound_evictions_total counter
+algod_network_p2p_inbound_evictions_total{state="busy"} 515
+# HELP algod_network_sent_bytes_total Total number of bytes that were sent over the network
+# TYPE algod_network_sent_bytes_total counter
+algod_network_sent_bytes_total 14279211100
+# HELP algod_network_p2p_sent_bytes_total Total number of bytes that were sent over the p2p network
+# TYPE algod_network_p2p_sent_bytes_total counter
+algod_network_p2p_sent_bytes_total 43107050210
+# HELP algod_network_received_bytes_total Total number of bytes that were received from the network
+# TYPE algod_network_received_bytes_total counter
+algod_network_received_bytes_total 15906573046
+# HELP algod_network_p2p_received_bytes_total Total number of bytes that were received from the p2p network
+# TYPE algod_network_p2p_received_bytes_total counter
+algod_network_p2p_received_bytes_total 17686236028
+# HELP algod_network_message_received_total Total number of complete messages that were received from the network
+# TYPE algod_network_message_received_total counter
+algod_network_message_received_total 47533506
+# HELP algod_network_p2p_message_received_total Total number of complete messages that were received from the p2p network
+# TYPE algod_network_p2p_message_received_total counter
+algod_network_p2p_message_received_total 56171154
+# HELP algod_network_message_sent_total Total number of complete messages that were sent to the network
+# TYPE algod_network_message_sent_total counter
+algod_network_message_sent_total 43103563
+# HELP algod_network_p2p_message_sent_total Total number of complete messages that were sent to the p2p network
+# TYPE algod_network_p2p_message_sent_total counter
+algod_network_p2p_message_sent_total 148639092
+# HELP algod_network_connections_dropped_total Total number of connections that were dropped before a message
+# TYPE algod_network_connections_dropped_total counter
+algod_network_connections_dropped_total{reason="stale message"} 25
+algod_network_connections_dropped_total{reason="reader err"} 70
+algod_network_connections_dropped_total{reason="write err"} 8
+# HELP algod_network_message_sent_queue_micros_total Total microseconds message spent waiting in queue to be sent
+# TYPE algod_network_message_sent_queue_micros_total counter
+algod_network_message_sent_queue_micros_total 6191536948098
+# HELP algod_network_p2p_message_sent_queue_micros_total Total microseconds p2p message spent waiting in queue to be sent
+# TYPE algod_network_p2p_message_sent_queue_micros_total counter
+algod_network_p2p_message_sent_queue_micros_total 1065329429585
+# HELP algod_network_duplicate_message_received_total Total number of duplicate messages that were received from the network
+# TYPE algod_network_duplicate_message_received_total counter
+algod_network_duplicate_message_received_total 0
+# HELP algod_network_duplicate_message_received_bytes_total The total number ,in bytes, of the duplicate messages that were received from the network
+# TYPE algod_network_duplicate_message_received_bytes_total counter
+algod_network_duplicate_message_received_bytes_total 0
+# HELP algod_network_duplicate_filter_received_total Total number of duplicate filter messages that were received from the network
+# TYPE algod_network_duplicate_filter_received_total counter
+algod_network_duplicate_filter_received_total 1863310
+# HELP algod_outgoing_network_message_filtered_out_total Total number of messages that were not sent per peer request
+# TYPE algod_outgoing_network_message_filtered_out_total counter
+algod_outgoing_network_message_filtered_out_total 8412
+# HELP algod_outgoing_network_message_filtered_out_bytes_total Total number of bytes saved by not sending messages that were asked not to be sent by peer
+# TYPE algod_outgoing_network_message_filtered_out_bytes_total counter
+algod_outgoing_network_message_filtered_out_bytes_total 110395627
+# HELP algod_network_unk_tag_messages_total Total number of unknown protocol tag messages received from the network
+# TYPE algod_network_unk_tag_messages_total counter
+algod_network_unk_tag_messages_total 0
+# HELP algod_network_incoming_connections Number of incoming connections
+# TYPE algod_network_incoming_connections gauge
+algod_network_incoming_connections 0
+# HELP algod_network_outgoing_connections Number of outgoing connections
+# TYPE algod_network_outgoing_connections gauge
+algod_network_outgoing_connections 3
+# HELP algod_network_rx_buffer_micros_total microseconds spent by incoming messages on the receive buffer
+# TYPE algod_network_rx_buffer_micros_total counter
+algod_network_rx_buffer_micros_total 2560168560
+# HELP algod_network_rx_handle_micros_total microseconds spent by protocol handlers in the receive thread
+# TYPE algod_network_rx_handle_micros_total counter
+algod_network_rx_handle_micros_total 547870981
+# HELP algod_network_broadcasts_total number of broadcast operations
+# TYPE algod_network_broadcasts_total counter
+algod_network_broadcasts_total 24820721
+# HELP algod_network_broadcast_queue_full_total number of messages that were drops due to full broadcast queue
+# TYPE algod_network_broadcast_queue_full_total counter
+algod_network_broadcast_queue_full_total 0
+# HELP algod_network_broadcast_queue_micros_total microseconds broadcast requests sit on queue
+# TYPE algod_network_broadcast_queue_micros_total counter
+algod_network_broadcast_queue_micros_total 291697152
+# HELP algod_network_broadcast_send_micros_total microseconds spent broadcasting
+# TYPE algod_network_broadcast_send_micros_total counter
+algod_network_broadcast_send_micros_total 139496220
+# HELP algod_broadcasts_dropped_total number of broadcast messages not sent to any peer
+# TYPE algod_broadcasts_dropped_total counter
+algod_broadcasts_dropped_total 0
+# HELP algod_peer_broadcast_dropped_total number of broadcast messages not sent to some peer
+# TYPE algod_peer_broadcast_dropped_total counter
+algod_peer_broadcast_dropped_total 83660
+# HELP algod_peer_p2p_broadcast_dropped_total number of broadcast messages not sent to some p2p peer
+# TYPE algod_peer_p2p_broadcast_dropped_total counter
+algod_peer_p2p_broadcast_dropped_total 2693816
+# HELP algod_network_identity_duplicate number of times identity challenge cause us to disconnect a peer
+# TYPE algod_network_identity_duplicate counter
+algod_network_identity_duplicate 0
+# HELP algod_network_identity_error number of times an error occurs (besides expected) when processing identity challenges
+# TYPE algod_network_identity_error counter
+algod_network_identity_error 0
+# HELP algod_network_peer_already_closed number of times a peer would be added but the peer connection is already closed
+# TYPE algod_network_peer_already_closed counter
+algod_network_peer_already_closed 0
+# HELP algod_network_slow_drops_total number of peers dropped for being slow to send to
+# TYPE algod_network_slow_drops_total counter
+algod_network_slow_drops_total 0
+# HELP algod_network_idle_drops_total number of peers dropped due to idle connection
+# TYPE algod_network_idle_drops_total counter
+algod_network_idle_drops_total 0
+# HELP algod_network_peers Number of active peers.
+# TYPE algod_network_peers gauge
+algod_network_peers 3
+# HELP algod_network_incoming_peers Number of active incoming peers.
+# TYPE algod_network_incoming_peers gauge
+algod_network_incoming_peers 0
+# HELP algod_network_outgoing_peers Number of active outgoing peers.
+# TYPE algod_network_outgoing_peers gauge
+algod_network_outgoing_peers 3
+# HELP algod_transaction_messages_p2p_reject_throttled Number of rejected p2p pubsub transaction messages
+# TYPE algod_transaction_messages_p2p_reject_throttled counter
+algod_transaction_messages_p2p_reject_throttled 227014
+# HELP algod_transaction_messages_p2p_reject_full Number of rejected p2p pubsub transaction messages
+# TYPE algod_transaction_messages_p2p_reject_full counter
+algod_transaction_messages_p2p_reject_full 5984
+# HELP algod_transaction_messages_p2p_reject_ignored Number of rejected p2p pubsub transaction messages
+# TYPE algod_transaction_messages_p2p_reject_ignored counter
+algod_transaction_messages_p2p_reject_ignored 292352
+# HELP algod_transaction_messages_p2p_duplicate Number of duplicate p2p pubsub transaction messages
+# TYPE algod_transaction_messages_p2p_duplicate counter
+algod_transaction_messages_p2p_duplicate 1902141
+# HELP algod_transaction_messages_p2p_delivered Number of delivered p2p pubsub transaction messages
+# TYPE algod_transaction_messages_p2p_delivered counter
+algod_transaction_messages_p2p_delivered 409618
+# HELP algod_transaction_messages_p2p_undeliverable Number of undeliverable p2p pubsub transaction messages
+# TYPE algod_transaction_messages_p2p_undeliverable counter
+algod_transaction_messages_p2p_undeliverable 0
+# HELP algod_network_p2p_gs_sent_bytes_total Total number of bytes sent through gossipsub
+# TYPE algod_network_p2p_gs_sent_bytes_total counter
+algod_network_p2p_gs_sent_bytes_total 3771617096
+# HELP algod_network_p2p_gs_received_bytes_total Total number of bytes received through gossipsub
+# TYPE algod_network_p2p_gs_received_bytes_total counter
+algod_network_p2p_gs_received_bytes_total 3377799269
+# HELP algod_network_vote_compressed_bytes_broadcast_total Total AV message bytes broadcast after applying stateless compression
+# TYPE algod_network_vote_compressed_bytes_broadcast_total counter
+algod_network_vote_compressed_bytes_broadcast_total 10885241676
+# HELP algod_network_vote_uncompressed_bytes_broadcast_total Total AV message bytes broadcast before applying stateless compression
+# TYPE algod_network_vote_uncompressed_bytes_broadcast_total counter
+algod_network_vote_uncompressed_bytes_broadcast_total 14421043106
+# HELP algod_network_vpack_compression_errors_total Total number of stateful vote compression errors
+# TYPE algod_network_vpack_compression_errors_total counter
+algod_network_vpack_compression_errors_total 0
+# HELP algod_network_vpack_decompression_errors_total Total number of stateful vote decompression errors
+# TYPE algod_network_vpack_decompression_errors_total counter
+algod_network_vpack_decompression_errors_total 0
+# HELP algod_network_vpack_abort_messages_sent_total Total number of vpack abort messages sent to peers
+# TYPE algod_network_vpack_abort_messages_sent_total counter
+algod_network_vpack_abort_messages_sent_total 0
+# HELP algod_network_vpack_abort_messages_received_total Total number of vpack abort messages received from peers
+# TYPE algod_network_vpack_abort_messages_received_total counter
+algod_network_vpack_abort_messages_received_total 0
+# HELP algod_network_vpack_compressed_bytes_sent_total Total VP message bytes sent, after compressing AV to VP messages
+# TYPE algod_network_vpack_compressed_bytes_sent_total counter
+algod_network_vpack_compressed_bytes_sent_total 43744250452
+# HELP algod_network_vpack_uncompressed_bytes_sent_total Total VP message bytes sent, before compressing AV to VP messages
+# TYPE algod_network_vpack_uncompressed_bytes_sent_total counter
+algod_network_vpack_uncompressed_bytes_sent_total 86206218324
+# HELP algod_network_sent_bytes_MS Number of bytes that were sent over the network for MS messages
+# TYPE algod_network_sent_bytes_MS counter
+algod_network_sent_bytes_MS 21402150
+# HELP algod_network_sent_bytes_PP Number of bytes that were sent over the network for PP messages
+# TYPE algod_network_sent_bytes_PP counter
+algod_network_sent_bytes_PP 1406521178
+# HELP algod_network_sent_bytes_SP Number of bytes that were sent over the network for SP messages
+# TYPE algod_network_sent_bytes_SP counter
+algod_network_sent_bytes_SP 1099298362
+# HELP algod_network_sent_bytes_UE Number of bytes that were sent over the network for UE messages
+# TYPE algod_network_sent_bytes_UE counter
+algod_network_sent_bytes_UE 276
+# HELP algod_network_sent_bytes_MI Number of bytes that were sent over the network for MI messages
+# TYPE algod_network_sent_bytes_MI counter
+algod_network_sent_bytes_MI 12452
+# HELP algod_network_sent_bytes_VP Number of bytes that were sent over the network for VP messages
+# TYPE algod_network_sent_bytes_VP counter
+algod_network_sent_bytes_VP 9334865338
+# HELP algod_network_sent_bytes_TX Number of bytes that were sent over the network for TX messages
+# TYPE algod_network_sent_bytes_TX counter
+algod_network_sent_bytes_TX 2417111344
+# HELP algod_network_received_bytes_SP Number of bytes that were received from the network for SP messages
+# TYPE algod_network_received_bytes_SP counter
+algod_network_received_bytes_SP 1498637630
+# HELP algod_network_received_bytes_TS Number of bytes that were received from the network for TS messages
+# TYPE algod_network_received_bytes_TS counter
+algod_network_received_bytes_TS 72666
+# HELP algod_network_received_bytes_TX Number of bytes that were received from the network for TX messages
+# TYPE algod_network_received_bytes_TX counter
+algod_network_received_bytes_TX 2846430603
+# HELP algod_network_received_bytes_PP Number of bytes that were received from the network for PP messages
+# TYPE algod_network_received_bytes_PP counter
+algod_network_received_bytes_PP 1627246393
+# HELP algod_network_received_bytes_MS Number of bytes that were received from the network for MS messages
+# TYPE algod_network_received_bytes_MS counter
+algod_network_received_bytes_MS 74774466
+# HELP algod_network_received_bytes_MI Number of bytes that were received from the network for MI messages
+# TYPE algod_network_received_bytes_MI counter
+algod_network_received_bytes_MI 12452
+# HELP algod_network_received_bytes_VP Number of bytes that were received from the network for VP messages
+# TYPE algod_network_received_bytes_VP counter
+algod_network_received_bytes_VP 9859398836
+# HELP algod_network_received_uncompressed_bytes_SP Number of bytes after decompression that were received from the network for SP messages
+# TYPE algod_network_received_uncompressed_bytes_SP counter
+algod_network_received_uncompressed_bytes_SP 1498637630
+# HELP algod_network_received_uncompressed_bytes_TS Number of bytes after decompression that were received from the network for TS messages
+# TYPE algod_network_received_uncompressed_bytes_TS counter
+algod_network_received_uncompressed_bytes_TS 72666
+# HELP algod_network_received_uncompressed_bytes_MS Number of bytes after decompression that were received from the network for MS messages
+# TYPE algod_network_received_uncompressed_bytes_MS counter
+algod_network_received_uncompressed_bytes_MS 74774466
+# HELP algod_network_received_uncompressed_bytes_MI Number of bytes after decompression that were received from the network for MI messages
+# TYPE algod_network_received_uncompressed_bytes_MI counter
+algod_network_received_uncompressed_bytes_MI 12452
+# HELP algod_network_received_uncompressed_bytes_VP Number of bytes after decompression that were received from the network for VP messages
+# TYPE algod_network_received_uncompressed_bytes_VP counter
+algod_network_received_uncompressed_bytes_VP 25654994129
+# HELP algod_network_received_uncompressed_bytes_TX Number of bytes after decompression that were received from the network for TX messages
+# TYPE algod_network_received_uncompressed_bytes_TX counter
+algod_network_received_uncompressed_bytes_TX 2846430603
+# HELP algod_network_received_uncompressed_bytes_PP Number of bytes after decompression that were received from the network for PP messages
+# TYPE algod_network_received_uncompressed_bytes_PP counter
+algod_network_received_uncompressed_bytes_PP 3020873072
+# HELP algod_network_message_received_VP Number of complete messages that were received from the network for VP messages
+# TYPE algod_network_message_received_VP counter
+algod_network_message_received_VP 40725384
+# HELP algod_network_message_received_TX Number of complete messages that were received from the network for TX messages
+# TYPE algod_network_message_received_TX counter
+algod_network_message_received_TX 3954659
+# HELP algod_network_message_received_SP Number of complete messages that were received from the network for SP messages
+# TYPE algod_network_message_received_SP counter
+algod_network_message_received_SP 370734
+# HELP algod_network_message_received_TS Number of complete messages that were received from the network for TS messages
+# TYPE algod_network_message_received_TS counter
+algod_network_message_received_TS 4
+# HELP algod_network_message_received_MS Number of complete messages that were received from the network for MS messages
+# TYPE algod_network_message_received_MS counter
+algod_network_message_received_MS 2199249
+# HELP algod_network_message_received_MI Number of complete messages that were received from the network for MI messages
+# TYPE algod_network_message_received_MI counter
+algod_network_message_received_MI 283
+# HELP algod_network_message_received_PP Number of complete messages that were received from the network for PP messages
+# TYPE algod_network_message_received_PP counter
+algod_network_message_received_PP 283193
+# HELP algod_network_message_sent_PP Number of complete messages that were sent to the network for PP messages
+# TYPE algod_network_message_sent_PP counter
+algod_network_message_sent_PP 259475
+# HELP algod_network_message_sent_MS Number of complete messages that were sent to the network for MS messages
+# TYPE algod_network_message_sent_MS counter
+algod_network_message_sent_MS 629475
+# HELP algod_network_message_sent_TX Number of complete messages that were sent to the network for TX messages
+# TYPE algod_network_message_sent_TX counter
+algod_network_message_sent_TX 3349169
+# HELP algod_network_message_sent_SP Number of complete messages that were sent to the network for SP messages
+# TYPE algod_network_message_sent_SP counter
+algod_network_message_sent_SP 271960
+# HELP algod_network_message_sent_UE Number of complete messages that were sent to the network for UE messages
+# TYPE algod_network_message_sent_UE counter
+algod_network_message_sent_UE 4
+# HELP algod_network_message_sent_MI Number of complete messages that were sent to the network for MI messages
+# TYPE algod_network_message_sent_MI counter
+algod_network_message_sent_MI 283
+# HELP algod_network_message_sent_VP Number of complete messages that were sent to the network for VP messages
+# TYPE algod_network_message_sent_VP counter
+algod_network_message_sent_VP 38593197
+# HELP algod_network_rx_handle_countbytag_TX count of handler calls in the receive thread for TX messages
+# TYPE algod_network_rx_handle_countbytag_TX counter
+algod_network_rx_handle_countbytag_TX 3954656
+# HELP algod_network_rx_handle_countbytag_PP count of handler calls in the receive thread for PP messages
+# TYPE algod_network_rx_handle_countbytag_PP counter
+algod_network_rx_handle_countbytag_PP 668226
+# HELP algod_network_rx_handle_countbytag_AV count of handler calls in the receive thread for AV messages
+# TYPE algod_network_rx_handle_countbytag_AV counter
+algod_network_rx_handle_countbytag_AV 96317803
+# HELP algod_network_rx_handle_countbytag_SP count of handler calls in the receive thread for SP messages
+# TYPE algod_network_rx_handle_countbytag_SP counter
+algod_network_rx_handle_countbytag_SP 370734
+# HELP algod_network_rx_handle_countbytag_VB count of handler calls in the receive thread for VB messages
+# TYPE algod_network_rx_handle_countbytag_VB counter
+algod_network_rx_handle_countbytag_VB 1
+# HELP algod_network_rx_handle_microsbytag_PP microseconds spent by protocol handlers in the receive thread for PP messages
+# TYPE algod_network_rx_handle_microsbytag_PP counter
+algod_network_rx_handle_microsbytag_PP 888352
+# HELP algod_network_rx_handle_microsbytag_AV microseconds spent by protocol handlers in the receive thread for AV messages
+# TYPE algod_network_rx_handle_microsbytag_AV counter
+algod_network_rx_handle_microsbytag_AV 33901001
+# HELP algod_network_rx_handle_microsbytag_TX microseconds spent by protocol handlers in the receive thread for TX messages
+# TYPE algod_network_rx_handle_microsbytag_TX counter
+algod_network_rx_handle_microsbytag_TX 61830523
+# HELP algod_network_rx_handle_microsbytag_SP microseconds spent by protocol handlers in the receive thread for SP messages
+# TYPE algod_network_rx_handle_microsbytag_SP counter
+algod_network_rx_handle_microsbytag_SP 451251101
+# HELP algod_network_rx_handle_microsbytag_VB microseconds spent by protocol handlers in the receive thread for VB messages
+# TYPE algod_network_rx_handle_microsbytag_VB counter
+algod_network_rx_handle_microsbytag_VB 4
+# HELP algod_network_p2p_sent_bytes_UE Number of bytes that were sent over the network for UE messages
+# TYPE algod_network_p2p_sent_bytes_UE counter
+algod_network_p2p_sent_bytes_UE 207
+# HELP algod_network_p2p_sent_bytes_VP Number of bytes that were sent over the network for VP messages
+# TYPE algod_network_p2p_sent_bytes_VP counter
+algod_network_p2p_sent_bytes_VP 34774665060
+# HELP algod_network_p2p_sent_bytes_PP Number of bytes that were sent over the network for PP messages
+# TYPE algod_network_p2p_sent_bytes_PP counter
+algod_network_p2p_sent_bytes_PP 5471761354
+# HELP algod_network_p2p_sent_bytes_TX Number of bytes that were sent over the network for TX messages
+# TYPE algod_network_p2p_sent_bytes_TX counter
+algod_network_p2p_sent_bytes_TX 2737642767
+# HELP algod_network_p2p_sent_bytes_MS Number of bytes that were sent over the network for MS messages
+# TYPE algod_network_p2p_sent_bytes_MS counter
+algod_network_p2p_sent_bytes_MS 122980822
+# HELP algod_network_p2p_received_bytes_VB Number of bytes that were received from the network for VB messages
+# TYPE algod_network_p2p_received_bytes_VB counter
+algod_network_p2p_received_bytes_VB 100546
+# HELP algod_network_p2p_received_bytes_PP Number of bytes that were received from the network for PP messages
+# TYPE algod_network_p2p_received_bytes_PP counter
+algod_network_p2p_received_bytes_PP 2202681309
+# HELP algod_network_p2p_received_bytes_MS Number of bytes that were received from the network for MS messages
+# TYPE algod_network_p2p_received_bytes_MS counter
+algod_network_p2p_received_bytes_MS 6585630
+# HELP algod_network_p2p_received_bytes_TX Number of bytes that were received from the network for TX messages
+# TYPE algod_network_p2p_received_bytes_TX counter
+algod_network_p2p_received_bytes_TX 2034786588
+# HELP algod_network_p2p_received_bytes_VP Number of bytes that were received from the network for VP messages
+# TYPE algod_network_p2p_received_bytes_VP counter
+algod_network_p2p_received_bytes_VP 13442081712
+# HELP algod_network_p2p_received_bytes_TS Number of bytes that were received from the network for TS messages
+# TYPE algod_network_p2p_received_bytes_TS counter
+algod_network_p2p_received_bytes_TS 243
+# HELP algod_network_p2p_received_uncompressed_bytes_MS Number of bytes after decompression that were received from the network for MS messages
+# TYPE algod_network_p2p_received_uncompressed_bytes_MS counter
+algod_network_p2p_received_uncompressed_bytes_MS 6585630
+# HELP algod_network_p2p_received_uncompressed_bytes_TS Number of bytes after decompression that were received from the network for TS messages
+# TYPE algod_network_p2p_received_uncompressed_bytes_TS counter
+algod_network_p2p_received_uncompressed_bytes_TS 243
+# HELP algod_network_p2p_received_uncompressed_bytes_VB Number of bytes after decompression that were received from the network for VB messages
+# TYPE algod_network_p2p_received_uncompressed_bytes_VB counter
+algod_network_p2p_received_uncompressed_bytes_VB 100546
+# HELP algod_network_p2p_received_uncompressed_bytes_VP Number of bytes after decompression that were received from the network for VP messages
+# TYPE algod_network_p2p_received_uncompressed_bytes_VP counter
+algod_network_p2p_received_uncompressed_bytes_VP 35020622330
+# HELP algod_network_p2p_received_uncompressed_bytes_PP Number of bytes after decompression that were received from the network for PP messages
+# TYPE algod_network_p2p_received_uncompressed_bytes_PP counter
+algod_network_p2p_received_uncompressed_bytes_PP 3943988017
+# HELP algod_network_p2p_message_received_TX Number of complete messages that were received from the network for TX messages
+# TYPE algod_network_p2p_message_received_TX counter
+algod_network_p2p_message_received_TX 2837109
+# HELP algod_network_p2p_message_received_PP Number of complete messages that were received from the network for PP messages
+# TYPE algod_network_p2p_message_received_PP counter
+algod_network_p2p_message_received_PP 385033
+# HELP algod_network_p2p_message_received_TS Number of complete messages that were received from the network for TS messages
+# TYPE algod_network_p2p_message_received_TS counter
+algod_network_p2p_message_received_TS 3
+# HELP algod_network_p2p_message_received_VP Number of complete messages that were received from the network for VP messages
+# TYPE algod_network_p2p_message_received_VP counter
+algod_network_p2p_message_received_VP 55592422
+# HELP algod_network_p2p_message_received_MS Number of complete messages that were received from the network for MS messages
+# TYPE algod_network_p2p_message_received_MS counter
+algod_network_p2p_message_received_MS 193695
+# HELP algod_network_p2p_message_received_VB Number of complete messages that were received from the network for VB messages
+# TYPE algod_network_p2p_message_received_VB counter
+algod_network_p2p_message_received_VB 1
+# HELP algod_network_p2p_message_sent_TX Number of complete messages that were sent to the network for TX messages
+# TYPE algod_network_p2p_message_sent_TX counter
+algod_network_p2p_message_sent_TX 3822770
+# HELP algod_network_p2p_message_sent_VP Number of complete messages that were sent to the network for VP messages
+# TYPE algod_network_p2p_message_sent_VP counter
+algod_network_p2p_message_sent_VP 144051327
+# HELP algod_network_p2p_message_sent_PP Number of complete messages that were sent to the network for PP messages
+# TYPE algod_network_p2p_message_sent_PP counter
+algod_network_p2p_message_sent_PP 970679
+# HELP algod_network_p2p_message_sent_UE Number of complete messages that were sent to the network for UE messages
+# TYPE algod_network_p2p_message_sent_UE counter
+algod_network_p2p_message_sent_UE 3
+# HELP algod_network_p2p_message_sent_MS Number of complete messages that were sent to the network for MS messages
+# TYPE algod_network_p2p_message_sent_MS counter
+algod_network_p2p_message_sent_MS 3617083
+# HELP algod_agreement_vote_verifier_responses_dropped Number of voteVerifier responses dropped due to full channel
+# TYPE algod_agreement_vote_verifier_responses_dropped counter
+algod_agreement_vote_verifier_responses_dropped 0
+# HELP algod_agreement_proposal_already_filled Number of times a duplicate proposal payload was received before validation
+# TYPE algod_agreement_proposal_already_filled counter
+algod_agreement_proposal_already_filled 27873
+# HELP algod_agreement_proposal_already_assembled Number of times a duplicate proposal payload was received after validation
+# TYPE algod_agreement_proposal_already_assembled counter
+algod_agreement_proposal_already_assembled 259356
+# HELP algod_agreement_pseudonode_tasks_dropped_proposal Number of pseudonode proposal tasks dropped
+# TYPE algod_agreement_pseudonode_tasks_dropped_proposal counter
+algod_agreement_pseudonode_tasks_dropped_proposal 0
+# HELP algod_agreement_pseudonode_tasks_dropped_vote Number of pseudonode vote tasks dropped
+# TYPE algod_agreement_pseudonode_tasks_dropped_vote counter
+algod_agreement_pseudonode_tasks_dropped_vote 0
+# HELP algod_agreement_pseudonode_tasks_timeouts_vote Number of pseudonode vote task result timeouts
+# TYPE algod_agreement_pseudonode_tasks_timeouts_vote counter
+algod_agreement_pseudonode_tasks_timeouts_vote 0
+# HELP algod_agreement_pseudonode_tasks_timeouts_pvote Number of pseudonode pvote task result timeouts
+# TYPE algod_agreement_pseudonode_tasks_timeouts_pvote counter
+algod_agreement_pseudonode_tasks_timeouts_pvote 0
+# HELP algod_agreement_pseudonode_tasks_timeouts_ppayload Number of pseudonode ppayload task result timeouts
+# TYPE algod_agreement_pseudonode_tasks_timeouts_ppayload counter
+algod_agreement_pseudonode_tasks_timeouts_ppayload 0
+# HELP algod_agreement_handled Number of agreement messages handled
+# TYPE algod_agreement_handled counter
+algod_agreement_handled 96986030
+# HELP algod_agreement_handled_vote Number of agreement vote messages handled
+# TYPE algod_agreement_handled_vote counter
+algod_agreement_handled_vote 96317803
+# HELP algod_agreement_handled_proposal Number of agreement proposal messages handled
+# TYPE algod_agreement_handled_proposal counter
+algod_agreement_handled_proposal 668226
+# HELP algod_agreement_handled_bundle Number of agreement bundle messages handled
+# TYPE algod_agreement_handled_bundle counter
+algod_agreement_handled_bundle 1
+# HELP algod_agreement_dropped Number of agreement messages dropped
+# TYPE algod_agreement_dropped counter
+algod_agreement_dropped 0
+# HELP algod_agreement_dropped_vote Number of agreement vote messages dropped
+# TYPE algod_agreement_dropped_vote counter
+algod_agreement_dropped_vote 0
+# HELP algod_agreement_dropped_proposal Number of agreement proposal messages dropped
+# TYPE algod_agreement_dropped_proposal counter
+algod_agreement_dropped_proposal 0
+# HELP algod_agreement_dropped_bundle Number of agreement bundle messages dropped
+# TYPE algod_agreement_dropped_bundle counter
+algod_agreement_dropped_bundle 0
+# HELP ledger_accountsonlinetop_count calls
+# TYPE ledger_accountsonlinetop_count counter
+ledger_accountsonlinetop_count 198
+# HELP ledger_accountsonlinetop_micros us spent
+# TYPE ledger_accountsonlinetop_micros counter
+ledger_accountsonlinetop_micros 547178
+# HELP ledger_accountsexpired_count calls
+# TYPE ledger_accountsexpired_count counter
+ledger_accountsexpired_count 49654
+# HELP ledger_accountsexpired_micros us spent
+# TYPE ledger_accountsexpired_micros counter
+ledger_accountsexpired_micros 79628860
+# HELP ledger_getcatchpoint_count calls
+# TYPE ledger_getcatchpoint_count counter
+ledger_getcatchpoint_count 0
+# HELP ledger_getcatchpoint_micros us spent
+# TYPE ledger_getcatchpoint_micros counter
+ledger_getcatchpoint_micros 0
+# HELP ledger_accountsinit_count calls
+# TYPE ledger_accountsinit_count counter
+ledger_accountsinit_count 1
+# HELP ledger_accountsinit_micros us spent
+# TYPE ledger_accountsinit_micros counter
+ledger_accountsinit_micros 26
+# HELP ledger_commitround_count calls
+# TYPE ledger_commitround_count counter
+ledger_commitround_count 12585
+# HELP ledger_commitround_micros us spent
+# TYPE ledger_commitround_micros counter
+ledger_commitround_micros 135045085
+# HELP ledger_generatecatchpoint_count calls
+# TYPE ledger_generatecatchpoint_count counter
+ledger_generatecatchpoint_count 0
+# HELP ledger_generatecatchpoint_micros us spent
+# TYPE ledger_generatecatchpoint_micros counter
+ledger_generatecatchpoint_micros 0
+# HELP ledger_vacuum_count calls
+# TYPE ledger_vacuum_count counter
+ledger_vacuum_count 0
+# HELP ledger_vacuum_micros us spent
+# TYPE ledger_vacuum_micros counter
+ledger_vacuum_micros 0
+# HELP ledger_lock_accountsmu_count calls
+# TYPE ledger_lock_accountsmu_count counter
+ledger_lock_accountsmu_count 115418
+# HELP ledger_lock_accountsmu_micros us spent
+# TYPE ledger_lock_accountsmu_micros counter
+ledger_lock_accountsmu_micros 2819811
+# HELP ledger_blockq_init_count calls to init block queue
+# TYPE ledger_blockq_init_count counter
+ledger_blockq_init_count 1
+# HELP ledger_blockq_init_micros us spent to init block queue
+# TYPE ledger_blockq_init_micros counter
+ledger_blockq_init_micros 21
+# HELP ledger_blockq_sync_put_count calls to sync block queue
+# TYPE ledger_blockq_sync_put_count counter
+ledger_blockq_sync_put_count 25171
+# HELP ledger_blockq_sync_put_micros us spent to sync block queue
+# TYPE ledger_blockq_sync_put_micros counter
+ledger_blockq_sync_put_micros 134999422
+# HELP ledger_blockq_sync_forget_count calls
+# TYPE ledger_blockq_sync_forget_count counter
+ledger_blockq_sync_forget_count 25171
+# HELP ledger_blockq_sync_forget_micros us spent
+# TYPE ledger_blockq_sync_forget_micros counter
+ledger_blockq_sync_forget_micros 115810297
+# HELP ledger_blockq_getblock_count calls
+# TYPE ledger_blockq_getblock_count counter
+ledger_blockq_getblock_count 123
+# HELP ledger_blockq_getblock_micros us spent
+# TYPE ledger_blockq_getblock_micros counter
+ledger_blockq_getblock_micros 11433
+# HELP ledger_blockq_getblockhdr_count calls
+# TYPE ledger_blockq_getblockhdr_count counter
+ledger_blockq_getblockhdr_count 5
+# HELP ledger_blockq_getblockhdr_micros us spent
+# TYPE ledger_blockq_getblockhdr_micros counter
+ledger_blockq_getblockhdr_micros 315
+# HELP ledger_blockq_geteblockcert_count calls
+# TYPE ledger_blockq_geteblockcert_count counter
+ledger_blockq_geteblockcert_count 1
+# HELP ledger_blockq_geteblockcert_micros us spent
+# TYPE ledger_blockq_geteblockcert_micros counter
+ledger_blockq_geteblockcert_micros 108
+# HELP ledger_blockq_getblockcert_count calls
+# TYPE ledger_blockq_getblockcert_count counter
+ledger_blockq_getblockcert_count 0
+# HELP ledger_blockq_getblockcert_micros us spent
+# TYPE ledger_blockq_getblockcert_micros counter
+ledger_blockq_getblockcert_micros 0
+# HELP ledger_catchup_resetstagingbalances_count calls
+# TYPE ledger_catchup_resetstagingbalances_count counter
+ledger_catchup_resetstagingbalances_count 0
+# HELP ledger_catchup_resetstagingbalances_micros us spent
+# TYPE ledger_catchup_resetstagingbalances_micros counter
+ledger_catchup_resetstagingbalances_micros 0
+# HELP ledger_catchup_processstagingcontent_count calls
+# TYPE ledger_catchup_processstagingcontent_count counter
+ledger_catchup_processstagingcontent_count 0
+# HELP ledger_catchup_processstagingcontent_micros us spent
+# TYPE ledger_catchup_processstagingcontent_micros counter
+ledger_catchup_processstagingcontent_micros 0
+# HELP ledger_catchup_processstagingbalances_count calls
+# TYPE ledger_catchup_processstagingbalances_count counter
+ledger_catchup_processstagingbalances_count 0
+# HELP ledger_catchup_processstagingbalances_micros us spent
+# TYPE ledger_catchup_processstagingbalances_micros counter
+ledger_catchup_processstagingbalances_micros 0
+# HELP ledger_catchup_verifycatchpoint_count calls
+# TYPE ledger_catchup_verifycatchpoint_count counter
+ledger_catchup_verifycatchpoint_count 0
+# HELP ledger_catchup_verifycatchpoint_micros us spent
+# TYPE ledger_catchup_verifycatchpoint_micros counter
+ledger_catchup_verifycatchpoint_micros 0
+# HELP ledger_catchup_storebalancesround_count calls
+# TYPE ledger_catchup_storebalancesround_count counter
+ledger_catchup_storebalancesround_count 0
+# HELP ledger_catchup_storebalancesround_micros us spent
+# TYPE ledger_catchup_storebalancesround_micros counter
+ledger_catchup_storebalancesround_micros 0
+# HELP ledger_catchup_storefirstblock_count calls
+# TYPE ledger_catchup_storefirstblock_count counter
+ledger_catchup_storefirstblock_count 0
+# HELP ledger_catchup_storefirstblock_micros us spent
+# TYPE ledger_catchup_storefirstblock_micros counter
+ledger_catchup_storefirstblock_micros 0
+# HELP ledger_catchup_catchpoint_storeblock_count calls
+# TYPE ledger_catchup_catchpoint_storeblock_count counter
+ledger_catchup_catchpoint_storeblock_count 0
+# HELP ledger_catchup_catchpoint_storeblock_micros us spent
+# TYPE ledger_catchup_catchpoint_storeblock_micros counter
+ledger_catchup_catchpoint_storeblock_micros 0
+# HELP ledger_catchup_catchpoint_finishblocks_count calls
+# TYPE ledger_catchup_catchpoint_finishblocks_count counter
+ledger_catchup_catchpoint_finishblocks_count 0
+# HELP ledger_catchup_catchpoint_finishblocks_micros us spent
+# TYPE ledger_catchup_catchpoint_finishblocks_micros counter
+ledger_catchup_catchpoint_finishblocks_micros 0
+# HELP ledger_catchup_catchpoint_ensureblock1_count calls
+# TYPE ledger_catchup_catchpoint_ensureblock1_count counter
+ledger_catchup_catchpoint_ensureblock1_count 0
+# HELP ledger_catchup_catchpoint_ensureblock1_micros us spent
+# TYPE ledger_catchup_catchpoint_ensureblock1_micros counter
+ledger_catchup_catchpoint_ensureblock1_micros 0
+# HELP ledger_catchup_catchpoint_finish_bals_count calls
+# TYPE ledger_catchup_catchpoint_finish_bals_count counter
+ledger_catchup_catchpoint_finish_bals_count 0
+# HELP ledger_catchup_catchpoint_finish_bals_micros us spent
+# TYPE ledger_catchup_catchpoint_finish_bals_micros counter
+ledger_catchup_catchpoint_finish_bals_micros 0
+# HELP ledger_initblocksdb_count calls
+# TYPE ledger_initblocksdb_count counter
+ledger_initblocksdb_count 1
+# HELP ledger_initblocksdb_micros us spent
+# TYPE ledger_initblocksdb_micros counter
+ledger_initblocksdb_micros 60
+# HELP ledger_verifygenhash_count calls
+# TYPE ledger_verifygenhash_count counter
+ledger_verifygenhash_count 1
+# HELP ledger_verifygenhash_micros us spent
+# TYPE ledger_verifygenhash_micros counter
+ledger_verifygenhash_micros 29
+# HELP ledger_lock_trackermu_count calls
+# TYPE ledger_lock_trackermu_count counter
+ledger_lock_trackermu_count 50342
+# HELP ledger_lock_trackermu_micros us spent
+# TYPE ledger_lock_trackermu_micros counter
+ledger_lock_trackermu_micros 2880139
+# HELP algod_tx_pool_reeval_not_well Number of transaction groups removed from pool during re-evaluation due to not_well
+# TYPE algod_tx_pool_reeval_not_well counter
+algod_tx_pool_reeval_not_well 0
+# HELP algod_tx_pool_reeval_groupid Number of transaction groups removed from pool during re-evaluation due to groupid
+# TYPE algod_tx_pool_reeval_groupid counter
+algod_tx_pool_reeval_groupid 0
+# HELP algod_tx_pool_reeval_txid Number of transaction groups removed from pool during re-evaluation due to txid
+# TYPE algod_tx_pool_reeval_txid counter
+algod_tx_pool_reeval_txid 51
+# HELP algod_tx_pool_reeval_cap Number of transaction groups removed from pool during re-evaluation due to cap
+# TYPE algod_tx_pool_reeval_cap counter
+algod_tx_pool_reeval_cap 0
+# HELP algod_tx_pool_reeval_min_balance Number of transaction groups removed from pool during re-evaluation due to min_balance
+# TYPE algod_tx_pool_reeval_min_balance counter
+algod_tx_pool_reeval_min_balance 0
+# HELP algod_tx_pool_reeval_teal_reject Number of transaction groups removed from pool during re-evaluation due to teal_reject
+# TYPE algod_tx_pool_reeval_teal_reject counter
+algod_tx_pool_reeval_teal_reject 14
+# HELP algod_tx_pool_reeval_teal_err Number of transaction groups removed from pool during re-evaluation due to teal_err
+# TYPE algod_tx_pool_reeval_teal_err counter
+algod_tx_pool_reeval_teal_err 860343
+# HELP algod_tx_pool_reeval_pending_eval Number of transaction groups removed from pool during re-evaluation due to pending_eval
+# TYPE algod_tx_pool_reeval_pending_eval counter
+algod_tx_pool_reeval_pending_eval 0
+# HELP algod_tx_pool_reeval_txid_eval Number of transaction groups removed from pool during re-evaluation due to txid_eval
+# TYPE algod_tx_pool_reeval_txid_eval counter
+algod_tx_pool_reeval_txid_eval 0
+# HELP algod_tx_pool_reeval_panic Number of transaction groups removed from pool during re-evaluation due to panic
+# TYPE algod_tx_pool_reeval_panic counter
+algod_tx_pool_reeval_panic 0
+# HELP algod_tx_pool_reeval_overspend Number of transaction groups removed from pool during re-evaluation due to overspend
+# TYPE algod_tx_pool_reeval_overspend counter
+algod_tx_pool_reeval_overspend 0
+# HELP algod_tx_pool_reeval_fee Number of transaction groups removed from pool during re-evaluation due to fee
+# TYPE algod_tx_pool_reeval_fee counter
+algod_tx_pool_reeval_fee 0
+# HELP algod_tx_pool_reeval_lease Number of transaction groups removed from pool during re-evaluation due to lease
+# TYPE algod_tx_pool_reeval_lease counter
+algod_tx_pool_reeval_lease 1
+# HELP algod_tx_pool_reeval_txn_early Number of transaction groups removed from pool during re-evaluation due to txn_early
+# TYPE algod_tx_pool_reeval_txn_early counter
+algod_tx_pool_reeval_txn_early 0
+# HELP algod_tx_pool_reeval_eval Number of transaction groups removed from pool during re-evaluation due to eval
+# TYPE algod_tx_pool_reeval_eval counter
+algod_tx_pool_reeval_eval 1
+# HELP algod_tx_pool_reeval_txn_dead Number of transaction groups removed from pool during re-evaluation due to txn_dead
+# TYPE algod_tx_pool_reeval_txn_dead counter
+algod_tx_pool_reeval_txn_dead 8892
+# HELP algod_tx_pool_reeval_asset_bal Number of transaction groups removed from pool during re-evaluation due to asset_bal
+# TYPE algod_tx_pool_reeval_asset_bal counter
+algod_tx_pool_reeval_asset_bal 19
+# HELP algod_tx_pool_reeval_too_large Number of transaction groups removed from pool during re-evaluation due to too_large
+# TYPE algod_tx_pool_reeval_too_large counter
+algod_tx_pool_reeval_too_large 0
+# HELP algod_tx_pool_reeval_lease_eval Number of transaction groups removed from pool during re-evaluation due to lease_eval
+# TYPE algod_tx_pool_reeval_lease_eval counter
+algod_tx_pool_reeval_lease_eval 0
+# HELP algod_tx_pool_reeval_no_space Number of transaction groups removed from pool during re-evaluation due to no_space
+# TYPE algod_tx_pool_reeval_no_space counter
+algod_tx_pool_reeval_no_space 0
+# HELP algod_tx_pool_reeval_success Number of transaction groups successfully re-evaluated after new block
+# TYPE algod_tx_pool_reeval_success counter
+algod_tx_pool_reeval_success 219439
+# HELP algod_tx_pool_reeval_committed Number of transaction groups removed because already committed in latest block
+# TYPE algod_tx_pool_reeval_committed counter
+algod_tx_pool_reeval_committed 210893
+# HELP algod_transaction_messages_handled Number of transaction messages handled
+# TYPE algod_transaction_messages_handled counter
+algod_transaction_messages_handled 1442277
+# HELP algod_transaction_messages_dropped_backlog Number of transaction messages dropped from backlog
+# TYPE algod_transaction_messages_dropped_backlog counter
+algod_transaction_messages_dropped_backlog 0
+# HELP algod_transaction_messages_dropped_pool Number of transaction messages dropped from pool
+# TYPE algod_transaction_messages_dropped_pool counter
+algod_transaction_messages_dropped_pool 0
+# HELP algod_transaction_messages_err_or_committed Number of duplicate or error transaction messages after TX handler backlog
+# TYPE algod_transaction_messages_err_or_committed counter
+algod_transaction_messages_err_or_committed 374598
+# HELP algod_transaction_messages_txgroup_invalid_fee Number of transaction messages with invalid txgroup fee
+# TYPE algod_transaction_messages_txgroup_invalid_fee counter
+algod_transaction_messages_txgroup_invalid_fee 0
+# HELP algod_transaction_messages_txn_notwell_formed Number of transaction messages not well formed
+# TYPE algod_transaction_messages_txn_notwell_formed counter
+algod_transaction_messages_txn_notwell_formed 0
+# HELP algod_transaction_messages_sig_bad_formed Number of transaction messages with bad formed signature
+# TYPE algod_transaction_messages_sig_bad_formed counter
+algod_transaction_messages_sig_bad_formed 0
+# HELP algod_transaction_messages_msig_bad_formed Number of transaction messages with bad formed msig
+# TYPE algod_transaction_messages_msig_bad_formed counter
+algod_transaction_messages_msig_bad_formed 0
+# HELP algod_transaction_messages_logic_sig_failed Number of transaction messages with invalid logic sig
+# TYPE algod_transaction_messages_logic_sig_failed counter
+algod_transaction_messages_logic_sig_failed 0
+# HELP algod_transaction_messages_sig_verify_failed Number of transaction messages with signature verification failed
+# TYPE algod_transaction_messages_sig_verify_failed counter
+algod_transaction_messages_sig_verify_failed 0
+# HELP algod_transaction_messages_backlog_err Number of transaction messages with some validation error
+# TYPE algod_transaction_messages_backlog_err counter
+algod_transaction_messages_backlog_err 0
+# HELP algod_transaction_messages_remember Number of transaction messages remembered in TX handler
+# TYPE algod_transaction_messages_remember counter
+algod_transaction_messages_remember 1080058
+# HELP algod_transaction_messages_txgroup_excessive Number of transaction messages with greater than max allowed txns
+# TYPE algod_transaction_messages_txgroup_excessive counter
+algod_transaction_messages_txgroup_excessive 0
+# HELP algod_transaction_messages_txgroup_full Number of transaction messages with max txns allowed
+# TYPE algod_transaction_messages_txgroup_full counter
+algod_transaction_messages_txgroup_full 782
+# HELP algod_transaction_messages_dropped_dup_raw Number of dupe raw transaction messages dropped
+# TYPE algod_transaction_messages_dropped_dup_raw counter
+algod_transaction_messages_dropped_dup_raw 2690492
+# HELP algod_transaction_messages_dropped_dup_canonical Number of transaction messages dropped after canonical re-encoding
+# TYPE algod_transaction_messages_dropped_dup_canonical counter
+algod_transaction_messages_dropped_dup_canonical 0
+# HELP algod_transaction_messages_dropped_app_limiter Number of transaction messages dropped after app limits check
+# TYPE algod_transaction_messages_dropped_app_limiter counter
+algod_transaction_messages_dropped_app_limiter 149259
+# HELP algod_transaction_messages_backlog_size Number of transaction messages in the TX handler backlog queue
+# TYPE algod_transaction_messages_backlog_size gauge
+algod_transaction_messages_backlog_size 0
+# HELP algod_transaction_group_txsync_handled Number of transaction groups handled via txsync
+# TYPE algod_transaction_group_txsync_handled counter
+algod_transaction_group_txsync_handled 15166
+# HELP algod_transaction_group_txsync_remember Number of transaction groups remembered via txsync
+# TYPE algod_transaction_group_txsync_remember counter
+algod_transaction_group_txsync_remember 71
+# HELP algod_transaction_group_txsync_err_or_committed Number of duplicate or error transaction groups received via txsync
+# TYPE algod_transaction_group_txsync_err_or_committed counter
+algod_transaction_group_txsync_err_or_committed 5789
+# HELP algod_transaction_messages_txn_dropped_congestion_ctrl Number of transaction messages dropped because the tx backlog is under congestion management
+# TYPE algod_transaction_messages_txn_dropped_congestion_ctrl counter
+algod_transaction_messages_txn_dropped_congestion_ctrl 0
+# HELP algod_transaction_messages_txpool_remember_err_lease Number of transaction messages not remembered by txpool b/c of lease
+# TYPE algod_transaction_messages_txpool_remember_err_lease counter
+algod_transaction_messages_txpool_remember_err_lease 0
+# HELP algod_transaction_messages_txpool_remember_err_too_large Number of transaction messages not remembered by txpool b/c of too_large
+# TYPE algod_transaction_messages_txpool_remember_err_too_large counter
+algod_transaction_messages_txpool_remember_err_too_large 0
+# HELP algod_transaction_messages_txpool_remember_err_txid_eval Number of transaction messages not remembered by txpool b/c of txid_eval
+# TYPE algod_transaction_messages_txpool_remember_err_txid_eval counter
+algod_transaction_messages_txpool_remember_err_txid_eval 45121
+# HELP algod_transaction_messages_txpool_remember_err_txn_dead Number of transaction messages not remembered by txpool b/c of txn_dead
+# TYPE algod_transaction_messages_txpool_remember_err_txn_dead counter
+algod_transaction_messages_txpool_remember_err_txn_dead 31
+# HELP algod_transaction_messages_txpool_remember_err_overspend Number of transaction messages not remembered by txpool b/c of overspend
+# TYPE algod_transaction_messages_txpool_remember_err_overspend counter
+algod_transaction_messages_txpool_remember_err_overspend 1
+# HELP algod_transaction_messages_txpool_remember_err_not_well Number of transaction messages not remembered by txpool b/c of not_well
+# TYPE algod_transaction_messages_txpool_remember_err_not_well counter
+algod_transaction_messages_txpool_remember_err_not_well 0
+# HELP algod_transaction_messages_txpool_remember_err_txid Number of transaction messages not remembered by txpool b/c of txid
+# TYPE algod_transaction_messages_txpool_remember_err_txid counter
+algod_transaction_messages_txpool_remember_err_txid 3
+# HELP algod_transaction_messages_txpool_remember_err_teal_reject Number of transaction messages not remembered by txpool b/c of teal_reject
+# TYPE algod_transaction_messages_txpool_remember_err_teal_reject counter
+algod_transaction_messages_txpool_remember_err_teal_reject 113
+# HELP algod_transaction_messages_txpool_remember_err_fee Number of transaction messages not remembered by txpool b/c of fee
+# TYPE algod_transaction_messages_txpool_remember_err_fee counter
+algod_transaction_messages_txpool_remember_err_fee 28004
+# HELP algod_transaction_messages_txpool_remember_err_pending_eval Number of transaction messages not remembered by txpool b/c of pending_eval
+# TYPE algod_transaction_messages_txpool_remember_err_pending_eval counter
+algod_transaction_messages_txpool_remember_err_pending_eval 0
+# HELP algod_transaction_messages_txpool_remember_err_panic Number of transaction messages not remembered by txpool b/c of panic
+# TYPE algod_transaction_messages_txpool_remember_err_panic counter
+algod_transaction_messages_txpool_remember_err_panic 0
+# HELP algod_transaction_messages_txpool_remember_err_groupid Number of transaction messages not remembered by txpool b/c of groupid
+# TYPE algod_transaction_messages_txpool_remember_err_groupid counter
+algod_transaction_messages_txpool_remember_err_groupid 0
+# HELP algod_transaction_messages_txpool_remember_err_lease_eval Number of transaction messages not remembered by txpool b/c of lease_eval
+# TYPE algod_transaction_messages_txpool_remember_err_lease_eval counter
+algod_transaction_messages_txpool_remember_err_lease_eval 0
+# HELP algod_transaction_messages_txpool_remember_err_no_space Number of transaction messages not remembered by txpool b/c of no_space
+# TYPE algod_transaction_messages_txpool_remember_err_no_space counter
+algod_transaction_messages_txpool_remember_err_no_space 0
+# HELP algod_transaction_messages_txpool_remember_err_cap Number of transaction messages not remembered by txpool b/c of cap
+# TYPE algod_transaction_messages_txpool_remember_err_cap counter
+algod_transaction_messages_txpool_remember_err_cap 0
+# HELP algod_transaction_messages_txpool_remember_err_asset_bal Number of transaction messages not remembered by txpool b/c of asset_bal
+# TYPE algod_transaction_messages_txpool_remember_err_asset_bal counter
+algod_transaction_messages_txpool_remember_err_asset_bal 119
+# HELP algod_transaction_messages_txpool_remember_err_teal_err Number of transaction messages not remembered by txpool b/c of teal_err
+# TYPE algod_transaction_messages_txpool_remember_err_teal_err counter
+algod_transaction_messages_txpool_remember_err_teal_err 288826
+# HELP algod_transaction_messages_txpool_remember_err_txn_early Number of transaction messages not remembered by txpool b/c of txn_early
+# TYPE algod_transaction_messages_txpool_remember_err_txn_early counter
+algod_transaction_messages_txpool_remember_err_txn_early 0
+# HELP algod_transaction_messages_txpool_remember_err_eval Number of transaction messages not remembered by txpool b/c of eval
+# TYPE algod_transaction_messages_txpool_remember_err_eval counter
+algod_transaction_messages_txpool_remember_err_eval 1
+# HELP algod_transaction_messages_txpool_remember_err_min_balance Number of transaction messages not remembered by txpool b/c of min_balance
+# TYPE algod_transaction_messages_txpool_remember_err_min_balance counter
+algod_transaction_messages_txpool_remember_err_min_balance 0
+# HELP algod_transaction_messages_txpool_check_err_panic Number of transaction messages that didn't pass check by txpool b/c of panic
+# TYPE algod_transaction_messages_txpool_check_err_panic counter
+algod_transaction_messages_txpool_check_err_panic 0
+# HELP algod_transaction_messages_txpool_check_err_not_well Number of transaction messages that didn't pass check by txpool b/c of not_well
+# TYPE algod_transaction_messages_txpool_check_err_not_well counter
+algod_transaction_messages_txpool_check_err_not_well 0
+# HELP algod_transaction_messages_txpool_check_err_txn_dead Number of transaction messages that didn't pass check by txpool b/c of txn_dead
+# TYPE algod_transaction_messages_txpool_check_err_txn_dead counter
+algod_transaction_messages_txpool_check_err_txn_dead 2232
+# HELP algod_transaction_messages_txpool_check_err_txid Number of transaction messages that didn't pass check by txpool b/c of txid
+# TYPE algod_transaction_messages_txpool_check_err_txid counter
+algod_transaction_messages_txpool_check_err_txid 3621
+# HELP algod_transaction_messages_txpool_check_err_min_balance Number of transaction messages that didn't pass check by txpool b/c of min_balance
+# TYPE algod_transaction_messages_txpool_check_err_min_balance counter
+algod_transaction_messages_txpool_check_err_min_balance 0
+# HELP algod_transaction_messages_txpool_check_err_eval Number of transaction messages that didn't pass check by txpool b/c of eval
+# TYPE algod_transaction_messages_txpool_check_err_eval counter
+algod_transaction_messages_txpool_check_err_eval 3
+# HELP algod_transaction_messages_txpool_check_err_txid_eval Number of transaction messages that didn't pass check by txpool b/c of txid_eval
+# TYPE algod_transaction_messages_txpool_check_err_txid_eval counter
+algod_transaction_messages_txpool_check_err_txid_eval 374190
+# HELP algod_transaction_messages_txpool_check_err_lease_eval Number of transaction messages that didn't pass check by txpool b/c of lease_eval
+# TYPE algod_transaction_messages_txpool_check_err_lease_eval counter
+algod_transaction_messages_txpool_check_err_lease_eval 2
+# HELP algod_transaction_messages_txpool_check_err_txn_early Number of transaction messages that didn't pass check by txpool b/c of txn_early
+# TYPE algod_transaction_messages_txpool_check_err_txn_early counter
+algod_transaction_messages_txpool_check_err_txn_early 3
+# HELP algod_transaction_messages_txpool_check_err_pending_eval Number of transaction messages that didn't pass check by txpool b/c of pending_eval
+# TYPE algod_transaction_messages_txpool_check_err_pending_eval counter
+algod_transaction_messages_txpool_check_err_pending_eval 0
+# HELP algod_transaction_messages_txpool_check_err_lease Number of transaction messages that didn't pass check by txpool b/c of lease
+# TYPE algod_transaction_messages_txpool_check_err_lease counter
+algod_transaction_messages_txpool_check_err_lease 336
+# HELP algod_transaction_messages_txpool_check_err_fee Number of transaction messages that didn't pass check by txpool b/c of fee
+# TYPE algod_transaction_messages_txpool_check_err_fee counter
+algod_transaction_messages_txpool_check_err_fee 0
+# HELP algod_transaction_messages_txpool_check_err_teal_reject Number of transaction messages that didn't pass check by txpool b/c of teal_reject
+# TYPE algod_transaction_messages_txpool_check_err_teal_reject counter
+algod_transaction_messages_txpool_check_err_teal_reject 0
+# HELP algod_transaction_messages_txpool_check_err_asset_bal Number of transaction messages that didn't pass check by txpool b/c of asset_bal
+# TYPE algod_transaction_messages_txpool_check_err_asset_bal counter
+algod_transaction_messages_txpool_check_err_asset_bal 0
+# HELP algod_transaction_messages_txpool_check_err_too_large Number of transaction messages that didn't pass check by txpool b/c of too_large
+# TYPE algod_transaction_messages_txpool_check_err_too_large counter
+algod_transaction_messages_txpool_check_err_too_large 0
+# HELP algod_transaction_messages_txpool_check_err_cap Number of transaction messages that didn't pass check by txpool b/c of cap
+# TYPE algod_transaction_messages_txpool_check_err_cap counter
+algod_transaction_messages_txpool_check_err_cap 0
+# HELP algod_transaction_messages_txpool_check_err_no_space Number of transaction messages that didn't pass check by txpool b/c of no_space
+# TYPE algod_transaction_messages_txpool_check_err_no_space counter
+algod_transaction_messages_txpool_check_err_no_space 0
+# HELP algod_transaction_messages_txpool_check_err_overspend Number of transaction messages that didn't pass check by txpool b/c of overspend
+# TYPE algod_transaction_messages_txpool_check_err_overspend counter
+algod_transaction_messages_txpool_check_err_overspend 0
+# HELP algod_transaction_messages_txpool_check_err_teal_err Number of transaction messages that didn't pass check by txpool b/c of teal_err
+# TYPE algod_transaction_messages_txpool_check_err_teal_err counter
+algod_transaction_messages_txpool_check_err_teal_err 0
+# HELP algod_transaction_messages_txpool_check_err_groupid Number of transaction messages that didn't pass check by txpool b/c of groupid
+# TYPE algod_transaction_messages_txpool_check_err_groupid counter
+algod_transaction_messages_txpool_check_err_groupid 0
+# HELP algod_rpcs_ws_reqs_dropped Number of websocket block requests dropped due to memory capacity
+# TYPE algod_rpcs_ws_reqs_dropped counter
+algod_rpcs_ws_reqs_dropped 0
+# HELP algod_rpcs_http_reqs_dropped Number of http block requests dropped due to memory capacity
+# TYPE algod_rpcs_http_reqs_dropped counter
+algod_rpcs_http_reqs_dropped 0
+# HELP algod_broadcast_txgroup_succeeded Number of successful broadcasts of local signed transaction groups
+# TYPE algod_broadcast_txgroup_succeeded counter
+algod_broadcast_txgroup_succeeded 99
+# HELP algod_broadcast_txgroup_failed Number of failed broadcasts of local signed transaction groups
+# TYPE algod_broadcast_txgroup_failed counter
+algod_broadcast_txgroup_failed 99
+# HELP algod_tx_pool_count current number of available transactions in pool
+# TYPE algod_tx_pool_count gauge
+algod_tx_pool_count 23
+# HELP algod_build_info Algod build info
+# TYPE algod_build_info gauge
+algod_build_info{goarch="amd64",goos="linux",version="5.0.5",commit="1f2e3d4c",channel="stable"} 1
+# HELP libp2p_autonat_next_probe_timestamp Time of next probe
+# TYPE libp2p_autonat_next_probe_timestamp gauge
+libp2p_autonat_next_probe_timestamp 1793709762
+# HELP libp2p_autonat_reachability_status Current node reachability
+# TYPE libp2p_autonat_reachability_status gauge
+libp2p_autonat_reachability_status 0
+# HELP libp2p_autonat_reachability_status_confidence Node reachability status confidence
+# TYPE libp2p_autonat_reachability_status_confidence gauge
+libp2p_autonat_reachability_status_confidence 0
+# HELP libp2p_eventbus_events_emitted_total Events Emitted
+# TYPE libp2p_eventbus_events_emitted_total counter
+libp2p_eventbus_events_emitted_total{event="EvtLocalAddressesUpdated"} 1
+libp2p_eventbus_events_emitted_total{event="EvtLocalProtocolsUpdated"} 12
+libp2p_eventbus_events_emitted_total{event="EvtNATDeviceTypeChanged"} 1
+libp2p_eventbus_events_emitted_total{event="EvtPeerConnectednessChanged"} 1901
+libp2p_eventbus_events_emitted_total{event="EvtPeerIdentificationCompleted"} 993
+libp2p_eventbus_events_emitted_total{event="EvtPeerIdentificationFailed"} 1
+# HELP libp2p_eventbus_subscriber_event_queued Event Queued for subscriber
+# TYPE libp2p_eventbus_subscriber_event_queued counter
+libp2p_eventbus_subscriber_event_queued{subscriber_name="autonat"} 994
+libp2p_eventbus_subscriber_event_queued{subscriber_name="identify (loop)"} 10
+libp2p_eventbus_subscriber_event_queued{subscriber_name="libp2p/go-libp2p-kad-dht/subscriber_notifee.go-L37"} 2895
+libp2p_eventbus_subscriber_event_queued{subscriber_name="libp2p/go-libp2p-pubsub/gossipsub.go-L704"} 2894
+libp2p_eventbus_subscriber_event_queued{subscriber_name="libp2p/go-libp2p-pubsub/peer_notify.go-L15"} 993
+libp2p_eventbus_subscriber_event_queued{subscriber_name="observed-addrs-manager"} 993
+libp2p_eventbus_subscriber_event_queued{subscriber_name="pstoremanager"} 1901
+# HELP libp2p_eventbus_subscriber_queue_full Subscriber Queue completely full
+# TYPE libp2p_eventbus_subscriber_queue_full gauge
+libp2p_eventbus_subscriber_queue_full{subscriber_name="autonat"} 0
+libp2p_eventbus_subscriber_queue_full{subscriber_name="identify (loop)"} 0
+libp2p_eventbus_subscriber_queue_full{subscriber_name="libp2p/go-libp2p-kad-dht/subscriber_notifee.go-L37"} 0
+libp2p_eventbus_subscriber_queue_full{subscriber_name="libp2p/go-libp2p-pubsub/gossipsub.go-L704"} 0
+libp2p_eventbus_subscriber_queue_full{subscriber_name="libp2p/go-libp2p-pubsub/peer_notify.go-L15"} 0
+libp2p_eventbus_subscriber_queue_full{subscriber_name="observed-addrs-manager"} 0
+libp2p_eventbus_subscriber_queue_full{subscriber_name="pstoremanager"} 0
+# HELP libp2p_eventbus_subscriber_queue_length Subscriber queue length
+# TYPE libp2p_eventbus_subscriber_queue_length gauge
+libp2p_eventbus_subscriber_queue_length{subscriber_name="autonat"} 1
+libp2p_eventbus_subscriber_queue_length{subscriber_name="identify (loop)"} 1
+libp2p_eventbus_subscriber_queue_length{subscriber_name="libp2p/go-libp2p-kad-dht/subscriber_notifee.go-L37"} 1
+libp2p_eventbus_subscriber_queue_length{subscriber_name="libp2p/go-libp2p-pubsub/gossipsub.go-L704"} 1
+libp2p_eventbus_subscriber_queue_length{subscriber_name="libp2p/go-libp2p-pubsub/peer_notify.go-L15"} 1
+libp2p_eventbus_subscriber_queue_length{subscriber_name="observed-addrs-manager"} 1
+libp2p_eventbus_subscriber_queue_length{subscriber_name="pstoremanager"} 1
+# HELP libp2p_eventbus_subscribers_total Number of subscribers for an event type
+# TYPE libp2p_eventbus_subscribers_total gauge
+libp2p_eventbus_subscribers_total{event="EvtAutoRelayAddrsUpdated"} 1
+libp2p_eventbus_subscribers_total{event="EvtLocalAddressesUpdated"} 3
+libp2p_eventbus_subscribers_total{event="EvtLocalProtocolsUpdated"} 1
+libp2p_eventbus_subscribers_total{event="EvtLocalReachabilityChanged"} 1
+libp2p_eventbus_subscribers_total{event="EvtPeerConnectednessChanged"} 3
+libp2p_eventbus_subscribers_total{event="EvtPeerIdentificationCompleted"} 5
+libp2p_eventbus_subscribers_total{event="EvtPeerProtocolsUpdated"} 2
+# HELP libp2p_identify_addrs_count Address Count
+# TYPE libp2p_identify_addrs_count gauge
+libp2p_identify_addrs_count 1
+# HELP libp2p_identify_addrs_received_bucket Number of addrs received
+# TYPE libp2p_identify_addrs_received_bucket counter
+libp2p_identify_addrs_received_bucket{le="1"} 985
+libp2p_identify_addrs_received_bucket{le="2"} 993
+libp2p_identify_addrs_received_bucket{le="3"} 993
+libp2p_identify_addrs_received_bucket{le="4"} 993
+libp2p_identify_addrs_received_bucket{le="5"} 993
+libp2p_identify_addrs_received_bucket{le="6"} 993
+libp2p_identify_addrs_received_bucket{le="7"} 993
+libp2p_identify_addrs_received_bucket{le="8"} 993
+libp2p_identify_addrs_received_bucket{le="9"} 993
+libp2p_identify_addrs_received_bucket{le="10"} 993
+libp2p_identify_addrs_received_bucket{le="11"} 993
+libp2p_identify_addrs_received_bucket{le="12"} 993
+libp2p_identify_addrs_received_bucket{le="13"} 993
+libp2p_identify_addrs_received_bucket{le="14"} 993
+libp2p_identify_addrs_received_bucket{le="15"} 993
+libp2p_identify_addrs_received_bucket{le="16"} 993
+libp2p_identify_addrs_received_bucket{le="17"} 993
+libp2p_identify_addrs_received_bucket{le="18"} 993
+libp2p_identify_addrs_received_bucket{le="19"} 993
+libp2p_identify_addrs_received_bucket{le="20"} 993
+libp2p_identify_addrs_received_bucket{le="25"} 993
+libp2p_identify_addrs_received_bucket{le="30"} 993
+libp2p_identify_addrs_received_bucket{le="35"} 993
+libp2p_identify_addrs_received_bucket{le="40"} 993
+libp2p_identify_addrs_received_bucket{le="45"} 993
+libp2p_identify_addrs_received_bucket{le="50"} 993
+libp2p_identify_addrs_received_bucket{le="55"} 993
+libp2p_identify_addrs_received_bucket{le="60"} 993
+libp2p_identify_addrs_received_bucket{le="65"} 993
+libp2p_identify_addrs_received_bucket{le="70"} 993
+libp2p_identify_addrs_received_bucket{le="75"} 993
+libp2p_identify_addrs_received_bucket{le="80"} 993
+libp2p_identify_addrs_received_bucket{le="85"} 993
+libp2p_identify_addrs_received_bucket{le="90"} 993
+libp2p_identify_addrs_received_bucket{le="95"} 993
+libp2p_identify_addrs_received_bucket{le="100"} 993
+libp2p_identify_addrs_received_bucket{le="+Inf"} 993
+# HELP libp2p_identify_addrs_received_count Number of addrs received
+# TYPE libp2p_identify_addrs_received_count counter
+libp2p_identify_addrs_received_count 993
+# HELP libp2p_identify_addrs_received_sum Number of addrs received
+# TYPE libp2p_identify_addrs_received_sum gauge
+libp2p_identify_addrs_received_sum 865
+# HELP libp2p_identify_conn_push_support_total Identify Connection Push Support
+# TYPE libp2p_identify_conn_push_support_total counter
+libp2p_identify_conn_push_support_total{support="not supported"} 4
+libp2p_identify_conn_push_support_total{support="supported"} 989
+# HELP libp2p_identify_identify_push_total Identify Push
+# TYPE libp2p_identify_identify_push_total counter
+libp2p_identify_identify_push_total{dir="outbound"} 37
+# HELP libp2p_identify_identify_pushes_triggered_total Pushes Triggered
+# TYPE libp2p_identify_identify_pushes_triggered_total counter
+libp2p_identify_identify_pushes_triggered_total{trigger="addresses_updated"} 1
+libp2p_identify_identify_pushes_triggered_total{trigger="protocols_updated"} 4
+# HELP libp2p_identify_identify_total Identify
+# TYPE libp2p_identify_identify_total counter
+libp2p_identify_identify_total{dir="inbound"} 994
+libp2p_identify_identify_total{dir="outbound"} 993
+# HELP libp2p_identify_protocols_count Protocols Count
+# TYPE libp2p_identify_protocols_count gauge
+libp2p_identify_protocols_count 12
+# HELP libp2p_identify_protocols_received_bucket Number of Protocols received
+# TYPE libp2p_identify_protocols_received_bucket counter
+libp2p_identify_protocols_received_bucket{le="1"} 0
+libp2p_identify_protocols_received_bucket{le="2"} 4
+libp2p_identify_protocols_received_bucket{le="3"} 4
+libp2p_identify_protocols_received_bucket{le="4"} 4
+libp2p_identify_protocols_received_bucket{le="5"} 4
+libp2p_identify_protocols_received_bucket{le="6"} 4
+libp2p_identify_protocols_received_bucket{le="7"} 4
+libp2p_identify_protocols_received_bucket{le="8"} 4
+libp2p_identify_protocols_received_bucket{le="9"} 4
+libp2p_identify_protocols_received_bucket{le="10"} 136
+libp2p_identify_protocols_received_bucket{le="11"} 136
+libp2p_identify_protocols_received_bucket{le="12"} 993
+libp2p_identify_protocols_received_bucket{le="13"} 993
+libp2p_identify_protocols_received_bucket{le="14"} 993
+libp2p_identify_protocols_received_bucket{le="15"} 993
+libp2p_identify_protocols_received_bucket{le="16"} 993
+libp2p_identify_protocols_received_bucket{le="17"} 993
+libp2p_identify_protocols_received_bucket{le="18"} 993
+libp2p_identify_protocols_received_bucket{le="19"} 993
+libp2p_identify_protocols_received_bucket{le="20"} 993
+libp2p_identify_protocols_received_bucket{le="25"} 993
+libp2p_identify_protocols_received_bucket{le="30"} 993
+libp2p_identify_protocols_received_bucket{le="35"} 993
+libp2p_identify_protocols_received_bucket{le="40"} 993
+libp2p_identify_protocols_received_bucket{le="45"} 993
+libp2p_identify_protocols_received_bucket{le="50"} 993
+libp2p_identify_protocols_received_bucket{le="55"} 993
+libp2p_identify_protocols_received_bucket{le="60"} 993
+libp2p_identify_protocols_received_bucket{le="65"} 993
+libp2p_identify_protocols_received_bucket{le="70"} 993
+libp2p_identify_protocols_received_bucket{le="75"} 993
+libp2p_identify_protocols_received_bucket{le="80"} 993
+libp2p_identify_protocols_received_bucket{le="85"} 993
+libp2p_identify_protocols_received_bucket{le="90"} 993
+libp2p_identify_protocols_received_bucket{le="95"} 993
+libp2p_identify_protocols_received_bucket{le="100"} 993
+libp2p_identify_protocols_received_bucket{le="+Inf"} 993
+# HELP libp2p_identify_protocols_received_count Number of Protocols received
+# TYPE libp2p_identify_protocols_received_count counter
+libp2p_identify_protocols_received_count 993
+# HELP libp2p_identify_protocols_received_sum Number of Protocols received
+# TYPE libp2p_identify_protocols_received_sum gauge
+libp2p_identify_protocols_received_sum 11612
+# HELP libp2p_io_dht_kad_network_size Network size estimation
+# TYPE libp2p_io_dht_kad_network_size gauge
+libp2p_io_dht_kad_network_size{otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version=""} 104
+# HELP libp2p_io_dht_kad_rpc_inbound_bytes_bucket Total received bytes per RPC
+# TYPE libp2p_io_dht_kad_rpc_inbound_bytes_bucket counter
+libp2p_io_dht_kad_rpc_inbound_bytes_bucket{otel_scope_schema_url="",otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",le="1024"} 12791
+libp2p_io_dht_kad_rpc_inbound_bytes_bucket{otel_scope_schema_url="",otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",le="2048"} 12791
+libp2p_io_dht_kad_rpc_inbound_bytes_bucket{otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",le="4096",otel_scope_schema_url=""} 12791
+libp2p_io_dht_kad_rpc_inbound_bytes_bucket{otel_scope_schema_url="",otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",le="16384"} 12791
+libp2p_io_dht_kad_rpc_inbound_bytes_bucket{otel_scope_schema_url="",otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",le="65536"} 12791
+libp2p_io_dht_kad_rpc_inbound_bytes_bucket{otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",le="262144",otel_scope_schema_url=""} 12791
+libp2p_io_dht_kad_rpc_inbound_bytes_bucket{otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",le="1.048576e+06",otel_scope_schema_url=""} 12791
+libp2p_io_dht_kad_rpc_inbound_bytes_bucket{otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",le="4.194304e+06",otel_scope_schema_url=""} 12791
+libp2p_io_dht_kad_rpc_inbound_bytes_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="1.6777216e+07",otel_scope_version=""} 12791
+libp2p_io_dht_kad_rpc_inbound_bytes_bucket{otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",le="6.7108864e+07",otel_scope_schema_url=""} 12791
+libp2p_io_dht_kad_rpc_inbound_bytes_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="2.68435456e+08"} 12791
+libp2p_io_dht_kad_rpc_inbound_bytes_bucket{le="1.073741824e+09",otel_scope_schema_url="",otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht"} 12791
+libp2p_io_dht_kad_rpc_inbound_bytes_bucket{otel_scope_schema_url="",otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",le="4.294967296e+09"} 12791
+libp2p_io_dht_kad_rpc_inbound_bytes_bucket{le="+Inf",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version=""} 12791
+# HELP libp2p_io_dht_kad_rpc_inbound_bytes_count Total received bytes per RPC
+# TYPE libp2p_io_dht_kad_rpc_inbound_bytes_count counter
+libp2p_io_dht_kad_rpc_inbound_bytes_count{otel_scope_schema_url="",otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht"} 12791
+# HELP libp2p_io_dht_kad_rpc_inbound_bytes_sum Total received bytes per RPC
+# TYPE libp2p_io_dht_kad_rpc_inbound_bytes_sum gauge
+libp2p_io_dht_kad_rpc_inbound_bytes_sum{otel_scope_schema_url="",otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht"} 522760
+# HELP libp2p_io_dht_kad_rpc_inbound_messages_total Total number of messages received per RPC
+# TYPE libp2p_io_dht_kad_rpc_inbound_messages_total counter
+libp2p_io_dht_kad_rpc_inbound_messages_total{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version=""} 12791
+# HELP libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket Latency per RPC
+# TYPE libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket counter
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{le="0.01",otel_scope_schema_url="",otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht"} 0
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{le="0.05",otel_scope_schema_url="",otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht"} 758
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="0.1"} 3832
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",le="0.3",otel_scope_schema_url="",otel_scope_version=""} 9514
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{otel_scope_schema_url="",otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",le="0.6"} 12723
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{otel_scope_schema_url="",otel_scope_version="",message_type="FIND_NODE",le="0.8",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht"} 12744
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="1"} 12754
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{le="2",otel_scope_schema_url="",otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht"} 12768
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="3"} 12776
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",le="4",otel_scope_schema_url=""} 12778
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="5"} 12779
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="6"} 12779
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="8"} 12780
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{otel_scope_version="",le="10",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url=""} 12780
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="13",otel_scope_version=""} 12780
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{otel_scope_version="",le="16",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url=""} 12780
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="20"} 12781
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="25"} 12781
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{otel_scope_schema_url="",otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",le="30"} 12781
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="40"} 12781
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{otel_scope_version="",le="50",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url=""} 12781
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{le="65",otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url=""} 12782
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{le="80",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version=""} 12782
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{otel_scope_schema_url="",le="100",otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht"} 12783
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="130"} 12783
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{le="160",otel_scope_schema_url="",otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht"} 12784
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="200",otel_scope_version=""} 12784
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="250"} 12784
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{otel_scope_schema_url="",otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",le="300"} 12785
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{message_type="FIND_NODE",le="400",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version=""} 12787
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{otel_scope_schema_url="",otel_scope_version="",le="500",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht"} 12789
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="650"} 12790
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="800"} 12790
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{otel_scope_schema_url="",otel_scope_version="",message_type="FIND_NODE",le="1000",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht"} 12791
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{message_type="FIND_NODE",le="2000",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version=""} 12791
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{otel_scope_schema_url="",le="5000",otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht"} 12791
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{otel_scope_schema_url="",otel_scope_version="",le="10000",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht"} 12791
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="20000"} 12791
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="50000"} 12791
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",message_type="FIND_NODE",le="100000"} 12791
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="+Inf"} 12791
+# HELP libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_count Latency per RPC
+# TYPE libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_count counter
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_count{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version=""} 12791
+# HELP libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_sum Latency per RPC
+# TYPE libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_sum gauge
+libp2p_io_dht_kad_rpc_inbound_request_latency_milliseconds_sum{otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url=""} 6083
+# HELP libp2p_io_dht_kad_rpc_outbound_bytes_bucket Total sent bytes per RPC
+# TYPE libp2p_io_dht_kad_rpc_outbound_bytes_bucket counter
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{otel_scope_version="",message_type="ADD_PROVIDER",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="1024"} 134
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="2048",otel_scope_version="",message_type="ADD_PROVIDER"} 134
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{otel_scope_schema_url="",otel_scope_version="",message_type="ADD_PROVIDER",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",le="4096"} 134
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{otel_scope_version="",message_type="ADD_PROVIDER",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="16384"} 134
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="65536",otel_scope_version="",message_type="ADD_PROVIDER"} 134
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{otel_scope_schema_url="",le="262144",otel_scope_version="",message_type="ADD_PROVIDER",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht"} 134
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{otel_scope_version="",message_type="ADD_PROVIDER",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="1.048576e+06"} 134
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{otel_scope_version="",message_type="ADD_PROVIDER",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="4.194304e+06"} 134
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{otel_scope_version="",message_type="ADD_PROVIDER",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="1.6777216e+07"} 134
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{otel_scope_schema_url="",le="6.7108864e+07",otel_scope_version="",message_type="ADD_PROVIDER",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht"} 134
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{le="2.68435456e+08",otel_scope_version="",message_type="ADD_PROVIDER",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url=""} 134
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{message_type="ADD_PROVIDER",le="1.073741824e+09",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version=""} 134
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{otel_scope_schema_url="",otel_scope_version="",message_type="ADD_PROVIDER",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",le="4.294967296e+09"} 134
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{le="+Inf",otel_scope_version="",message_type="ADD_PROVIDER",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url=""} 134
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="1024"} 16498
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="2048"} 16498
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{otel_scope_schema_url="",otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",le="4096"} 16498
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="16384",message_type="FIND_NODE"} 16498
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="65536"} 16498
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{otel_scope_version="",le="262144",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url=""} 16498
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{le="1.048576e+06",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version=""} 16498
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="4.194304e+06"} 16498
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="1.6777216e+07",otel_scope_version="",message_type="FIND_NODE"} 16498
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="6.7108864e+07",message_type="FIND_NODE"} 16498
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="2.68435456e+08"} 16498
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{le="1.073741824e+09",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version=""} 16498
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{le="4.294967296e+09",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version=""} 16498
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{le="+Inf",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version=""} 16498
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{le="1024",otel_scope_version="",message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url=""} 2922
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{otel_scope_version="",message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="2048"} 2922
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{otel_scope_version="",message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="4096"} 2922
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{le="16384",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",message_type="GET_PROVIDERS"} 2922
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{otel_scope_schema_url="",otel_scope_version="",message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",le="65536"} 2922
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="262144",otel_scope_version="",message_type="GET_PROVIDERS"} 2922
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{otel_scope_version="",message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="1.048576e+06"} 2922
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="4.194304e+06",otel_scope_version="",message_type="GET_PROVIDERS"} 2922
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="1.6777216e+07",otel_scope_version="",message_type="GET_PROVIDERS"} 2922
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{otel_scope_schema_url="",le="6.7108864e+07",otel_scope_version="",message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht"} 2922
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{otel_scope_version="",message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="2.68435456e+08"} 2922
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="1.073741824e+09",otel_scope_version=""} 2922
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{otel_scope_version="",message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="4.294967296e+09"} 2922
+libp2p_io_dht_kad_rpc_outbound_bytes_bucket{otel_scope_version="",message_type="GET_PROVIDERS",le="+Inf",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url=""} 2922
+# HELP libp2p_io_dht_kad_rpc_outbound_bytes_count Total sent bytes per RPC
+# TYPE libp2p_io_dht_kad_rpc_outbound_bytes_count counter
+libp2p_io_dht_kad_rpc_outbound_bytes_count{otel_scope_version="",message_type="ADD_PROVIDER",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url=""} 134
+libp2p_io_dht_kad_rpc_outbound_bytes_count{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version=""} 16498
+libp2p_io_dht_kad_rpc_outbound_bytes_count{otel_scope_version="",message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url=""} 2922
+# HELP libp2p_io_dht_kad_rpc_outbound_bytes_sum Total sent bytes per RPC
+# TYPE libp2p_io_dht_kad_rpc_outbound_bytes_sum gauge
+libp2p_io_dht_kad_rpc_outbound_bytes_sum{otel_scope_schema_url="",otel_scope_version="",message_type="ADD_PROVIDER",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht"} 12328
+libp2p_io_dht_kad_rpc_outbound_bytes_sum{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version=""} 16498
+libp2p_io_dht_kad_rpc_outbound_bytes_sum{otel_scope_version="",message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url=""} 2922
+# HELP libp2p_io_dht_kad_rpc_outbound_message_errors_total Total number of errors for messages sent per RPC
+# TYPE libp2p_io_dht_kad_rpc_outbound_message_errors_total counter
+libp2p_io_dht_kad_rpc_outbound_message_errors_total{otel_scope_schema_url="",otel_scope_version="",message_type="ADD_PROVIDER",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht"} 6
+# HELP libp2p_io_dht_kad_rpc_outbound_messages_total Total number of messages sent per RPC
+# TYPE libp2p_io_dht_kad_rpc_outbound_messages_total counter
+libp2p_io_dht_kad_rpc_outbound_messages_total{message_type="ADD_PROVIDER",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version=""} 140
+# HELP libp2p_io_dht_kad_rpc_outbound_request_errors_total Total number of errors for requests sent per RPC
+# TYPE libp2p_io_dht_kad_rpc_outbound_request_errors_total counter
+libp2p_io_dht_kad_rpc_outbound_request_errors_total{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version=""} 205
+libp2p_io_dht_kad_rpc_outbound_request_errors_total{message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version=""} 20067
+# HELP libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket Latency per RPC
+# TYPE libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket counter
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_schema_url="",otel_scope_version="",le="0.01",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht"} 0
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="0.05"} 0
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_version="",le="0.1",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url=""} 0
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="0.3"} 0
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="0.6"} 0
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_schema_url="",otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",le="0.8"} 0
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="1"} 0
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="2"} 0
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_version="",le="3",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url=""} 0
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="4"} 0
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="5"} 0
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_version="",le="6",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url=""} 0
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_schema_url="",otel_scope_version="",le="8",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht"} 0
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",le="10",otel_scope_schema_url=""} 0
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="13"} 15
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{le="16",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version=""} 105
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="20"} 254
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{message_type="FIND_NODE",le="25",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version=""} 753
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{le="30",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",message_type="FIND_NODE"} 1258
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_schema_url="",le="40",otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht"} 2158
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_schema_url="",otel_scope_version="",message_type="FIND_NODE",le="50",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht"} 3028
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="65"} 3990
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_schema_url="",otel_scope_version="",le="80",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht"} 4175
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="100"} 5047
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_schema_url="",otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",le="130"} 8900
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="160"} 10683
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="200",message_type="FIND_NODE"} 16033
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_schema_url="",otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",le="250"} 16240
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="300"} 16316
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="400"} 16436
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",message_type="FIND_NODE",le="500"} 16460
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",message_type="FIND_NODE",le="650"} 16470
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{message_type="FIND_NODE",le="800",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version=""} 16481
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="1000"} 16485
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="2000",message_type="FIND_NODE"} 16494
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_schema_url="",otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",le="5000"} 16498
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="10000"} 16498
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="20000"} 16498
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_version="",message_type="FIND_NODE",le="50000",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url=""} 16498
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="100000",message_type="FIND_NODE"} 16498
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_version="",message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="+Inf"} 16498
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="0.01",otel_scope_version="",message_type="GET_PROVIDERS"} 0
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_version="",message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="0.05"} 0
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="0.1",otel_scope_version=""} 0
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="0.3",otel_scope_version="",message_type="GET_PROVIDERS"} 0
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_version="",message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="0.6"} 0
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{le="0.8",otel_scope_version="",message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url=""} 0
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_version="",message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="1"} 0
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_schema_url="",otel_scope_version="",message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",le="2"} 0
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_version="",message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="3"} 0
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="4",otel_scope_version=""} 0
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_version="",message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="5"} 0
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_version="",message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="6"} 0
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="8"} 0
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_version="",le="10",message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url=""} 0
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",message_type="GET_PROVIDERS",le="13"} 5
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_schema_url="",le="16",otel_scope_version="",message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht"} 25
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{le="20",otel_scope_version="",message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url=""} 151
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",message_type="GET_PROVIDERS",le="25"} 541
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_version="",message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="30"} 1358
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_schema_url="",le="40",otel_scope_version="",message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht"} 2787
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",le="50",otel_scope_schema_url="",otel_scope_version=""} 2902
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_version="",message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="65"} 2920
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="80",otel_scope_version=""} 2922
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="100",otel_scope_version="",message_type="GET_PROVIDERS"} 2922
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{le="130",otel_scope_version="",message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url=""} 2922
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="160",otel_scope_version="",message_type="GET_PROVIDERS"} 2922
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{le="200",otel_scope_version="",message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url=""} 2922
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="250",otel_scope_version=""} 2922
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{le="300",otel_scope_schema_url="",otel_scope_version="",message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht"} 2922
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",message_type="GET_PROVIDERS",le="400"} 2922
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{le="500",otel_scope_version="",message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url=""} 2922
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",message_type="GET_PROVIDERS",le="650"} 2922
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",message_type="GET_PROVIDERS",le="800"} 2922
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="1000"} 2922
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",le="2000",otel_scope_schema_url="",otel_scope_version=""} 2922
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version="",le="5000",message_type="GET_PROVIDERS"} 2922
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_version="",message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="10000"} 2922
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_version="",message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",le="20000"} 2922
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_schema_url="",otel_scope_version="",le="50000",message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht"} 2922
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_schema_url="",le="100000",otel_scope_version="",message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht"} 2922
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket{otel_scope_schema_url="",le="+Inf",otel_scope_version="",message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht"} 2922
+# HELP libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_count Latency per RPC
+# TYPE libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_count counter
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_count{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version=""} 16498
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_count{message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version=""} 2922
+# HELP libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_sum Latency per RPC
+# TYPE libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_sum gauge
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_sum{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version=""} 2039153
+libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_sum{message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version=""} 88843
+# HELP libp2p_io_dht_kad_rpc_outbound_requests_total Total number of requests sent per RPC
+# TYPE libp2p_io_dht_kad_rpc_outbound_requests_total counter
+libp2p_io_dht_kad_rpc_outbound_requests_total{message_type="FIND_NODE",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version=""} 16703
+libp2p_io_dht_kad_rpc_outbound_requests_total{message_type="GET_PROVIDERS",otel_scope_name="github.com/libp2p/go-libp2p-kad-dht",otel_scope_schema_url="",otel_scope_version=""} 22989
+# HELP libp2p_rcmgr_blocked_resources Number of blocked resources
+# TYPE libp2p_rcmgr_blocked_resources gauge
+libp2p_rcmgr_blocked_resources{resource="fd",scope="system",dir=""} 1020
+libp2p_rcmgr_blocked_resources{resource="connection",scope="system",dir="inbound"} 1
+libp2p_rcmgr_blocked_resources{dir="outbound",resource="connection",scope="system"} 1019
+# HELP libp2p_rcmgr_conn_memory_bucket How many conns have reserved this bucket of memory, as reported to the Resource Manager
+# TYPE libp2p_rcmgr_conn_memory_bucket counter
+libp2p_rcmgr_conn_memory_bucket{le="1024"} 0
+libp2p_rcmgr_conn_memory_bucket{le="4096"} 0
+libp2p_rcmgr_conn_memory_bucket{le="32768"} 0
+libp2p_rcmgr_conn_memory_bucket{le="1.048576e+06"} 0
+libp2p_rcmgr_conn_memory_bucket{le="3.3554432e+07"} 0
+libp2p_rcmgr_conn_memory_bucket{le="2.68435456e+08"} 0
+libp2p_rcmgr_conn_memory_bucket{le="5.36870912e+08"} 0
+libp2p_rcmgr_conn_memory_bucket{le="1.073741824e+09"} 0
+libp2p_rcmgr_conn_memory_bucket{le="2.147483648e+09"} 0
+libp2p_rcmgr_conn_memory_bucket{le="4.294967296e+09"} 0
+libp2p_rcmgr_conn_memory_bucket{le="+Inf"} 0
+# HELP libp2p_rcmgr_conn_memory_count How many conns have reserved this bucket of memory, as reported to the Resource Manager
+# TYPE libp2p_rcmgr_conn_memory_count counter
+libp2p_rcmgr_conn_memory_count 0
+# HELP libp2p_rcmgr_conn_memory_sum How many conns have reserved this bucket of memory, as reported to the Resource Manager
+# TYPE libp2p_rcmgr_conn_memory_sum gauge
+libp2p_rcmgr_conn_memory_sum 0
+# HELP libp2p_rcmgr_connections Number of Connections
+# TYPE libp2p_rcmgr_connections gauge
+libp2p_rcmgr_connections{dir="inbound",scope="system"} 38
+libp2p_rcmgr_connections{dir="inbound",scope="transient"} 0
+libp2p_rcmgr_connections{dir="outbound",scope="system"} 48
+libp2p_rcmgr_connections{dir="outbound",scope="transient"} 0
+# HELP libp2p_rcmgr_fds Number of file descriptors reserved as reported to the Resource Manager
+# TYPE libp2p_rcmgr_fds gauge
+libp2p_rcmgr_fds{scope="system"} 86
+libp2p_rcmgr_fds{scope="transient"} 0
+# HELP libp2p_rcmgr_limit Resource manager limits
+# TYPE libp2p_rcmgr_limit gauge
+libp2p_rcmgr_limit{resource="conns",scope="system"} 88
+libp2p_rcmgr_limit{resource="conns",scope="transient"} 192
+libp2p_rcmgr_limit{resource="conns_inbound",scope="system"} 40
+libp2p_rcmgr_limit{resource="conns_inbound",scope="transient"} 96
+libp2p_rcmgr_limit{resource="conns_outbound",scope="system"} 48
+libp2p_rcmgr_limit{resource="conns_outbound",scope="transient"} 192
+libp2p_rcmgr_limit{resource="fd",scope="system"} 61440
+libp2p_rcmgr_limit{resource="fd",scope="transient"} 15360
+libp2p_rcmgr_limit{resource="memory",scope="system"} 4429185024
+libp2p_rcmgr_limit{resource="memory",scope="transient"} 570425344
+libp2p_rcmgr_limit{resource="streams",scope="system"} 10240
+libp2p_rcmgr_limit{scope="transient",resource="streams"} 1280
+libp2p_rcmgr_limit{resource="streams_inbound",scope="system"} 5120
+libp2p_rcmgr_limit{resource="streams_inbound",scope="transient"} 640
+libp2p_rcmgr_limit{resource="streams_outbound",scope="system"} 10240
+libp2p_rcmgr_limit{resource="streams_outbound",scope="transient"} 1280
+# HELP libp2p_rcmgr_memory Amount of memory reserved as reported to the Resource Manager
+# TYPE libp2p_rcmgr_memory gauge
+libp2p_rcmgr_memory{scope="system",protocol=""} 77070336
+libp2p_rcmgr_memory{protocol="/ipfs/id/1.0.0",scope="protocol"} 0
+# HELP libp2p_rcmgr_peer_connections_bucket Number of connections this peer has
+# TYPE libp2p_rcmgr_peer_connections_bucket counter
+libp2p_rcmgr_peer_connections_bucket{le="1",dir="inbound"} 663
+libp2p_rcmgr_peer_connections_bucket{dir="inbound",le="2"} 663
+libp2p_rcmgr_peer_connections_bucket{dir="inbound",le="3"} 663
+libp2p_rcmgr_peer_connections_bucket{dir="inbound",le="4"} 663
+libp2p_rcmgr_peer_connections_bucket{dir="inbound",le="5"} 663
+libp2p_rcmgr_peer_connections_bucket{le="6",dir="inbound"} 663
+libp2p_rcmgr_peer_connections_bucket{le="7",dir="inbound"} 663
+libp2p_rcmgr_peer_connections_bucket{dir="inbound",le="8"} 663
+libp2p_rcmgr_peer_connections_bucket{le="9",dir="inbound"} 663
+libp2p_rcmgr_peer_connections_bucket{dir="inbound",le="10"} 663
+libp2p_rcmgr_peer_connections_bucket{dir="inbound",le="16"} 663
+libp2p_rcmgr_peer_connections_bucket{dir="inbound",le="32"} 663
+libp2p_rcmgr_peer_connections_bucket{dir="inbound",le="64"} 663
+libp2p_rcmgr_peer_connections_bucket{dir="inbound",le="128"} 663
+libp2p_rcmgr_peer_connections_bucket{dir="inbound",le="256"} 663
+libp2p_rcmgr_peer_connections_bucket{dir="inbound",le="+Inf"} 663
+libp2p_rcmgr_peer_connections_bucket{dir="outbound",le="1"} 756
+libp2p_rcmgr_peer_connections_bucket{dir="outbound",le="2"} 764
+libp2p_rcmgr_peer_connections_bucket{dir="outbound",le="3"} 764
+libp2p_rcmgr_peer_connections_bucket{dir="outbound",le="4"} 764
+libp2p_rcmgr_peer_connections_bucket{dir="outbound",le="5"} 764
+libp2p_rcmgr_peer_connections_bucket{dir="outbound",le="6"} 764
+libp2p_rcmgr_peer_connections_bucket{dir="outbound",le="7"} 764
+libp2p_rcmgr_peer_connections_bucket{dir="outbound",le="8"} 764
+libp2p_rcmgr_peer_connections_bucket{dir="outbound",le="9"} 764
+libp2p_rcmgr_peer_connections_bucket{dir="outbound",le="10"} 764
+libp2p_rcmgr_peer_connections_bucket{dir="outbound",le="16"} 764
+libp2p_rcmgr_peer_connections_bucket{dir="outbound",le="32"} 764
+libp2p_rcmgr_peer_connections_bucket{dir="outbound",le="64"} 764
+libp2p_rcmgr_peer_connections_bucket{dir="outbound",le="128"} 764
+libp2p_rcmgr_peer_connections_bucket{dir="outbound",le="256"} 764
+libp2p_rcmgr_peer_connections_bucket{dir="outbound",le="+Inf"} 764
+# HELP libp2p_rcmgr_peer_connections_count Number of connections this peer has
+# TYPE libp2p_rcmgr_peer_connections_count counter
+libp2p_rcmgr_peer_connections_count{dir="inbound"} 663
+libp2p_rcmgr_peer_connections_count{dir="outbound"} 764
+# HELP libp2p_rcmgr_peer_connections_sum Number of connections this peer has
+# TYPE libp2p_rcmgr_peer_connections_sum gauge
+libp2p_rcmgr_peer_connections_sum{dir="inbound"} 663
+libp2p_rcmgr_peer_connections_sum{dir="outbound"} 772
+# HELP libp2p_rcmgr_peer_memory_bucket How many peers have reserved this bucket of memory, as reported to the Resource Manager
+# TYPE libp2p_rcmgr_peer_memory_bucket counter
+libp2p_rcmgr_peer_memory_bucket{le="1024"} 0
+libp2p_rcmgr_peer_memory_bucket{le="4096"} 0
+libp2p_rcmgr_peer_memory_bucket{le="32768"} 156
+libp2p_rcmgr_peer_memory_bucket{le="1.048576e+06"} 78897
+libp2p_rcmgr_peer_memory_bucket{le="3.3554432e+07"} 106068
+libp2p_rcmgr_peer_memory_bucket{le="2.68435456e+08"} 106068
+libp2p_rcmgr_peer_memory_bucket{le="5.36870912e+08"} 106068
+libp2p_rcmgr_peer_memory_bucket{le="1.073741824e+09"} 106068
+libp2p_rcmgr_peer_memory_bucket{le="2.147483648e+09"} 106068
+libp2p_rcmgr_peer_memory_bucket{le="4.294967296e+09"} 106068
+libp2p_rcmgr_peer_memory_bucket{le="+Inf"} 106068
+# HELP libp2p_rcmgr_peer_memory_count How many peers have reserved this bucket of memory, as reported to the Resource Manager
+# TYPE libp2p_rcmgr_peer_memory_count counter
+libp2p_rcmgr_peer_memory_count 106068
+# HELP libp2p_rcmgr_peer_memory_sum How many peers have reserved this bucket of memory, as reported to the Resource Manager
+# TYPE libp2p_rcmgr_peer_memory_sum gauge
+libp2p_rcmgr_peer_memory_sum 112598237184
+# HELP libp2p_rcmgr_peer_streams_bucket Number of streams this peer has
+# TYPE libp2p_rcmgr_peer_streams_bucket counter
+libp2p_rcmgr_peer_streams_bucket{le="1",dir="inbound"} 12653
+libp2p_rcmgr_peer_streams_bucket{dir="inbound",le="2"} 23932
+libp2p_rcmgr_peer_streams_bucket{le="3",dir="inbound"} 24483
+libp2p_rcmgr_peer_streams_bucket{dir="inbound",le="4"} 24512
+libp2p_rcmgr_peer_streams_bucket{dir="inbound",le="5"} 24527
+libp2p_rcmgr_peer_streams_bucket{le="6",dir="inbound"} 24536
+libp2p_rcmgr_peer_streams_bucket{dir="inbound",le="7"} 24540
+libp2p_rcmgr_peer_streams_bucket{dir="inbound",le="8"} 24541
+libp2p_rcmgr_peer_streams_bucket{dir="inbound",le="9"} 24541
+libp2p_rcmgr_peer_streams_bucket{dir="inbound",le="10"} 24541
+libp2p_rcmgr_peer_streams_bucket{dir="inbound",le="16"} 24541
+libp2p_rcmgr_peer_streams_bucket{dir="inbound",le="32"} 24541
+libp2p_rcmgr_peer_streams_bucket{dir="inbound",le="64"} 24541
+libp2p_rcmgr_peer_streams_bucket{dir="inbound",le="128"} 24541
+libp2p_rcmgr_peer_streams_bucket{dir="inbound",le="256"} 24541
+libp2p_rcmgr_peer_streams_bucket{dir="inbound",le="+Inf"} 24541
+libp2p_rcmgr_peer_streams_bucket{dir="outbound",le="1"} 36344
+libp2p_rcmgr_peer_streams_bucket{le="2",dir="outbound"} 74081
+libp2p_rcmgr_peer_streams_bucket{dir="outbound",le="3"} 76777
+libp2p_rcmgr_peer_streams_bucket{dir="outbound",le="4"} 76810
+libp2p_rcmgr_peer_streams_bucket{dir="outbound",le="5"} 76810
+libp2p_rcmgr_peer_streams_bucket{dir="outbound",le="6"} 76810
+libp2p_rcmgr_peer_streams_bucket{dir="outbound",le="7"} 76810
+libp2p_rcmgr_peer_streams_bucket{dir="outbound",le="8"} 76810
+libp2p_rcmgr_peer_streams_bucket{dir="outbound",le="9"} 76810
+libp2p_rcmgr_peer_streams_bucket{dir="outbound",le="10"} 76810
+libp2p_rcmgr_peer_streams_bucket{dir="outbound",le="16"} 76810
+libp2p_rcmgr_peer_streams_bucket{le="32",dir="outbound"} 76810
+libp2p_rcmgr_peer_streams_bucket{dir="outbound",le="64"} 76810
+libp2p_rcmgr_peer_streams_bucket{dir="outbound",le="128"} 76810
+libp2p_rcmgr_peer_streams_bucket{dir="outbound",le="256"} 76810
+libp2p_rcmgr_peer_streams_bucket{dir="outbound",le="+Inf"} 76810
+# HELP libp2p_rcmgr_peer_streams_count Number of streams this peer has
+# TYPE libp2p_rcmgr_peer_streams_count counter
+libp2p_rcmgr_peer_streams_count{dir="inbound"} 24541
+libp2p_rcmgr_peer_streams_count{dir="outbound"} 76810
+# HELP libp2p_rcmgr_peer_streams_sum Number of streams this peer has
+# TYPE libp2p_rcmgr_peer_streams_sum gauge
+libp2p_rcmgr_peer_streams_sum{dir="inbound"} 37145
+libp2p_rcmgr_peer_streams_sum{dir="outbound"} 120038
+# HELP libp2p_rcmgr_previous_conn_memory_bucket How many conns have previously reserved this bucket of memory, as reported to the Resource Manager
+# TYPE libp2p_rcmgr_previous_conn_memory_bucket counter
+libp2p_rcmgr_previous_conn_memory_bucket{le="1024"} 0
+libp2p_rcmgr_previous_conn_memory_bucket{le="4096"} 0
+libp2p_rcmgr_previous_conn_memory_bucket{le="32768"} 0
+libp2p_rcmgr_previous_conn_memory_bucket{le="1.048576e+06"} 0
+libp2p_rcmgr_previous_conn_memory_bucket{le="3.3554432e+07"} 0
+libp2p_rcmgr_previous_conn_memory_bucket{le="2.68435456e+08"} 0
+libp2p_rcmgr_previous_conn_memory_bucket{le="5.36870912e+08"} 0
+libp2p_rcmgr_previous_conn_memory_bucket{le="1.073741824e+09"} 0
+libp2p_rcmgr_previous_conn_memory_bucket{le="2.147483648e+09"} 0
+libp2p_rcmgr_previous_conn_memory_bucket{le="4.294967296e+09"} 0
+libp2p_rcmgr_previous_conn_memory_bucket{le="+Inf"} 0
+# HELP libp2p_rcmgr_previous_conn_memory_count How many conns have previously reserved this bucket of memory, as reported to the Resource Manager
+# TYPE libp2p_rcmgr_previous_conn_memory_count counter
+libp2p_rcmgr_previous_conn_memory_count 0
+# HELP libp2p_rcmgr_previous_conn_memory_sum How many conns have previously reserved this bucket of memory, as reported to the Resource Manager
+# TYPE libp2p_rcmgr_previous_conn_memory_sum gauge
+libp2p_rcmgr_previous_conn_memory_sum 0
+# HELP libp2p_rcmgr_previous_peer_connections_bucket Number of connections this peer previously had. This is used to get the current connection number per peer histogram by subtracting this from the peer_connections histogram
+# TYPE libp2p_rcmgr_previous_peer_connections_bucket counter
+libp2p_rcmgr_previous_peer_connections_bucket{dir="inbound",le="1"} 625
+libp2p_rcmgr_previous_peer_connections_bucket{dir="inbound",le="2"} 625
+libp2p_rcmgr_previous_peer_connections_bucket{dir="inbound",le="3"} 625
+libp2p_rcmgr_previous_peer_connections_bucket{dir="inbound",le="4"} 625
+libp2p_rcmgr_previous_peer_connections_bucket{dir="inbound",le="5"} 625
+libp2p_rcmgr_previous_peer_connections_bucket{dir="inbound",le="6"} 625
+libp2p_rcmgr_previous_peer_connections_bucket{dir="inbound",le="7"} 625
+libp2p_rcmgr_previous_peer_connections_bucket{dir="inbound",le="8"} 625
+libp2p_rcmgr_previous_peer_connections_bucket{dir="inbound",le="9"} 625
+libp2p_rcmgr_previous_peer_connections_bucket{le="10",dir="inbound"} 625
+libp2p_rcmgr_previous_peer_connections_bucket{dir="inbound",le="16"} 625
+libp2p_rcmgr_previous_peer_connections_bucket{dir="inbound",le="32"} 625
+libp2p_rcmgr_previous_peer_connections_bucket{le="64",dir="inbound"} 625
+libp2p_rcmgr_previous_peer_connections_bucket{dir="inbound",le="128"} 625
+libp2p_rcmgr_previous_peer_connections_bucket{dir="inbound",le="256"} 625
+libp2p_rcmgr_previous_peer_connections_bucket{dir="inbound",le="+Inf"} 625
+libp2p_rcmgr_previous_peer_connections_bucket{dir="outbound",le="1"} 708
+libp2p_rcmgr_previous_peer_connections_bucket{dir="outbound",le="2"} 716
+libp2p_rcmgr_previous_peer_connections_bucket{dir="outbound",le="3"} 716
+libp2p_rcmgr_previous_peer_connections_bucket{dir="outbound",le="4"} 716
+libp2p_rcmgr_previous_peer_connections_bucket{dir="outbound",le="5"} 716
+libp2p_rcmgr_previous_peer_connections_bucket{dir="outbound",le="6"} 716
+libp2p_rcmgr_previous_peer_connections_bucket{dir="outbound",le="7"} 716
+libp2p_rcmgr_previous_peer_connections_bucket{dir="outbound",le="8"} 716
+libp2p_rcmgr_previous_peer_connections_bucket{le="9",dir="outbound"} 716
+libp2p_rcmgr_previous_peer_connections_bucket{dir="outbound",le="10"} 716
+libp2p_rcmgr_previous_peer_connections_bucket{dir="outbound",le="16"} 716
+libp2p_rcmgr_previous_peer_connections_bucket{dir="outbound",le="32"} 716
+libp2p_rcmgr_previous_peer_connections_bucket{dir="outbound",le="64"} 716
+libp2p_rcmgr_previous_peer_connections_bucket{dir="outbound",le="128"} 716
+libp2p_rcmgr_previous_peer_connections_bucket{dir="outbound",le="256"} 716
+libp2p_rcmgr_previous_peer_connections_bucket{dir="outbound",le="+Inf"} 716
+# HELP libp2p_rcmgr_previous_peer_connections_count Number of connections this peer previously had. This is used to get the current connection number per peer histogram by subtracting this from the peer_connections histogram
+# TYPE libp2p_rcmgr_previous_peer_connections_count counter
+libp2p_rcmgr_previous_peer_connections_count{dir="inbound"} 625
+libp2p_rcmgr_previous_peer_connections_count{dir="outbound"} 716
+# HELP libp2p_rcmgr_previous_peer_connections_sum Number of connections this peer previously had. This is used to get the current connection number per peer histogram by subtracting this from the peer_connections histogram
+# TYPE libp2p_rcmgr_previous_peer_connections_sum gauge
+libp2p_rcmgr_previous_peer_connections_sum{dir="inbound"} 625
+libp2p_rcmgr_previous_peer_connections_sum{dir="outbound"} 724
+# HELP libp2p_rcmgr_previous_peer_memory_bucket How many peers have previously reserved this bucket of memory, as reported to the Resource Manager
+# TYPE libp2p_rcmgr_previous_peer_memory_bucket counter
+libp2p_rcmgr_previous_peer_memory_bucket{le="1024"} 0
+libp2p_rcmgr_previous_peer_memory_bucket{le="4096"} 0
+libp2p_rcmgr_previous_peer_memory_bucket{le="32768"} 156
+libp2p_rcmgr_previous_peer_memory_bucket{le="1.048576e+06"} 78830
+libp2p_rcmgr_previous_peer_memory_bucket{le="3.3554432e+07"} 105983
+libp2p_rcmgr_previous_peer_memory_bucket{le="2.68435456e+08"} 105983
+libp2p_rcmgr_previous_peer_memory_bucket{le="5.36870912e+08"} 105983
+libp2p_rcmgr_previous_peer_memory_bucket{le="1.073741824e+09"} 105983
+libp2p_rcmgr_previous_peer_memory_bucket{le="2.147483648e+09"} 105983
+libp2p_rcmgr_previous_peer_memory_bucket{le="4.294967296e+09"} 105983
+libp2p_rcmgr_previous_peer_memory_bucket{le="+Inf"} 105983
+# HELP libp2p_rcmgr_previous_peer_memory_count How many peers have previously reserved this bucket of memory, as reported to the Resource Manager
+# TYPE libp2p_rcmgr_previous_peer_memory_count counter
+libp2p_rcmgr_previous_peer_memory_count 105983
+# HELP libp2p_rcmgr_previous_peer_memory_sum How many peers have previously reserved this bucket of memory, as reported to the Resource Manager
+# TYPE libp2p_rcmgr_previous_peer_memory_sum gauge
+libp2p_rcmgr_previous_peer_memory_sum 112521166848
+# HELP libp2p_rcmgr_previous_peer_streams_bucket Number of streams this peer has
+# TYPE libp2p_rcmgr_previous_peer_streams_bucket counter
+libp2p_rcmgr_previous_peer_streams_bucket{dir="inbound",le="1"} 12573
+libp2p_rcmgr_previous_peer_streams_bucket{dir="inbound",le="2"} 23847
+libp2p_rcmgr_previous_peer_streams_bucket{dir="inbound",le="3"} 24398
+libp2p_rcmgr_previous_peer_streams_bucket{dir="inbound",le="4"} 24427
+libp2p_rcmgr_previous_peer_streams_bucket{dir="inbound",le="5"} 24442
+libp2p_rcmgr_previous_peer_streams_bucket{dir="inbound",le="6"} 24451
+libp2p_rcmgr_previous_peer_streams_bucket{dir="inbound",le="7"} 24455
+libp2p_rcmgr_previous_peer_streams_bucket{dir="inbound",le="8"} 24456
+libp2p_rcmgr_previous_peer_streams_bucket{dir="inbound",le="9"} 24456
+libp2p_rcmgr_previous_peer_streams_bucket{le="10",dir="inbound"} 24456
+libp2p_rcmgr_previous_peer_streams_bucket{dir="inbound",le="16"} 24456
+libp2p_rcmgr_previous_peer_streams_bucket{dir="inbound",le="32"} 24456
+libp2p_rcmgr_previous_peer_streams_bucket{dir="inbound",le="64"} 24456
+libp2p_rcmgr_previous_peer_streams_bucket{dir="inbound",le="128"} 24456
+libp2p_rcmgr_previous_peer_streams_bucket{dir="inbound",le="256"} 24456
+libp2p_rcmgr_previous_peer_streams_bucket{dir="inbound",le="+Inf"} 24456
+libp2p_rcmgr_previous_peer_streams_bucket{dir="outbound",le="1"} 36290
+libp2p_rcmgr_previous_peer_streams_bucket{dir="outbound",le="2"} 73997
+libp2p_rcmgr_previous_peer_streams_bucket{dir="outbound",le="3"} 76692
+libp2p_rcmgr_previous_peer_streams_bucket{dir="outbound",le="4"} 76725
+libp2p_rcmgr_previous_peer_streams_bucket{dir="outbound",le="5"} 76725
+libp2p_rcmgr_previous_peer_streams_bucket{le="6",dir="outbound"} 76725
+libp2p_rcmgr_previous_peer_streams_bucket{dir="outbound",le="7"} 76725
+libp2p_rcmgr_previous_peer_streams_bucket{dir="outbound",le="8"} 76725
+libp2p_rcmgr_previous_peer_streams_bucket{dir="outbound",le="9"} 76725
+libp2p_rcmgr_previous_peer_streams_bucket{dir="outbound",le="10"} 76725
+libp2p_rcmgr_previous_peer_streams_bucket{le="16",dir="outbound"} 76725
+libp2p_rcmgr_previous_peer_streams_bucket{dir="outbound",le="32"} 76725
+libp2p_rcmgr_previous_peer_streams_bucket{le="64",dir="outbound"} 76725
+libp2p_rcmgr_previous_peer_streams_bucket{dir="outbound",le="128"} 76725
+libp2p_rcmgr_previous_peer_streams_bucket{dir="outbound",le="256"} 76725
+libp2p_rcmgr_previous_peer_streams_bucket{dir="outbound",le="+Inf"} 76725
+# HELP libp2p_rcmgr_previous_peer_streams_count Number of streams this peer has
+# TYPE libp2p_rcmgr_previous_peer_streams_count counter
+libp2p_rcmgr_previous_peer_streams_count{dir="inbound"} 24456
+libp2p_rcmgr_previous_peer_streams_count{dir="outbound"} 76725
+# HELP libp2p_rcmgr_previous_peer_streams_sum Number of streams this peer has
+# TYPE libp2p_rcmgr_previous_peer_streams_sum gauge
+libp2p_rcmgr_previous_peer_streams_sum{dir="inbound"} 37055
+libp2p_rcmgr_previous_peer_streams_sum{dir="outbound"} 119921
+# HELP libp2p_rcmgr_streams Number of Streams
+# TYPE libp2p_rcmgr_streams gauge
+libp2p_rcmgr_streams{dir="inbound",protocol="",scope="system"} 90
+libp2p_rcmgr_streams{dir="inbound",protocol="",scope="transient"} 0
+libp2p_rcmgr_streams{dir="inbound",protocol="/algorand-ws/2.2.0",scope="protocol"} 3
+libp2p_rcmgr_streams{dir="inbound",protocol="/algorand/kad/mainnet/kad/1.0.0",scope="protocol"} 2
+libp2p_rcmgr_streams{dir="inbound",protocol="/http/1.1",scope="protocol"} 0
+libp2p_rcmgr_streams{dir="inbound",protocol="/ipfs/id/1.0.0",scope="protocol"} 0
+libp2p_rcmgr_streams{dir="inbound",protocol="/meshsub/1.3.0",scope="protocol"} 85
+libp2p_rcmgr_streams{scope="system",dir="outbound",protocol=""} 117
+libp2p_rcmgr_streams{dir="outbound",protocol="",scope="transient"} 0
+libp2p_rcmgr_streams{scope="protocol",dir="outbound",protocol="/algorand-ws/2.2.0"} 7
+libp2p_rcmgr_streams{dir="outbound",protocol="/algorand/kad/mainnet/kad/1.0.0",scope="protocol"} 25
+libp2p_rcmgr_streams{dir="outbound",protocol="/http/1.1",scope="protocol"} 0
+libp2p_rcmgr_streams{dir="outbound",protocol="/ipfs/id/1.0.0",scope="protocol"} 0
+libp2p_rcmgr_streams{dir="outbound",protocol="/ipfs/id/push/1.0.0",scope="protocol"} 0
+libp2p_rcmgr_streams{dir="outbound",protocol="/meshsub/1.3.0",scope="protocol"} 85
+# HELP libp2p_swarm_connection_duration_seconds_bucket Duration of a Connection
+# TYPE libp2p_swarm_connection_duration_seconds_bucket counter
+libp2p_swarm_connection_duration_seconds_bucket{transport="tcp",dir="inbound",le="0.0625",early_muxer="false",ip_version="ip4",muxer="/yamux/1.0.0",security="/noise"} 1
+libp2p_swarm_connection_duration_seconds_bucket{muxer="/yamux/1.0.0",le="0.125",security="/noise",transport="tcp",dir="inbound",early_muxer="false",ip_version="ip4"} 1
+libp2p_swarm_connection_duration_seconds_bucket{transport="tcp",dir="inbound",early_muxer="false",ip_version="ip4",muxer="/yamux/1.0.0",le="0.25",security="/noise"} 1
+libp2p_swarm_connection_duration_seconds_bucket{dir="inbound",early_muxer="false",ip_version="ip4",muxer="/yamux/1.0.0",le="0.5",security="/noise",transport="tcp"} 1
+libp2p_swarm_connection_duration_seconds_bucket{security="/noise",le="1",transport="tcp",dir="inbound",early_muxer="false",ip_version="ip4",muxer="/yamux/1.0.0"} 1
+libp2p_swarm_connection_duration_seconds_bucket{le="2",ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp",dir="inbound",early_muxer="false"} 1
+libp2p_swarm_connection_duration_seconds_bucket{muxer="/yamux/1.0.0",security="/noise",transport="tcp",dir="inbound",le="4",early_muxer="false",ip_version="ip4"} 1
+libp2p_swarm_connection_duration_seconds_bucket{le="8",transport="tcp",dir="inbound",early_muxer="false",ip_version="ip4",muxer="/yamux/1.0.0",security="/noise"} 1
+libp2p_swarm_connection_duration_seconds_bucket{security="/noise",transport="tcp",dir="inbound",early_muxer="false",le="16",ip_version="ip4",muxer="/yamux/1.0.0"} 1
+libp2p_swarm_connection_duration_seconds_bucket{transport="tcp",dir="inbound",early_muxer="false",ip_version="ip4",muxer="/yamux/1.0.0",le="32",security="/noise"} 1
+libp2p_swarm_connection_duration_seconds_bucket{early_muxer="false",ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp",le="64",dir="inbound"} 1
+libp2p_swarm_connection_duration_seconds_bucket{early_muxer="false",ip_version="ip4",muxer="/yamux/1.0.0",le="128",security="/noise",transport="tcp",dir="inbound"} 1
+libp2p_swarm_connection_duration_seconds_bucket{ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp",dir="inbound",early_muxer="false",le="256"} 1
+libp2p_swarm_connection_duration_seconds_bucket{muxer="/yamux/1.0.0",le="512",security="/noise",transport="tcp",dir="inbound",early_muxer="false",ip_version="ip4"} 1
+libp2p_swarm_connection_duration_seconds_bucket{dir="inbound",early_muxer="false",ip_version="ip4",muxer="/yamux/1.0.0",le="1024",security="/noise",transport="tcp"} 1
+libp2p_swarm_connection_duration_seconds_bucket{ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp",dir="inbound",early_muxer="false",le="2048"} 1
+libp2p_swarm_connection_duration_seconds_bucket{dir="inbound",early_muxer="false",le="4096",ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp"} 1
+libp2p_swarm_connection_duration_seconds_bucket{early_muxer="false",ip_version="ip4",le="8192",muxer="/yamux/1.0.0",security="/noise",transport="tcp",dir="inbound"} 1
+libp2p_swarm_connection_duration_seconds_bucket{dir="inbound",early_muxer="false",ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp",le="16384"} 1
+libp2p_swarm_connection_duration_seconds_bucket{security="/noise",transport="tcp",dir="inbound",early_muxer="false",ip_version="ip4",muxer="/yamux/1.0.0",le="32768"} 1
+libp2p_swarm_connection_duration_seconds_bucket{dir="inbound",early_muxer="false",ip_version="ip4",muxer="/yamux/1.0.0",le="65536",security="/noise",transport="tcp"} 1
+libp2p_swarm_connection_duration_seconds_bucket{dir="inbound",early_muxer="false",ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp",le="131072"} 1
+libp2p_swarm_connection_duration_seconds_bucket{muxer="/yamux/1.0.0",le="262144",security="/noise",transport="tcp",dir="inbound",early_muxer="false",ip_version="ip4"} 1
+libp2p_swarm_connection_duration_seconds_bucket{security="/noise",transport="tcp",dir="inbound",early_muxer="false",ip_version="ip4",muxer="/yamux/1.0.0",le="524288"} 1
+libp2p_swarm_connection_duration_seconds_bucket{transport="tcp",dir="inbound",early_muxer="false",ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",le="1.048576e+06"} 1
+libp2p_swarm_connection_duration_seconds_bucket{ip_version="ip4",muxer="/yamux/1.0.0",le="+Inf",security="/noise",transport="tcp",dir="inbound",early_muxer="false"} 1
+libp2p_swarm_connection_duration_seconds_bucket{ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp",dir="inbound",early_muxer="true",le="0.0625"} 0
+libp2p_swarm_connection_duration_seconds_bucket{transport="tcp",dir="inbound",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",le="0.125"} 0
+libp2p_swarm_connection_duration_seconds_bucket{le="0.25",dir="inbound",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp"} 0
+libp2p_swarm_connection_duration_seconds_bucket{dir="inbound",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",le="0.5",security="/noise",transport="tcp"} 0
+libp2p_swarm_connection_duration_seconds_bucket{muxer="/yamux/1.0.0",le="1",security="/noise",transport="tcp",dir="inbound",early_muxer="true",ip_version="ip4"} 2
+libp2p_swarm_connection_duration_seconds_bucket{muxer="/yamux/1.0.0",le="2",security="/noise",transport="tcp",dir="inbound",early_muxer="true",ip_version="ip4"} 3
+libp2p_swarm_connection_duration_seconds_bucket{ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp",dir="inbound",early_muxer="true",le="4"} 3
+libp2p_swarm_connection_duration_seconds_bucket{transport="tcp",dir="inbound",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",le="8",security="/noise"} 3
+libp2p_swarm_connection_duration_seconds_bucket{dir="inbound",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp",le="16"} 3
+libp2p_swarm_connection_duration_seconds_bucket{transport="tcp",dir="inbound",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",le="32"} 5
+libp2p_swarm_connection_duration_seconds_bucket{transport="tcp",dir="inbound",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",le="64"} 10
+libp2p_swarm_connection_duration_seconds_bucket{early_muxer="true",le="128",ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp",dir="inbound"} 11
+libp2p_swarm_connection_duration_seconds_bucket{le="256",security="/noise",transport="tcp",dir="inbound",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0"} 12
+libp2p_swarm_connection_duration_seconds_bucket{transport="tcp",dir="inbound",early_muxer="true",ip_version="ip4",le="512",muxer="/yamux/1.0.0",security="/noise"} 16
+libp2p_swarm_connection_duration_seconds_bucket{ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp",le="1024",dir="inbound",early_muxer="true"} 27
+libp2p_swarm_connection_duration_seconds_bucket{ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp",dir="inbound",le="2048",early_muxer="true"} 79
+libp2p_swarm_connection_duration_seconds_bucket{muxer="/yamux/1.0.0",security="/noise",transport="tcp",dir="inbound",early_muxer="true",ip_version="ip4",le="4096"} 443
+libp2p_swarm_connection_duration_seconds_bucket{early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",le="8192",security="/noise",transport="tcp",dir="inbound"} 586
+libp2p_swarm_connection_duration_seconds_bucket{ip_version="ip4",le="16384",muxer="/yamux/1.0.0",security="/noise",transport="tcp",dir="inbound",early_muxer="true"} 612
+libp2p_swarm_connection_duration_seconds_bucket{ip_version="ip4",muxer="/yamux/1.0.0",le="32768",security="/noise",transport="tcp",dir="inbound",early_muxer="true"} 622
+libp2p_swarm_connection_duration_seconds_bucket{early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp",dir="inbound",le="65536"} 624
+libp2p_swarm_connection_duration_seconds_bucket{le="131072",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp",dir="inbound"} 624
+libp2p_swarm_connection_duration_seconds_bucket{transport="tcp",dir="inbound",early_muxer="true",ip_version="ip4",le="262144",muxer="/yamux/1.0.0",security="/noise"} 624
+libp2p_swarm_connection_duration_seconds_bucket{ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp",dir="inbound",le="524288",early_muxer="true"} 624
+libp2p_swarm_connection_duration_seconds_bucket{transport="tcp",dir="inbound",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",le="1.048576e+06",security="/noise"} 624
+libp2p_swarm_connection_duration_seconds_bucket{security="/noise",transport="tcp",dir="inbound",le="+Inf",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0"} 624
+libp2p_swarm_connection_duration_seconds_bucket{transport="tcp",dir="outbound",early_muxer="true",ip_version="ip4",le="0.0625",muxer="/yamux/1.0.0",security="/noise"} 0
+libp2p_swarm_connection_duration_seconds_bucket{transport="tcp",dir="outbound",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",le="0.125",security="/noise"} 0
+libp2p_swarm_connection_duration_seconds_bucket{ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",le="0.25",transport="tcp",dir="outbound",early_muxer="true"} 0
+libp2p_swarm_connection_duration_seconds_bucket{dir="outbound",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp",le="0.5"} 0
+libp2p_swarm_connection_duration_seconds_bucket{muxer="/yamux/1.0.0",security="/noise",transport="tcp",dir="outbound",early_muxer="true",le="1",ip_version="ip4"} 0
+libp2p_swarm_connection_duration_seconds_bucket{le="2",dir="outbound",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp"} 0
+libp2p_swarm_connection_duration_seconds_bucket{ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp",le="4",dir="outbound",early_muxer="true"} 0
+libp2p_swarm_connection_duration_seconds_bucket{ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp",dir="outbound",le="8",early_muxer="true"} 0
+libp2p_swarm_connection_duration_seconds_bucket{ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp",dir="outbound",le="16",early_muxer="true"} 0
+libp2p_swarm_connection_duration_seconds_bucket{dir="outbound",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",le="32",security="/noise",transport="tcp"} 0
+libp2p_swarm_connection_duration_seconds_bucket{muxer="/yamux/1.0.0",security="/noise",transport="tcp",dir="outbound",le="64",early_muxer="true",ip_version="ip4"} 0
+libp2p_swarm_connection_duration_seconds_bucket{transport="tcp",le="128",dir="outbound",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",security="/noise"} 0
+libp2p_swarm_connection_duration_seconds_bucket{dir="outbound",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp",le="256"} 59
+libp2p_swarm_connection_duration_seconds_bucket{security="/noise",transport="tcp",dir="outbound",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",le="512"} 86
+libp2p_swarm_connection_duration_seconds_bucket{early_muxer="true",ip_version="ip4",le="1024",muxer="/yamux/1.0.0",security="/noise",transport="tcp",dir="outbound"} 133
+libp2p_swarm_connection_duration_seconds_bucket{muxer="/yamux/1.0.0",security="/noise",transport="tcp",dir="outbound",early_muxer="true",ip_version="ip4",le="2048"} 173
+libp2p_swarm_connection_duration_seconds_bucket{ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp",dir="outbound",early_muxer="true",le="4096"} 208
+libp2p_swarm_connection_duration_seconds_bucket{dir="outbound",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",le="8192",transport="tcp"} 225
+libp2p_swarm_connection_duration_seconds_bucket{dir="outbound",le="16384",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp"} 250
+libp2p_swarm_connection_duration_seconds_bucket{transport="tcp",le="32768",dir="outbound",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",security="/noise"} 269
+libp2p_swarm_connection_duration_seconds_bucket{le="65536",dir="outbound",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp"} 282
+libp2p_swarm_connection_duration_seconds_bucket{ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",le="131072",transport="tcp",dir="outbound",early_muxer="true"} 283
+libp2p_swarm_connection_duration_seconds_bucket{transport="tcp",dir="outbound",le="262144",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",security="/noise"} 283
+libp2p_swarm_connection_duration_seconds_bucket{ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp",dir="outbound",early_muxer="true",le="524288"} 283
+libp2p_swarm_connection_duration_seconds_bucket{muxer="/yamux/1.0.0",security="/noise",transport="tcp",le="1.048576e+06",dir="outbound",early_muxer="true",ip_version="ip4"} 283
+libp2p_swarm_connection_duration_seconds_bucket{security="/noise",le="+Inf",transport="tcp",dir="outbound",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0"} 283
+# HELP libp2p_swarm_connection_duration_seconds_count Duration of a Connection
+# TYPE libp2p_swarm_connection_duration_seconds_count counter
+libp2p_swarm_connection_duration_seconds_count{security="/noise",transport="tcp",dir="inbound",early_muxer="false",ip_version="ip4",muxer="/yamux/1.0.0"} 1
+libp2p_swarm_connection_duration_seconds_count{muxer="/yamux/1.0.0",security="/noise",transport="tcp",dir="inbound",early_muxer="true",ip_version="ip4"} 624
+libp2p_swarm_connection_duration_seconds_count{dir="outbound",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp"} 283
+# HELP libp2p_swarm_connection_duration_seconds_sum Duration of a Connection
+# TYPE libp2p_swarm_connection_duration_seconds_sum gauge
+libp2p_swarm_connection_duration_seconds_sum{security="/noise",transport="tcp",dir="inbound",early_muxer="false",ip_version="ip4",muxer="/yamux/1.0.0"} 0
+libp2p_swarm_connection_duration_seconds_sum{ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp",dir="inbound",early_muxer="true"} 2543719
+libp2p_swarm_connection_duration_seconds_sum{security="/noise",transport="tcp",dir="outbound",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0"} 1688185
+# HELP libp2p_swarm_connections_closed_total Connections Closed
+# TYPE libp2p_swarm_connections_closed_total counter
+libp2p_swarm_connections_closed_total{security="/noise",transport="tcp",dir="inbound",early_muxer="false",ip_version="ip4",muxer="/yamux/1.0.0"} 1
+libp2p_swarm_connections_closed_total{muxer="/yamux/1.0.0",security="/noise",transport="tcp",dir="inbound",early_muxer="true",ip_version="ip4"} 624
+libp2p_swarm_connections_closed_total{security="/noise",transport="tcp",dir="outbound",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0"} 283
+# HELP libp2p_swarm_connections_opened_total Connections Opened
+# TYPE libp2p_swarm_connections_opened_total counter
+libp2p_swarm_connections_opened_total{dir="inbound",early_muxer="false",ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp"} 1
+libp2p_swarm_connections_opened_total{muxer="/yamux/1.0.0",security="/noise",transport="tcp",dir="inbound",early_muxer="true",ip_version="ip4"} 662
+libp2p_swarm_connections_opened_total{dir="outbound",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp"} 331
+# HELP libp2p_swarm_dial_errors_total Dial Error
+# TYPE libp2p_swarm_dial_errors_total counter
+libp2p_swarm_dial_errors_total{ip_version="ip4",transport="tcp",error="application canceled"} 343
+libp2p_swarm_dial_errors_total{error="canceled: concurrent dial successful",ip_version="ip4",transport="tcp"} 1
+libp2p_swarm_dial_errors_total{error="deadline",ip_version="ip4",transport="tcp"} 9
+libp2p_swarm_dial_errors_total{error="other",ip_version="ip4",transport="tcp"} 1079
+libp2p_swarm_dial_errors_total{error="timeout",ip_version="ip4",transport="tcp"} 12
+# HELP libp2p_swarm_dial_latency_seconds_bucket time taken to establish connection with the peer
+# TYPE libp2p_swarm_dial_latency_seconds_bucket counter
+libp2p_swarm_dial_latency_seconds_bucket{outcome="failed",le="0.001",num_dials="0"} 241
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="0",outcome="failed",le="0.01"} 990
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="0",outcome="failed",le="0.05"} 1387
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="0",outcome="failed",le="0.1"} 1443
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="0",outcome="failed",le="0.2"} 1444
+libp2p_swarm_dial_latency_seconds_bucket{le="0.3",outcome="failed",num_dials="0"} 1444
+libp2p_swarm_dial_latency_seconds_bucket{outcome="failed",num_dials="0",le="0.4"} 1444
+libp2p_swarm_dial_latency_seconds_bucket{outcome="failed",le="0.5",num_dials="0"} 1444
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="0",outcome="failed",le="0.75"} 1444
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="0",outcome="failed",le="1"} 1444
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="0",outcome="failed",le="2"} 1444
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="0",outcome="failed",le="+Inf"} 1444
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="1",outcome="failed",le="0.001"} 240
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="1",outcome="failed",le="0.01"} 487
+libp2p_swarm_dial_latency_seconds_bucket{outcome="failed",num_dials="1",le="0.05"} 1049
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="1",outcome="failed",le="0.1"} 1289
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="1",outcome="failed",le="0.2"} 1352
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="1",outcome="failed",le="0.3"} 1357
+libp2p_swarm_dial_latency_seconds_bucket{outcome="failed",num_dials="1",le="0.4"} 1360
+libp2p_swarm_dial_latency_seconds_bucket{le="0.5",num_dials="1",outcome="failed"} 1360
+libp2p_swarm_dial_latency_seconds_bucket{outcome="failed",le="0.75",num_dials="1"} 1391
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="1",outcome="failed",le="1"} 1391
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="1",outcome="failed",le="2"} 1396
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="1",le="+Inf",outcome="failed"} 1420
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="1",outcome="success",le="0.001"} 0
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="1",outcome="success",le="0.01"} 0
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="1",outcome="success",le="0.05"} 0
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="1",le="0.1",outcome="success"} 18
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="1",outcome="success",le="0.2"} 81
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="1",outcome="success",le="0.3"} 158
+libp2p_swarm_dial_latency_seconds_bucket{le="0.4",num_dials="1",outcome="success"} 220
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="1",outcome="success",le="0.5"} 248
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="1",outcome="success",le="0.75"} 311
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="1",outcome="success",le="1"} 316
+libp2p_swarm_dial_latency_seconds_bucket{le="2",num_dials="1",outcome="success"} 323
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="1",outcome="success",le="+Inf"} 323
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="2",outcome="failed",le="0.001"} 8
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="2",outcome="failed",le="0.01"} 20
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="2",outcome="failed",le="0.05"} 32
+libp2p_swarm_dial_latency_seconds_bucket{outcome="failed",le="0.1",num_dials="2"} 48
+libp2p_swarm_dial_latency_seconds_bucket{le="0.2",num_dials="2",outcome="failed"} 52
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="2",outcome="failed",le="0.3"} 55
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="2",outcome="failed",le="0.4"} 56
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="2",outcome="failed",le="0.5"} 57
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="2",outcome="failed",le="0.75"} 65
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="2",outcome="failed",le="1"} 65
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="2",outcome="failed",le="2"} 65
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="2",outcome="failed",le="+Inf"} 65
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="2",outcome="success",le="0.001"} 0
+libp2p_swarm_dial_latency_seconds_bucket{le="0.01",num_dials="2",outcome="success"} 0
+libp2p_swarm_dial_latency_seconds_bucket{le="0.05",num_dials="2",outcome="success"} 0
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="2",outcome="success",le="0.1"} 0
+libp2p_swarm_dial_latency_seconds_bucket{le="0.2",num_dials="2",outcome="success"} 0
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="2",outcome="success",le="0.3"} 0
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="2",outcome="success",le="0.4"} 0
+libp2p_swarm_dial_latency_seconds_bucket{outcome="success",le="0.5",num_dials="2"} 0
+libp2p_swarm_dial_latency_seconds_bucket{le="0.75",num_dials="2",outcome="success"} 7
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="2",outcome="success",le="1"} 8
+libp2p_swarm_dial_latency_seconds_bucket{outcome="success",le="2",num_dials="2"} 8
+libp2p_swarm_dial_latency_seconds_bucket{num_dials="2",outcome="success",le="+Inf"} 8
+# HELP libp2p_swarm_dial_latency_seconds_count time taken to establish connection with the peer
+# TYPE libp2p_swarm_dial_latency_seconds_count counter
+libp2p_swarm_dial_latency_seconds_count{num_dials="0",outcome="failed"} 1444
+libp2p_swarm_dial_latency_seconds_count{num_dials="1",outcome="failed"} 1420
+libp2p_swarm_dial_latency_seconds_count{num_dials="1",outcome="success"} 323
+libp2p_swarm_dial_latency_seconds_count{num_dials="2",outcome="failed"} 65
+libp2p_swarm_dial_latency_seconds_count{num_dials="2",outcome="success"} 8
+# HELP libp2p_swarm_dial_latency_seconds_sum time taken to establish connection with the peer
+# TYPE libp2p_swarm_dial_latency_seconds_sum gauge
+libp2p_swarm_dial_latency_seconds_sum{num_dials="0",outcome="failed"} 18
+libp2p_swarm_dial_latency_seconds_sum{outcome="failed",num_dials="1"} 191
+libp2p_swarm_dial_latency_seconds_sum{num_dials="1",outcome="success"} 114
+libp2p_swarm_dial_latency_seconds_sum{num_dials="2",outcome="failed"} 8
+libp2p_swarm_dial_latency_seconds_sum{num_dials="2",outcome="success"} 5
+# HELP libp2p_swarm_dial_ranking_delay_seconds_bucket delay introduced by the dial ranking logic
+# TYPE libp2p_swarm_dial_ranking_delay_seconds_bucket counter
+libp2p_swarm_dial_ranking_delay_seconds_bucket{le="0.001"} 324
+libp2p_swarm_dial_ranking_delay_seconds_bucket{le="0.01"} 324
+libp2p_swarm_dial_ranking_delay_seconds_bucket{le="0.05"} 324
+libp2p_swarm_dial_ranking_delay_seconds_bucket{le="0.1"} 324
+libp2p_swarm_dial_ranking_delay_seconds_bucket{le="0.2"} 330
+libp2p_swarm_dial_ranking_delay_seconds_bucket{le="0.3"} 330
+libp2p_swarm_dial_ranking_delay_seconds_bucket{le="0.4"} 330
+libp2p_swarm_dial_ranking_delay_seconds_bucket{le="0.5"} 331
+libp2p_swarm_dial_ranking_delay_seconds_bucket{le="0.75"} 331
+libp2p_swarm_dial_ranking_delay_seconds_bucket{le="1"} 331
+libp2p_swarm_dial_ranking_delay_seconds_bucket{le="2"} 331
+libp2p_swarm_dial_ranking_delay_seconds_bucket{le="+Inf"} 331
+# HELP libp2p_swarm_dial_ranking_delay_seconds_count delay introduced by the dial ranking logic
+# TYPE libp2p_swarm_dial_ranking_delay_seconds_count counter
+libp2p_swarm_dial_ranking_delay_seconds_count 331
+# HELP libp2p_swarm_dial_ranking_delay_seconds_sum delay introduced by the dial ranking logic
+# TYPE libp2p_swarm_dial_ranking_delay_seconds_sum gauge
+libp2p_swarm_dial_ranking_delay_seconds_sum 1
+# HELP libp2p_swarm_dials_per_peer_total Number of addresses dialed per peer
+# TYPE libp2p_swarm_dials_per_peer_total counter
+libp2p_swarm_dials_per_peer_total{outcome="failed",num_dials="0"} 1444
+libp2p_swarm_dials_per_peer_total{num_dials="1",outcome="failed"} 1420
+libp2p_swarm_dials_per_peer_total{outcome="success",num_dials="1"} 323
+libp2p_swarm_dials_per_peer_total{num_dials="2",outcome="failed"} 65
+libp2p_swarm_dials_per_peer_total{outcome="success",num_dials="2"} 8
+# HELP libp2p_swarm_handshake_latency_seconds_bucket Duration of the libp2p Handshake
+# TYPE libp2p_swarm_handshake_latency_seconds_bucket counter
+libp2p_swarm_handshake_latency_seconds_bucket{transport="tcp",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",le="0.001"} 0
+libp2p_swarm_handshake_latency_seconds_bucket{security="/noise",transport="tcp",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",le="0.0013000000000000002"} 0
+libp2p_swarm_handshake_latency_seconds_bucket{muxer="/yamux/1.0.0",le="0.0016900000000000003",security="/noise",transport="tcp",early_muxer="true",ip_version="ip4"} 0
+libp2p_swarm_handshake_latency_seconds_bucket{ip_version="ip4",muxer="/yamux/1.0.0",le="0.0021970000000000006",security="/noise",transport="tcp",early_muxer="true"} 0
+libp2p_swarm_handshake_latency_seconds_bucket{muxer="/yamux/1.0.0",le="0.0028561000000000007",security="/noise",transport="tcp",early_muxer="true",ip_version="ip4"} 0
+libp2p_swarm_handshake_latency_seconds_bucket{muxer="/yamux/1.0.0",le="0.003712930000000001",security="/noise",transport="tcp",early_muxer="true",ip_version="ip4"} 0
+libp2p_swarm_handshake_latency_seconds_bucket{muxer="/yamux/1.0.0",le="0.004826809000000001",security="/noise",transport="tcp",early_muxer="true",ip_version="ip4"} 0
+libp2p_swarm_handshake_latency_seconds_bucket{ip_version="ip4",muxer="/yamux/1.0.0",le="0.006274851700000002",security="/noise",transport="tcp",early_muxer="true"} 0
+libp2p_swarm_handshake_latency_seconds_bucket{muxer="/yamux/1.0.0",le="0.008157307210000003",security="/noise",transport="tcp",early_muxer="true",ip_version="ip4"} 0
+libp2p_swarm_handshake_latency_seconds_bucket{le="0.010604499373000004",transport="tcp",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",security="/noise"} 0
+libp2p_swarm_handshake_latency_seconds_bucket{muxer="/yamux/1.0.0",security="/noise",transport="tcp",early_muxer="true",ip_version="ip4",le="0.013785849184900006"} 0
+libp2p_swarm_handshake_latency_seconds_bucket{security="/noise",transport="tcp",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",le="0.01792160394037001"} 0
+libp2p_swarm_handshake_latency_seconds_bucket{muxer="/yamux/1.0.0",le="0.02329808512248101",security="/noise",transport="tcp",early_muxer="true",ip_version="ip4"} 0
+libp2p_swarm_handshake_latency_seconds_bucket{ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp",le="0.030287510659225317",early_muxer="true"} 0
+libp2p_swarm_handshake_latency_seconds_bucket{ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp",early_muxer="true",le="0.03937376385699291"} 0
+libp2p_swarm_handshake_latency_seconds_bucket{transport="tcp",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",le="0.05118589301409079"} 0
+libp2p_swarm_handshake_latency_seconds_bucket{ip_version="ip4",muxer="/yamux/1.0.0",le="0.06654166091831802",security="/noise",transport="tcp",early_muxer="true"} 0
+libp2p_swarm_handshake_latency_seconds_bucket{early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",le="0.08650415919381343",security="/noise",transport="tcp"} 21
+libp2p_swarm_handshake_latency_seconds_bucket{ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp",early_muxer="true",le="0.11245540695195747"} 38
+libp2p_swarm_handshake_latency_seconds_bucket{muxer="/yamux/1.0.0",security="/noise",transport="tcp",early_muxer="true",ip_version="ip4",le="0.14619202903754472"} 59
+libp2p_swarm_handshake_latency_seconds_bucket{ip_version="ip4",muxer="/yamux/1.0.0",le="0.19004963774880815",security="/noise",transport="tcp",early_muxer="true"} 122
+libp2p_swarm_handshake_latency_seconds_bucket{security="/noise",transport="tcp",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",le="0.2470645290734506"} 136
+libp2p_swarm_handshake_latency_seconds_bucket{muxer="/yamux/1.0.0",security="/noise",transport="tcp",le="0.3211838877954858",early_muxer="true",ip_version="ip4"} 188
+libp2p_swarm_handshake_latency_seconds_bucket{early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",le="0.41753905413413156",security="/noise",transport="tcp"} 238
+libp2p_swarm_handshake_latency_seconds_bucket{early_muxer="true",ip_version="ip4",le="0.542800770374371",muxer="/yamux/1.0.0",security="/noise",transport="tcp"} 294
+libp2p_swarm_handshake_latency_seconds_bucket{security="/noise",transport="tcp",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",le="0.7056410014866824"} 319
+libp2p_swarm_handshake_latency_seconds_bucket{le="0.9173333019326871",transport="tcp",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",security="/noise"} 322
+libp2p_swarm_handshake_latency_seconds_bucket{security="/noise",transport="tcp",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",le="1.1925332925124934"} 325
+libp2p_swarm_handshake_latency_seconds_bucket{ip_version="ip4",muxer="/yamux/1.0.0",le="1.5502932802662415",security="/noise",transport="tcp",early_muxer="true"} 329
+libp2p_swarm_handshake_latency_seconds_bucket{muxer="/yamux/1.0.0",le="2.015381264346114",security="/noise",transport="tcp",early_muxer="true",ip_version="ip4"} 331
+libp2p_swarm_handshake_latency_seconds_bucket{ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp",le="2.6199956436499483",early_muxer="true"} 331
+libp2p_swarm_handshake_latency_seconds_bucket{ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp",early_muxer="true",le="3.405994336744933"} 331
+libp2p_swarm_handshake_latency_seconds_bucket{muxer="/yamux/1.0.0",security="/noise",transport="tcp",early_muxer="true",ip_version="ip4",le="4.427792637768413"} 331
+libp2p_swarm_handshake_latency_seconds_bucket{muxer="/yamux/1.0.0",le="5.7561304290989375",security="/noise",transport="tcp",early_muxer="true",ip_version="ip4"} 331
+libp2p_swarm_handshake_latency_seconds_bucket{muxer="/yamux/1.0.0",security="/noise",transport="tcp",early_muxer="true",ip_version="ip4",le="7.482969557828619"} 331
+libp2p_swarm_handshake_latency_seconds_bucket{security="/noise",transport="tcp",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",le="+Inf"} 331
+# HELP libp2p_swarm_handshake_latency_seconds_count Duration of the libp2p Handshake
+# TYPE libp2p_swarm_handshake_latency_seconds_count counter
+libp2p_swarm_handshake_latency_seconds_count{security="/noise",transport="tcp",early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0"} 331
+# HELP libp2p_swarm_handshake_latency_seconds_sum Duration of the libp2p Handshake
+# TYPE libp2p_swarm_handshake_latency_seconds_sum gauge
+libp2p_swarm_handshake_latency_seconds_sum{early_muxer="true",ip_version="ip4",muxer="/yamux/1.0.0",security="/noise",transport="tcp"} 109
+# HELP libp2p_swarm_key_types_total key type
+# TYPE libp2p_swarm_key_types_total counter
+libp2p_swarm_key_types_total{dir="inbound",key_type="Ed25519"} 663
+libp2p_swarm_key_types_total{dir="outbound",key_type="Ed25519"} 331
+# HELP process_cpu_seconds_total Total user and system CPU time spent in seconds.
+# TYPE process_cpu_seconds_total counter
+process_cpu_seconds_total 22245
+# HELP process_max_fds Maximum number of open file descriptors.
+# TYPE process_max_fds gauge
+process_max_fds 122880
+# HELP process_open_fds Number of open file descriptors.
+# TYPE process_open_fds gauge
+process_open_fds 148
+# HELP process_resident_memory_bytes Resident memory size in bytes.
+# TYPE process_resident_memory_bytes gauge
+process_resident_memory_bytes 1147404288
+# HELP process_start_time_seconds Start time of the process since unix epoch in seconds.
+# TYPE process_start_time_seconds gauge
+process_start_time_seconds 1793640011
+# HELP process_virtual_memory_bytes Virtual memory size in bytes.
+# TYPE process_virtual_memory_bytes gauge
+process_virtual_memory_bytes 503819157504
+# HELP process_virtual_memory_max_bytes Maximum amount of virtual memory available in bytes.
+# TYPE process_virtual_memory_max_bytes gauge
+process_virtual_memory_max_bytes 9223372036854775808
+# HELP target_info Target metadata
+# TYPE target_info gauge
+target_info{service_name="unknown_service:algod",telemetry_sdk_language="go",telemetry_sdk_name="opentelemetry",telemetry_sdk_version="1.43.0"} 1
+# HELP algod_ledger_transactions_total Total number of transactions written to the ledger
+# TYPE algod_ledger_transactions_total counter
+algod_ledger_transactions_total 324897
+# HELP algod_ledger_reward_claims_total Total number of reward claims written to the ledger
+# TYPE algod_ledger_reward_claims_total counter
+algod_ledger_reward_claims_total 25176
+# HELP algod_ledger_round Last round written to ledger
+# TYPE algod_ledger_round gauge
+algod_ledger_round 66602118
+# HELP algod_ledger_dbround Last round written to the ledger DB
+# TYPE algod_ledger_dbround gauge
+algod_ledger_dbround 66602113

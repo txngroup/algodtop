@@ -1,0 +1,10 @@
+/algodtop/algodtop
+/algod.top
+/algodtop.exe
+/algod.top.exe
+/build/
+*.test
+*.prof
+/coverage.out
+# Cross-compiled binaries such as algodtop-linux
+/algodtop-*

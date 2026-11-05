@@ -1,0 +1,30 @@
+algodtop  host algod-host  10:52:14  daemon up 3d 4h  store 2.1GB  nodes 5: 3 OK, 1 Warn, 1 Critical                    
+mainnet  round 52184330  lag 0.6s  ver 4.4.1  up 2d 2h     range 1h  live                                               
+  OK                                                                                                                    
+CONSENSUS                                                   NETWORK                                                     
+ round time        2.79s  .....----====....#####----____.... ws in/out          12/4                                    
+ p99 round         0.00s                                     p2p in/out         38/4                                    
+ txn/block            41                                     idle peers            0                                    
+ pool                312                                     evictions/s                                                
+ lag                0.6s                                     timeouts/s                                                 
+BANDWIDTH (KB/s)  wire bytes from nettop                    RESOURCES                                                   
+ ws in/out           0/0                                     cpu %               6.1                                    
+ p2p in/out          0/0                                     rss                2.0G                                    
+ wire in/out     410/380                                     fds                   0                                    
+ wire-app gap        790                                     disk free             -                                    
+                                                                                                                        
+PEERS (p)  2 connected, per-peer usage on   e events  l log templates  < > sort                                         
+ADDR*                                 DIR NET  CONNECTED  RESETS 24h CLUSTER IN KB/s  OUT KB/s TOTAL       STREAMS      
+/ip4/203.0.113.4/tcp/4190             in  p2p  3h 0m      0          -       20       10       0/0         /algorand-ws/
+relay.example.net:4160                out ws   1d 2h      0          -       -        -        -                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        

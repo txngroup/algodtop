@@ -1,0 +1,8 @@
+algodtop  host algod-host  10:52:14  daemon up 3d 4h  store 2.1GB  nodes 5: 3 OK, 1 Warn, 1 Critical                    
+mainnet-2  round 52184329  lag 0.8s  ver 4.4.0  up 2d 2h     range 1h  live                                             
+  WARN                                                                                                                  
+    warn  participation key for ABCDEF... expires in 6 days                                                             
+    warn  version 4.4.0 is behind 4.4.1 on mainnet, another mainnet stable node                                         
+CONSENSUS                                                   NETWORK                                                     
+ round time        2.79s                                     ws in/out           4/4                                    
+ p99 round         0.00s                                     p2p in/out          0/0                                    

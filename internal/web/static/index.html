@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>algodtop</title>
+<link rel="stylesheet" href="/css/app.css">
+<link rel="icon" href="data:,">
+<script type="module" src="/js/app.js"></script>
+</head>
+<body>
+<svg class="defs" aria-hidden="true" width="0" height="0">
+  <defs>
+    <pattern id="hatch-monitor" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="6" height="6" class="hatch-bg"></rect>
+      <line x1="0" y1="0" x2="0" y2="6" class="hatch-line-monitor"></line>
+    </pattern>
+    <pattern id="hatch-algod" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(135)">
+      <rect width="6" height="6" class="hatch-bg"></rect>
+      <line x1="0" y1="0" x2="0" y2="6" class="hatch-line-algod"></line>
+    </pattern>
+  </defs>
+</svg>
+<header class="top">
+  <a class="brand" href="/">algodtop</a>
+  <nav class="nav" id="nav">
+    <a href="/" data-page="fleet">Fleet</a>
+    <a href="/node" data-page="node">Node</a>
+    <a href="/peers" data-page="peers">Peers</a>
+    <a href="/events" data-page="events">Events</a>
+    <a href="/compare" data-page="compare">Compare</a>
+    <a href="/explorer" data-page="explorer">Explorer</a>
+    <a href="/settings" data-page="settings">Settings</a>
+  </nav>
+  <div class="top-right">
+    <span class="conn" id="conn" title="Live updates">connecting</span>
+    <button type="button" class="btn small" id="theme" title="Colour theme">auto</button>
+  </div>
+</header>
+<div class="statusline" id="statusline"></div>
+<main id="app"><p class="muted pad">Loading...</p></main>
+<div class="tooltip" id="tooltip" role="tooltip" hidden></div>
+</body>
+</html>

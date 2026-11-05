@@ -1,0 +1,45 @@
+{
+  "store_dir": "/var/lib/algodtop",
+  "web": {
+    "listen": "0.0.0.0:8090",
+    "allow_unauthenticated_remote": true
+  },
+  "nodes": [
+    {
+      "name": "mainnet-1",
+      "datadir": "/var/lib/algorand/mainnet-1",
+      "accounts": [
+        "HFLVOVX7F2NWOX5W72LAZRR5ORDSCQL54JYO5AHBEP7YAFEDMXRORCRSQA",
+        "APZHWGSZ7FMJBY5N2EUJABXPTWL45SNAL3QBIQTXPIJNZQ5BW5WU2Y324U"
+      ]
+    },
+    {
+      "name": "mainnet-relay",
+      "datadir": "/var/lib/algorand/mainnet-relay"
+    },
+    {
+      "name": "mainnet-archive",
+      "datadir": "/var/lib/algorand/mainnet-archive"
+    },
+    {
+      "name": "testnet",
+      "datadir": "/var/lib/algorand/testnet"
+    },
+    {
+      "name": "localnet",
+      "datadir": "/var/lib/algorand/localnet"
+    }
+  ],
+  "alerts": [
+    {
+      "name": "down",
+      "expr": "down or stalled",
+      "for": "30s"
+    },
+    {
+      "name": "key-expiry",
+      "expr": "rule:key_expiry_warn",
+      "for": "5m"
+    }
+  ]
+}

@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="go-import" content="algod.top git https://github.com/txngroup/algodtop">
+<meta name="go-source" content="algod.top https://github.com/txngroup/algodtop https://github.com/txngroup/algodtop/tree/main{/dir} https://github.com/txngroup/algodtop/blob/main{/dir}/{file}#L{line}">
+<meta name="description" content="algodtop monitors Algorand nodes (algod): a terminal UI, a daemon that keeps history, and a web UI.">
+<title>algodtop: monitoring for Algorand nodes</title>
+<link rel="canonical" href="https://algod.top/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="algodtop">
+<meta property="og:description" content="Monitoring for Algorand nodes: a terminal UI, a daemon that keeps history, and a web UI. One binary.">
+<meta property="og:url" content="https://algod.top/">
+<meta property="og:image" content="https://algod.top/img/social.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="top">
+<nav>
+<a class="brand" href="/">algod<span>top</span></a>
+<a href="/docs/">Docs</a>
+</nav>
+</header>
+
+<main>
+<section class="hero">
+<h1>algod<span>top</span></h1>
+<p class="lede">Monitoring for algod nodes. A terminal UI in the style of <code>top</code>, a daemon that keeps history, and a web UI. It is one binary, with no database or other service to run.</p>
+<div class="install">
+<pre><code>go install algod.top@latest            # a command named algod.top
+go install algod.top/algodtop@latest   # the same program, named algodtop</code></pre>
+<p class="note">Use either one. The docs call it <code>algodtop</code>. It needs Go 1.27 or later and runs on Linux, macOS and Windows. To try it without installing, run <code>go run algod.top@latest</code>. Then read the <a href="/docs/#quick-start">quick start</a>.</p>
+</div>
+<figure class="shot">
+<picture>
+<source srcset="/img/fleet-dark.webp" media="(prefers-color-scheme: dark)">
+<img src="/img/fleet-light.webp" width="2560" height="1600" alt="The fleet page of the web UI: five nodes on Mainnet, Testnet and a local network, each with its health, round, peers, bandwidth and round time.">
+</picture>
+</figure>
+</section>
+
+<section class="band">
+<h2>One fleet, three ways to look at it</h2>
+<p class="sub">The terminal UI and the web UI read the same daemon. Without a daemon, the terminal UI polls algod directly and shows live values.</p>
+<div class="gallery">
+<figure>
+<div class="shot"><img src="/img/tui.webp" width="2618" height="1550" loading="lazy" alt="The terminal UI: a table of five nodes with round, lag, round time, peers, CPU, memory and health."></div>
+<figcaption>The terminal UI lists every node with its health in words. Press Enter on a node for charts over any range.</figcaption>
+</figure>
+<figure>
+<div class="shot"><picture>
+<source srcset="/img/node-dark.webp" media="(prefers-color-scheme: dark)">
+<img src="/img/node-light.webp" width="2560" height="1600" loading="lazy" alt="The node page: synchronized charts of rounds, round time, peers and bandwidth, with an event lane.">
+</picture></div>
+<figcaption>Each node gets synchronized charts over any range from an hour to its whole history. Restarts, config changes and alerts are marked on them.</figcaption>
+</figure>
+</div>
+</section>
+
+<section class="band">
+<h2>What it watches</h2>
+<p class="sub">It collects everything algod reports, keeps it for as long as you choose, and turns the parts that matter into health you can read.</p>
+<div class="features">
+<div><h3>Rounds and sync</h3><p>Round time from the local arrival of every round, sync lag and catchup.</p></div>
+<div><h3>Peers</h3><p>Connections by network and direction, churn and disconnect reasons, and per-peer traffic where algod reports it.</p></div>
+<div><h3>Participation</h3><p>Key validity, last votes and proposals, online status and incentive eligibility, with alerts before a key expires.</p></div>
+<div><h3>The machine</h3><p>CPU, memory, disk use with the days until it fills, and the clock offset.</p></div>
+<div><h3>The log</h3><p>Error and warning lines in node.log, grouped into templates and counted per minute.</p></div>
+<div><h3>Many hosts</h3><p>Local data directories, REST URLs, SSH with nothing installed, and agents that buffer data while the hub is away.</p></div>
+</div>
+</section>
+
+<section class="band">
+<h2>Start in a minute</h2>
+<pre><code>algodtop                    # find the nodes on this machine and show them live
+algodtop daemon --discover  # keep their history and serve the web UI on 127.0.0.1:8090
+algodtop service            # start the daemon at login or boot</code></pre>
+<p>The <a href="/docs/">documentation</a> covers configuration, remote hosts, alerts and storage.</p>
+</section>
+</main>
+
+<footer class="foot">
+<div>
+<a href="/docs/">Documentation</a>
+</div>
+</footer>
+</body>
+</html>

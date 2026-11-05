@@ -1,0 +1,20 @@
+algodtop  host algod-host  10:52:14  daemon up 3d 4h  store 2.1GB  nodes 5: 3 OK, 1 Warn, 1 Critical                    
+mainnet  round 52181000  rtime 2.75s  tpb -  pool 312     range 1h  at 2026-11-03 09:30:00                              
+                                                                                                                        
+ NODE        NET      VER             ROUND   LAG RTIME  WS i/o P2P i/o  CPU%   RSS  NET KB/s HEALTH                    
+>mainnet     mainnet  4.4.1        52181000  0.5s 2.75s    10/4    30/4   5.0  1.9G   300/280 history                   
+ testnet     testnet  4.4.1        61022817  0.4s 2.80s     8/4    11/4   2.3  1.3G     95/90 OK                        
+ localnet    localnet 5.1.0         9330871  0.5s 2.01s     2/4     6/4   1.9  1.0G     40/38 OK                        
+ mainnet-2   mainnet  4.4.0        52184329  0.8s 2.79s     4/4     0/0   1.2  858M     30/28 WARN (+1) key ABCDEF... ex
+ betanet     betanet  -                   -     -     -       -       -     -     -         - DOWN                      
+                                                                                                                        
+EVENTS                                                                                                                  
+10:47:14  mainnet    disconnect        in  p2p  1.2.3.4          reason=reset                                           
+10:32:14  mainnet-2  warn              participation key for ABC... expires in 6 days                                   
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        

@@ -1,0 +1,3 @@
+# Check out text files with LF everywhere. The terminal UI golden files
+# and test fixtures compare byte for byte, so CRLF on Windows breaks them.
+* text=auto eol=lf
