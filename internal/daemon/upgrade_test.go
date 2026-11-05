@@ -74,8 +74,16 @@ func TestUpgradeRestarts(t *testing.T) {
 	defer resp.Body.Close()
 	var res release.Result
 	json.NewDecoder(resp.Body).Decode(&res)
-	if resp.StatusCode != http.StatusOK || res.To != newer || !res.Restart || res.Path != exe {
+	// Windows cannot exec, so there the new binary waits for the next start.
+	restarts := runtime.GOOS != "windows"
+	if resp.StatusCode != http.StatusOK || res.To != newer || res.Restart != restarts || res.Path != exe {
 		t.Fatalf("%s %+v", resp.Status, res)
+	}
+	if b, _ := os.ReadFile(exe); string(b) != "new binary" {
+		t.Errorf("binary %q", b)
+	}
+	if !restarts {
+		return
 	}
 	select {
 	case err := <-r.done:
@@ -88,9 +96,6 @@ func TestUpgradeRestarts(t *testing.T) {
 	}
 	if r.d.RestartExe() != exe {
 		t.Errorf("RestartExe %q", r.d.RestartExe())
-	}
-	if b, _ := os.ReadFile(exe); string(b) != "new binary" {
-		t.Errorf("binary %q", b)
 	}
 }
 

@@ -103,7 +103,12 @@ func TestInstall(t *testing.T) {
 	if err != nil || res.From != cur || res.To != newer || res.Same || content() != newer {
 		t.Fatalf("newer: %+v %v, file %q", res, err, content())
 	}
-	if ents, _ := os.ReadDir(filepath.Dir(exe)); len(ents) != 1 {
+	// Windows cannot replace a running binary, so the old one moves aside.
+	want := 1
+	if runtime.GOOS == "windows" {
+		want = 2
+	}
+	if ents, _ := os.ReadDir(filepath.Dir(exe)); len(ents) != want {
 		t.Errorf("left files behind: %v", ents)
 	}
 
