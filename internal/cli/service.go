@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net"
 	"os"
 	"os/exec"
 	"os/user"
@@ -20,6 +21,7 @@ import (
 
 	"algod.top/internal/algod"
 	"algod.top/internal/config"
+	"algod.top/internal/fsx"
 	"algod.top/internal/remote"
 	"algod.top/internal/svc"
 	"algod.top/internal/sysstat"
@@ -45,7 +47,7 @@ const (
 )
 
 func systemSocket() string      { return filepath.Join(systemStore, "algodtop.sock") }
-func systemAgentSocket() string { return filepath.Join(systemAgentStore, "agent.sock") }
+func systemAgentSocket() string { return remote.SystemAgentSocket }
 
 type svcOpts struct {
 	agent  bool
@@ -745,8 +747,12 @@ func serviceInstall(env svcEnv, o svcOpts) int {
 			return errf("%s: %v", c[0], err)
 		}
 	}
+	// Opening a large store can take the better part of a minute.
 	if !waitSocket(p.socket, 15*time.Second) {
-		return errf("the service started, but no daemon answers on %s yet. Check its log: %s", p.socket, p.logs())
+		fmt.Printf("waiting for it to answer on %s; opening its store can take a minute\n", p.socket)
+		if !waitSocket(p.socket, 105*time.Second) {
+			return errf("the service started, but nothing answers on %s after 2 minutes. Check its log: %s", p.socket, p.logs())
+		}
 	}
 	// Name the installed binary, which may differ from the one running.
 	name := strings.TrimSuffix(filepath.Base(p.bin), ".exe")
@@ -1067,6 +1073,67 @@ func daemonSockets(cfg *config.Config, ok bool) []string {
 		paths = append(paths, systemSocket())
 	}
 	return slices.Compact(paths)
+}
+
+// servicesInstalled reports whether a system service and a user service
+// of the daemon, or of the agent, are installed on this machine.
+func servicesInstalled(agent bool) (system, user bool) {
+	env := currentEnv()
+	if env.goos == "linux" {
+		_, err := os.Stat(bareServicePlan(env, svcOpts{agent: agent, system: true}).file)
+		system = err == nil
+	}
+	if f := bareServicePlan(env, svcOpts{agent: agent}).file; f != "" {
+		_, err := os.Stat(f)
+		user = err == nil
+	}
+	return system, user
+}
+
+// socketOrder lists the sockets stdio tries: an installed system
+// service's first, else the user's own first.
+func socketOrder(user string, system []string, systemInstalled bool) []string {
+	if systemInstalled {
+		return append(slices.Clone(system), user)
+	}
+	return append([]string{user}, system...)
+}
+
+// socketError carries the socket a dial failed on.
+type socketError struct {
+	path string
+	err  error
+}
+
+func (e *socketError) Error() string { return fmt.Sprintf("connect %s: %v", e.path, e.err) }
+func (e *socketError) Unwrap() error { return e.err }
+
+// dialFirst connects to the first socket that answers. Its error names
+// the last one tried.
+func dialFirst(paths []string) (net.Conn, string, error) {
+	var last error
+	for _, p := range paths {
+		c, err := net.Dial("unix", fsx.SocketAddr(p))
+		if err == nil {
+			return c, p, nil
+		}
+		last = &socketError{p, err}
+		// A system service that refuses this account says why, rather
+		// than leave the caller to start a second agent beside it.
+		if systemSocketHint(p, err) != "" {
+			return nil, "", last
+		}
+	}
+	return nil, "", last
+}
+
+// hintFor explains a refused system socket, or returns "".
+func hintFor(err error) string {
+	var se *socketError
+	if errors.As(err, &se) {
+		return systemSocketHint(se.path, se.err)
+	}
+	return ""
 }
 
 // systemSocketHint explains a system service's socket that this account

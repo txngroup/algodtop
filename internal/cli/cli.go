@@ -761,7 +761,7 @@ func cmdStdio(args []string) int {
 	}
 	path := sockF.String()
 	var cfg *config.Config
-	var also []string // a system service's socket, tried after the user's
+	var also []string // a system service's socket
 	if path == "" {
 		cp := cfgF.String()
 		if agentF.Bool() && cp == "" {
@@ -785,24 +785,34 @@ func cmdStdio(args []string) int {
 			}
 		}
 	}
-	conn, err := net.Dial("unix", fsx.SocketAddr(path))
-	for _, p := range also {
-		if err == nil {
-			break
-		}
-		c, perr := net.Dial("unix", fsx.SocketAddr(p))
-		if perr == nil {
-			conn, err, path = c, nil, p
-			break
-		}
-		// A system service exists but refuses this account: say so,
-		// rather than start a second agent beside it.
-		if h := systemSocketHint(p, perr); h != "" {
-			return errf("%s", h)
+	// An agent or daemon service installed on this machine owns its
+	// socket. stdio tries it first and never starts a second agent beside
+	// it, which would hold the service's socket or store while the
+	// service restarts, as it does after an upgrade.
+	sysInstalled, userInstalled := false, false
+	if sockF.String() == "" {
+		sysInstalled, userInstalled = servicesInstalled(agentF.Bool())
+	}
+	tries := socketOrder(path, also, sysInstalled)
+	conn, used, err := dialFirst(tries)
+	if h := hintFor(err); h != "" {
+		return errf("%s", h)
+	}
+	installed := sysInstalled || userInstalled
+	if err != nil && installed {
+		role := map[bool]string{true: "agent", false: "daemon"}[agentF.Bool()]
+		fmt.Fprintf(os.Stderr, "%s: the %s service is installed but not answering yet; waiting up to 2 minutes\n", prog, role)
+		deadline := time.Now().Add(2 * time.Minute)
+		for err != nil && time.Now().Before(deadline) {
+			time.Sleep(time.Second)
+			conn, used, err = dialFirst(tries)
 		}
 	}
+	if err == nil {
+		path = used
+	}
 	var stop func()
-	if err != nil && agentF.Bool() && !noStartF.Bool() {
+	if err != nil && agentF.Bool() && !noStartF.Bool() && !installed && cfg != nil {
 		// No agent service: run one in this process for the connection.
 		logger := log.New(os.Stderr, prog+" agent: ", log.LstdFlags)
 		if len(cfg.Nodes) == 0 {

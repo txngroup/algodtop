@@ -401,6 +401,24 @@ func CheckSSH() error {
 // the absolute path recorded at install rather than relying on PATH.
 func RemoteBinary(p string) string { return remotePath(p) }
 
+// SystemAgentSocket is the socket of a system agent service on Linux, as
+// `algod.top service install --system --agent` sets it up.
+const SystemAgentSocket = "/var/lib/algodtop-agent/agent.sock"
+
+// AgentRelay is the remote command the hub runs to reach an agent:
+// `stdio --agent` through the binary at path. For a system agent, whose
+// config is under /etc, it names the service's socket and adds
+// --no-start, so the relay neither reaches nor starts a temporary agent
+// as the SSH user while the service restarts. A relay of any version
+// takes these flags.
+func AgentRelay(path, agentConfig string) string {
+	cmd := AgentBinary(path) + " stdio --agent"
+	if strings.HasPrefix(agentConfig, "/etc/") {
+		cmd += " --no-start --socket " + SystemAgentSocket
+	}
+	return cmd
+}
+
 // AgentBinary is the remote command for an agent at path. With no path it
 // runs ~/.local/bin/algod.top, or ~/.local/bin/algodtop from before the
 // rename, whichever exists.

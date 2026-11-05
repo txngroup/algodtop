@@ -254,10 +254,12 @@ func (r *remoteCmd) install(ctx context.Context) int {
 			// runs as the owner and lets the algodtop group reach its socket.
 			// Installing it needs root once.
 			fmt.Printf("\nA system service runs the agent as that account. Installing it needs root once:")
-			if rc := r.runAsRoot(ctx, path, "service", "install", "--system", "--agent"); rc != 0 {
+			method, rc := r.runAsRoot(ctx, path, "service", "install", "--system", "--agent")
+			if rc != 0 {
 				fmt.Printf("Then record it on the hub: %s remote add %s --name %s\n", prog, r.hostArg, r.name)
 				return rc
 			}
+			r.root = method
 			return r.add(ctx)
 		}
 		fmt.Println("Installing a service for that account needs root. Run these on the host:")

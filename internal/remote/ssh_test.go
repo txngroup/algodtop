@@ -77,3 +77,17 @@ func TestParseURLRejectsOptions(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestAgentRelay(t *testing.T) {
+	// A system agent: straight to its socket, never a temporary agent.
+	if got := AgentRelay("/usr/local/bin/algodtop", "/etc/algodtop/agent.json"); got != "'/usr/local/bin/algodtop' stdio --agent --no-start --socket /var/lib/algodtop-agent/agent.sock" {
+		t.Error(got)
+	}
+	// A user agent may run for the life of the connection.
+	if got := AgentRelay("~/.local/bin/algod.top", "~/.config/algodtop/agent.json"); got != `"$HOME"/'.local/bin/algod.top' stdio --agent` {
+		t.Error(got)
+	}
+	if got := AgentRelay("", ""); !strings.HasPrefix(got, "sh -c ") || !strings.HasSuffix(got, " algod.top stdio --agent") {
+		t.Error(got)
+	}
+}

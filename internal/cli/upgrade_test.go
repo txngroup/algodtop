@@ -83,3 +83,27 @@ func TestRemoteForHost(t *testing.T) {
 		t.Errorf("--name lost: %q", r.name)
 	}
 }
+
+func TestSocketOrder(t *testing.T) {
+	user, sys := "/home/a/.local/share/algodtop/agent.sock", []string{"/var/lib/algodtop-agent/agent.sock"}
+	if got := socketOrder(user, sys, true); got[0] != sys[0] || got[1] != user {
+		t.Errorf("system service installed: %v", got)
+	}
+	if got := socketOrder(user, sys, false); got[0] != user || got[1] != sys[0] {
+		t.Errorf("no system service: %v", got)
+	}
+	if got := socketOrder(user, nil, false); len(got) != 1 || got[0] != user {
+		t.Errorf("no system socket: %v", got)
+	}
+}
+
+func TestUsualRoot(t *testing.T) {
+	r := &remoteCmd{cfg: &config.Config{Remotes: []config.Remote{{Name: "a", Root: "su"}, {Name: "b", Root: "su"}, {Name: "c"}}}}
+	if got := r.usualRoot(); got != "su" {
+		t.Errorf("%q", got)
+	}
+	r.cfg.Remotes = nil
+	if got := r.usualRoot(); got != "" {
+		t.Errorf("%q", got)
+	}
+}

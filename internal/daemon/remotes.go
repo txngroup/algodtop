@@ -217,7 +217,7 @@ func (d *Daemon) connect(ctx context.Context, run *remoteRun) error {
 	// alive, so every pull would meet the old groups.
 	ssh := &remote.SSH{Target: t}
 	cmd := exec.Command("ssh", ssh.Args()...)
-	cmd.Args = append(cmd.Args, remote.AgentBinary(r.AgentPath)+" stdio --agent")
+	cmd.Args = append(cmd.Args, remote.AgentRelay(r.AgentPath, r.AgentConfig))
 	conn, err := remote.DialCommand(cmd, r.Host)
 	if err != nil {
 		return err
