@@ -4,6 +4,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -29,6 +30,7 @@ import (
 	"algod.top/internal/daemon"
 	"algod.top/internal/fsx"
 	"algod.top/internal/model"
+	"algod.top/internal/release"
 	"algod.top/internal/store"
 	"algod.top/internal/sysstat"
 	"algod.top/internal/tui"
@@ -36,7 +38,7 @@ import (
 	"algod.top/internal/web"
 )
 
-var prog = "algodtop"
+var prog = "algod.top"
 
 // Main runs algodtop and exits.
 func Main() { os.Exit(Run(os.Args)) }
@@ -56,6 +58,7 @@ func init() {
 		"reload":  cmdReload,
 		"passwd":  cmdPasswd,
 		"check":   cmdCheck,
+		"upgrade": cmdUpgrade,
 		"version": cmdVersion,
 		"help":    cmdHelp,
 	}
@@ -82,9 +85,15 @@ func errf(format string, a ...any) int {
 
 // cmdVersion prints when the build's commit was made and how old it is,
 // then the Go version string and platform. algodtop check shows a
-// remote's first line.
-func cmdVersion([]string) int {
+// remote's first line. With --json it prints the fields an upgrade reads
+// from a new binary before it replaces the running one.
+func cmdVersion(args []string) int {
 	b := version.Info()
+	if len(args) > 0 && args[0] == "--json" {
+		json.NewEncoder(os.Stdout).Encode(release.BuildInfo{Version: b.Version, VersionTime: b.UnixNano(), Revision: b.Revision,
+			Platform: runtime.GOOS + "/" + runtime.GOARCH})
+		return 0
+	}
 	if !b.Time.IsZero() {
 		fmt.Printf("%s %s\n", prog, b.Describe(time.Now()))
 	}
@@ -103,6 +112,7 @@ Usage:
   %s silence ...           add, list or remove alert silences
   %s stdio [--agent]       connect stdin and stdout to the local daemon or agent socket
   %s remote install|add|upgrade|sync|remove HOST
+  %s upgrade               install the newest release here and on every remote agent
   %s service [install|uninstall|status]  start the daemon at login or boot
   %s reload                ask the daemon to reload its config
   %s passwd [--read-only|--token]
@@ -110,7 +120,7 @@ Usage:
   %s version
 
 Run '%s COMMAND --help' for a command's flags.
-`, prog, prog, prog, prog, prog, prog, prog, prog, prog, prog, prog, prog, prog, prog)
+`, prog, prog, prog, prog, prog, prog, prog, prog, prog, prog, prog, prog, prog, prog, prog)
 	return 0
 }
 
@@ -408,7 +418,7 @@ func runDaemon(args []string, agent bool) int {
 	sockF := fs.str("s", "socket", "PATH", "Socket to create")
 	sockGroupF := fs.str("", "socket-group", "GROUP", "Let this group use the socket (mode 0660)")
 	listenF := fs.str("l", "listen", "ADDR", "Web UI listener; an empty value disables it")
-	storeF := fs.str("", "store-dir", "DIR", "algodtop's own data directory")
+	storeF := fs.str("", "store-dir", "DIR", "algod.top's own data directory")
 	dF := fs.list("d", "datadir", "[NAME=]DIR", "A local algod data directory. Repeatable.")
 	uF := fs.list("u", "url", "[NAME=]URL", "An algod REST URL or ssh://host/<datadir>. Repeatable.")
 	tokF := fs.str("", "token-file", "PATH", "Token for -u REST nodes")
@@ -515,6 +525,13 @@ func runDaemon(args []string, agent bool) int {
 	defer cancel()
 	if err := d.Run(ctx); err != nil {
 		return errf("%v", err)
+	}
+	if exe := d.RestartExe(); exe != "" {
+		logger.Printf("upgraded; restarting from %s", exe)
+		if err := execSelf(exe); err != nil {
+			// A service manager restarts a failed service, from the new binary.
+			return errf("restart after the upgrade: %v", err)
+		}
 	}
 	return 0
 }

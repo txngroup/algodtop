@@ -1,11 +1,11 @@
-# algodtop
+# algod.top
 
 [![CI](https://github.com/txngroup/algodtop/actions/workflows/ci.yml/badge.svg)](https://github.com/txngroup/algodtop/actions/workflows/ci.yml)
 
-algodtop monitors one or more Algorand nodes (algod). One binary holds three parts:
+algod.top monitors one or more Algorand nodes (algod). One binary holds three parts:
 
-- `algodtop`, a terminal view in the style of `top`.
-- `algodtop daemon`, which collects metrics, status and log events from each node and keeps them for as long as you choose.
+- `algod.top`, a terminal view in the style of `top`.
+- `algod.top daemon`, which collects metrics, status and log events from each node and keeps them for as long as you choose.
 - A web UI, served by the daemon from files embedded in the binary.
 
 Capturing data comes first. The daemon never drops or delays a sample to serve a viewer. The user documentation is at https://algod.top/docs/, and [DESIGN.md](DESIGN.md) explains every decision. The store format is in [docs/format.md](docs/format.md).
@@ -13,48 +13,49 @@ Capturing data comes first. The daemon never drops or delays a sample to serve a
 ## Install
 
 ```
-go install algod.top@latest            # a command named algod.top
-go install algod.top/algodtop@latest   # the same program, named algodtop
-go run algod.top@latest                # run it without installing
+go install algod.top@latest   # installs the algod.top command
+go run algod.top@latest       # runs it without installing
 ```
 
 The binary has no cgo and no runtime dependencies. It runs on Linux, macOS and Windows. Go 1.27 builds it. Signed binaries for every platform are on the [latest release](https://github.com/txngroup/algodtop/releases/latest), with `checksums.txt` and its signature.
 
+`algod.top upgrade` installs the newest release on this machine and on every agent the hub runs. Each one checks the release signature itself and restarts onto the new binary.
+
 ## Quick start
 
 ```
-algodtop                          # finds local nodes and shows them live
-algodtop -d ~/.mainnet            # one data directory
-algodtop -u http://host:8080      # a REST URL; tokens from $ALGOD_TOKEN and $ALGOD_ADMIN_TOKEN
-algodtop -u ssh://relay1/~/.mainnet   # a remote node over SSH, nothing installed there
+algod.top                          # finds local nodes and shows them live
+algod.top -d ~/.mainnet            # one data directory
+algod.top -u http://host:8080      # a REST URL; tokens from $ALGOD_TOKEN and $ALGOD_ADMIN_TOKEN
+algod.top -u ssh://relay1/~/.mainnet   # a remote node over SSH, nothing installed there
 ```
 
 Without a daemon the terminal UI shows live values only. To keep history:
 
 ```
-algodtop daemon --discover        # find local nodes, write ~/.config/algodtop/config.json, run
-algodtop                          # now shows the daemon's data, with history
+algod.top daemon --discover        # find local nodes, write ~/.config/algodtop/config.json, run
+algod.top                          # now shows the daemon's data, with history
 ```
 
-To start the daemon at login or boot instead, run `algodtop service`. It explains the service for your platform: a launchd agent on macOS, a systemd user unit on Linux, or a system service like `algorand.service` when algod runs as its own account. `algodtop service install` sets it up.
+To start the daemon at login or boot instead, run `algod.top service`. It explains the service for your platform: a launchd agent on macOS, a systemd user unit on Linux, or a system service like `algorand.service` when algod runs as its own account. `algod.top service install` sets it up.
 
-The web UI listens on http://127.0.0.1:8090 by default. Press `?` in the terminal UI for its keys. `algodtop -b` prints the node table once, and `-n N -i SECS --json` suit scripts and cron.
+The web UI listens on http://127.0.0.1:8090 by default. Press `?` in the terminal UI for its keys. `algod.top -b` prints the node table once, and `-n N -i SECS --json` suit scripts and cron.
 
 ## Commands
 
 | Command | Does |
 |---|---|
-| `algodtop` | Terminal UI |
-| `algodtop daemon` | Collector, store, health, alerts, API and web UI |
-| `algodtop agent` | Collector and local buffer on a remote host |
-| `algodtop export` | Series, events or sessions as CSV or JSON |
-| `algodtop silence` | Add, list or end alert silences |
-| `algodtop stdio [--agent]` | Connects stdin and stdout to the local socket, for use over SSH |
-| `algodtop remote install\|add\|upgrade\|sync\|remove HOST` | Manage an agent over SSH |
-| `algodtop service [install\|uninstall\|status]` | Start the daemon at login or boot |
-| `algodtop reload` | Reload the config (the same as SIGHUP) |
-| `algodtop passwd [--read-only\|--token]` | Set the web password or make a read-only token |
-| `algodtop check` | Validate the config, reach each node, project disk use |
+| `algod.top` | Terminal UI |
+| `algod.top daemon` | Collector, store, health, alerts, API and web UI |
+| `algod.top agent` | Collector and local buffer on a remote host |
+| `algod.top export` | Series, events or sessions as CSV or JSON |
+| `algod.top silence` | Add, list or end alert silences |
+| `algod.top stdio [--agent]` | Connects stdin and stdout to the local socket, for use over SSH |
+| `algod.top remote install\|add\|upgrade\|sync\|remove HOST` | Manage an agent over SSH |
+| `algod.top service [install\|uninstall\|status]` | Start the daemon at login or boot |
+| `algod.top reload` | Reload the config (the same as SIGHUP) |
+| `algod.top passwd [--read-only\|--token]` | Set the web password or make a read-only token |
+| `algod.top check` | Validate the config, reach each node, project disk use |
 
 ## Config
 
@@ -76,15 +77,15 @@ Alert expressions are fixed functions such as `lag > 30s`, `peers_out < 1`, `hea
 
 ## Remote hosts
 
-A hub reaches nodes on other hosts through the system `ssh`, which honours `~/.ssh/config`, ProxyJump and ssh-agent. algodtop always uses `BatchMode=yes`, so run `ssh HOST` once to accept a new host key.
+A hub reaches nodes on other hosts through the system `ssh`, which honours `~/.ssh/config`, ProxyJump and ssh-agent. algod.top always uses `BatchMode=yes`, so run `ssh HOST` once to accept a new host key.
 
 - `ssh://host/<datadir>` needs nothing installed on the host. It records gaps while the hub is offline.
-- `algodtop remote install HOST` copies a signed release to `~/.local/bin/algodtop`, writes an agent config from discovery, and installs a systemd user unit or a launchd agent. The agent buffers 7 days, so the hub catches up after an outage with no gap. When algod runs as another account, as package installs do, install the agent on the host as a system service with `sudo algodtop service install --system --agent`. Then point the hub at it with `algodtop remote add HOST` and `algodtop reload`.
-- `algodtop -H ssh://host` opens the terminal UI of the daemon on another host with no open ports.
+- `algod.top remote install HOST` copies a signed release to `~/.local/bin/algodtop`, writes an agent config from discovery, and installs a systemd user unit or a launchd agent. The agent buffers 7 days, so the hub catches up after an outage with no gap. When algod runs as another account, as package installs do, install the agent on the host as a system service with `sudo algod.top service install --system --agent`. Then point the hub at it with `algod.top remote add HOST` and `algod.top reload`.
+- `algod.top -H ssh://host` opens the terminal UI of the daemon on another host with no open ports.
 
 ## Security
 
-The unix socket is mode 0600 and needs no password. The TCP listener binds to localhost. A non-loopback address needs a password (`algodtop passwd`), and every state-changing request over TCP needs a CSRF token. algod tokens never reach a client, and the algod client sends only GET requests to a fixed allowlist.
+The unix socket is mode 0600 and needs no password. The TCP listener binds to localhost. A non-loopback address needs a password (`algod.top passwd`), and every state-changing request over TCP needs a CSRF token. algod tokens never reach a client, and the algod client sends only GET requests to a fixed allowlist.
 
 ## Development
 
@@ -115,4 +116,4 @@ The open decisions in DESIGN.md section 22 are still open, among them the approv
 
 ## License
 
-algodtop is a txn.group project under the MIT license. See [LICENSE](LICENSE), and [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md) before you send a change or a report.
+algod.top is a txn.group project under the MIT license. See [LICENSE](LICENSE), and [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md) before you send a change or a report.

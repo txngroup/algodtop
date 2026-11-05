@@ -1,8 +1,8 @@
-# algodtop store format, version 1
+# algod.top store format, version 1
 
-This document describes every file in algodtop's data directory, so the data stays readable without algodtop. Integers are little endian unless marked varint. A varint is Go's `encoding/binary` signed varint (zigzag) and a uvarint is the unsigned form. CRC32 is the Castagnoli polynomial unless a section says IEEE.
+This document describes every file in algod.top's data directory, so the data stays readable without algod.top. Integers are little endian unless marked varint. A varint is Go's `encoding/binary` signed varint (zigzag) and a uvarint is the unsigned form. CRC32 is the Castagnoli polynomial unless a section says IEEE.
 
-`meta.json` holds the format version. A newer algodtop migrates once on upgrade, after taking a backup, and old blocks stay readable.
+`meta.json` holds the format version. A newer algod.top migrates once on upgrade, after taking a backup, and old blocks stay readable.
 
 ## Directory layout
 

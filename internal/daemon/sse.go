@@ -96,22 +96,32 @@ func (d *Daemon) statusFor(s *subscriber) any {
 	return map[string]any{"nodes": out, "status": d.Status(), "time": time.Now().UnixNano()}
 }
 
-// statusPublisher pushes live status to SSE clients every 2 s. It does no
-// work when nobody is connected.
+// statusPublisher pushes live status to SSE clients when a node confirms
+// a new round, and every 2 s besides. It does no work when nobody is
+// connected.
 func (d *Daemon) statusPublisher(ctx context.Context) {
 	t := time.NewTicker(2 * time.Second)
 	defer t.Stop()
 	for {
 		select {
 		case <-ctx.Done():
-			d.subsMu.Lock()
-			for s := range d.subs {
-				close(s.ch)
-				delete(d.subs, s)
-			}
-			d.subsMu.Unlock()
+			d.closeSubs()
 			return
 		case <-t.C:
+		case <-d.roundCh:
+			// Nodes on one network confirm a round within a moment of each
+			// other, so wait briefly and send them in one message.
+			select {
+			case <-ctx.Done():
+				d.closeSubs()
+				return
+			case <-time.After(150 * time.Millisecond):
+			}
+			select {
+			case <-d.roundCh:
+			default:
+			}
+			t.Reset(2 * time.Second)
 		}
 		d.subsMu.Lock()
 		subs := make([]*subscriber, 0, len(d.subs))
@@ -125,5 +135,22 @@ func (d *Daemon) statusPublisher(ctx context.Context) {
 		for _, s := range subs {
 			s.send(api.Message{Event: "status", Data: d.statusFor(s)})
 		}
+	}
+}
+
+func (d *Daemon) closeSubs() {
+	d.subsMu.Lock()
+	defer d.subsMu.Unlock()
+	for s := range d.subs {
+		close(s.ch)
+		delete(d.subs, s)
+	}
+}
+
+// roundArrived wakes the status publisher. It never blocks.
+func (d *Daemon) roundArrived() {
+	select {
+	case d.roundCh <- struct{}{}:
+	default:
 	}
 }

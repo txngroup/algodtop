@@ -85,6 +85,23 @@ func pseudo(v string) (time.Time, string, bool) {
 	return t.UTC(), rev, true
 }
 
+// Parse reads a version string into a Build, with the commit time and
+// hash when it is a pseudo-version.
+func Parse(v string) Build {
+	b := Build{Version: v}
+	if t, rev, ok := pseudo(v); ok {
+		b.Time, b.Revision = t, rev
+	}
+	return b
+}
+
+// TimeOf reads the commit time from a pseudo-version such as
+// v0.0.0-20261104123549-37f0e9db466c. Upgrades compare releases by it.
+func TimeOf(v string) (time.Time, bool) {
+	t, _, ok := pseudo(v)
+	return t, ok
+}
+
 // String is the version with the commit when the version does not hold
 // it, such as "dev (37f0e9db)". Its first word is the version, which
 // remote install looks up.

@@ -103,6 +103,18 @@ func (rs *remoteSet) reload(ctx context.Context, cfg *config.Config) {
 
 func (rs *remoteSet) wait() { rs.wg.Wait() }
 
+// noteRound moves an agent node's round forward as soon as its round
+// batch arrives, between the 5 s polls of the agent's full status.
+func (r *remoteRun) noteRound(node string, round uint64, at int64) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for i := range r.views {
+		if r.views[i].Name == node && round > r.views[i].Round {
+			r.views[i].Round, r.views[i].RoundAt = round, at
+		}
+	}
+}
+
 func (rs *remoteSet) views() []api.NodeView {
 	rs.mu.Lock()
 	runs := make([]*remoteRun, 0, len(rs.runs))
@@ -114,10 +126,15 @@ func (rs *remoteSet) views() []api.NodeView {
 	for _, r := range runs {
 		r.mu.Lock()
 		reachable := time.Since(r.lastOK) < 30*time.Second
+		// The agent's clock reads offset seconds ahead of the hub's.
+		agentNow := time.Now().Add(time.Duration(r.offset * float64(time.Second)))
 		for _, v := range r.views {
 			v.Remote = r.cfg.Name
 			v.Kind = "agent"
 			v.ClockOffsetAgent = r.offset
+			if v.RoundAt != 0 {
+				v.Lag = v.State.Lag(agentNow)
+			}
 			if !reachable {
 				v.Health.Reasons = append([]healthReason{{Rule: "agent_unreachable", Level: 2, Text: "agent " + r.cfg.Name + " unreachable: " + r.lastErr}}, v.Health.Reasons...)
 				v.Health.Level = 2
@@ -199,12 +216,8 @@ func (d *Daemon) connect(ctx context.Context, run *remoteRun) error {
 	// joining the algodtop group, and the hub's retries would keep it
 	// alive, so every pull would meet the old groups.
 	ssh := &remote.SSH{Target: t}
-	path := r.AgentPath
-	if path == "" {
-		path = "~/.local/bin/algodtop"
-	}
 	cmd := exec.Command("ssh", ssh.Args()...)
-	cmd.Args = append(cmd.Args, remote.RemoteBinary(path)+" stdio --agent")
+	cmd.Args = append(cmd.Args, remote.AgentBinary(r.AgentPath)+" stdio --agent")
 	conn, err := remote.DialCommand(cmd, r.Host)
 	if err != nil {
 		return err
@@ -434,7 +447,7 @@ func (d *Daemon) pullRemote(ctx context.Context, run *remoteRun, cursorPath stri
 		}
 	}
 	renamed := func(n string) bool { return hubName(old, n) != hubName(run.cfg, n) }
-	sink := &daemonSink{d: d, rename: func(n string) string { return hubName(run.cfg, n) }}
+	sink := &daemonSink{d: d, rename: func(n string) string { return hubName(run.cfg, n) }, onRound: run.noteRound}
 	seen := newEventDedup()
 	for {
 		rctx, cancel := context.WithTimeout(ctx, 90*time.Second)

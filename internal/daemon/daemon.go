@@ -48,24 +48,31 @@ type Options struct {
 	Logger     *log.Logger
 	// OnListen is called with the TCP address once the web listener is up.
 	OnListen func(addr string)
+	// Exe is the binary an upgrade replaces, default the running one.
+	Exe string
 }
 
 // Daemon is a running algodtop daemon or agent.
 type Daemon struct {
-	o       Options
-	logf    func(string, ...any)
-	cfgMu   sync.RWMutex
-	cfg     *config.Config
-	db      *store.DB
-	qe      *query.Engine
-	in      chan item
-	drops   atomic.Int64
-	started time.Time
-	host    *collector.Host
-	alerts  *alert.Engine
-	sil     *silences
-	auth    *api.Auth
-	hostNm  string
+	o     Options
+	logf  func(string, ...any)
+	cfgMu sync.RWMutex
+	cfg   *config.Config
+	db    *store.DB
+	qe    *query.Engine
+	in    chan item
+	// inMu guards closing in: senders hold it for reading, and shutdown
+	// takes it to close, so a late collector never sends on a closed
+	// channel.
+	inMu     sync.RWMutex
+	inClosed bool
+	drops    atomic.Int64
+	started  time.Time
+	host     *collector.Host
+	alerts   *alert.Engine
+	sil      *silences
+	auth     *api.Auth
+	hostNm   string
 
 	nodesMu  sync.RWMutex
 	nodes    map[string]*nodeRun
@@ -75,13 +82,20 @@ type Daemon struct {
 	creep    map[string]bool
 	projOver bool
 
-	subsMu sync.Mutex
-	subs   map[*subscriber]bool
+	subsMu  sync.Mutex
+	subs    map[*subscriber]bool
+	roundCh chan struct{} // a node confirmed a new round
 
 	remotes *remoteSet
 	outbox  *Outbox // agent mode
 
 	runCtx    context.Context
+	stop      context.CancelFunc // ends Run
+	upgradeMu sync.Mutex
+	// restartExe is set by an upgrade: the binary to exec after Run.
+	restartExe atomic.Pointer[string]
+	// latest is a newer release the update check found.
+	latest    atomic.Pointer[string]
 	selfPrev  [2]float64
 	selfStats api.SelfStats
 	selfMu    sync.Mutex
@@ -114,10 +128,10 @@ type snapResult struct {
 // New opens the store and prepares a daemon. Run starts it.
 func New(o Options) (*Daemon, error) {
 	if o.Logger == nil {
-		o.Logger = log.New(os.Stderr, "algodtop: ", log.LstdFlags)
+		o.Logger = log.New(os.Stderr, "algod.top: ", log.LstdFlags)
 	}
 	d := &Daemon{o: o, cfg: o.Config, logf: o.Logger.Printf, started: time.Now(), in: make(chan item, 4096),
-		nodes: map[string]*nodeRun{}, health: map[string]health.Status{}, floor: map[string]string{}, creep: map[string]bool{}, subs: map[*subscriber]bool{}}
+		nodes: map[string]*nodeRun{}, health: map[string]health.Status{}, floor: map[string]string{}, creep: map[string]bool{}, subs: map[*subscriber]bool{}, roundCh: make(chan struct{}, 1)}
 	d.hostNm, _ = os.Hostname()
 	cfg := d.cfg
 	applyRuntime(cfg.Runtime, o.Agent)
@@ -209,7 +223,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	cfg := d.Config()
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	d.runCtx = ctx
+	d.runCtx, d.stop = ctx, cancel
 
 	var listeners []*http.Server
 	sock := cfg.SocketPath()
@@ -251,7 +265,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	go func() { defer bg.Done(); d.host.Run(ctx) }()
 	d.startNodes(ctx, cfg)
 	d.remotes.start(ctx, cfg)
-	for _, f := range []func(context.Context){d.healthLoop, d.maintenanceLoop, d.selfLoop, d.statusPublisher} {
+	for _, f := range []func(context.Context){d.healthLoop, d.maintenanceLoop, d.selfLoop, d.statusPublisher, d.updateLoop} {
 		bg.Add(1)
 		go func(f func(context.Context)) { defer bg.Done(); f(ctx) }(f)
 	}
@@ -259,7 +273,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 		bg.Add(1)
 		go func() { defer bg.Done(); alert.Heartbeat(ctx, hb, cfg.Heartbeat.Interval.D(), d.logf) }()
 	}
-	d.emitEvent(model.Event{Kind: "algodtop-start", Severity: model.SevInfo, Msg: "algodtop " + version.String() + " started"})
+	d.emitEvent(model.Event{Kind: "algodtop-start", Severity: model.SevInfo, Msg: "algod.top " + version.String() + " started"})
 	d.noteMonitorGap()
 	d.startProfile(ctx)
 	stopSig := d.handleSignals(ctx)
@@ -276,7 +290,10 @@ func (d *Daemon) Run(ctx context.Context) error {
 	d.stopNodes()
 	d.remotes.wait()
 	bg.Wait()
+	d.inMu.Lock()
+	d.inClosed = true
 	close(d.in)
+	d.inMu.Unlock()
 	select {
 	case <-writerDone:
 	case <-sctx.Done():
@@ -353,7 +370,7 @@ func (d *Daemon) tcpListener(addr string) (*http.Server, net.Listener, error) {
 	noAuth := ac.PasswordHash == "" && ac.ReadOnlyPasswordHash == "" && len(ac.ReadOnlyTokenHashes) == 0
 	if !d.o.Agent && !isLoopback(addr) && noAuth {
 		if !cfg.Web.AllowUnauthenticatedRemote {
-			return nil, nil, fmt.Errorf("web.listen %s is not loopback and no password is set; run `algodtop passwd` or set allow_unauthenticated_remote", addr)
+			return nil, nil, fmt.Errorf("web.listen %s is not loopback and no password is set; run `algod.top passwd` or set allow_unauthenticated_remote", addr)
 		}
 		d.logf("warning: serving %s with no password (allow_unauthenticated_remote)", addr)
 	}
@@ -365,7 +382,7 @@ func (d *Daemon) tcpListener(addr string) (*http.Server, net.Listener, error) {
 	var handler http.Handler = srvAPI
 	if d.o.Agent {
 		if cfg.Agent.TokenHash == "" && cfg.Agent.ClientCA == "" {
-			return nil, nil, fmt.Errorf("agent.listen %s needs agent.token_hash or agent.client_ca; run `algodtop passwd --agent-token`", addr)
+			return nil, nil, fmt.Errorf("agent.listen %s needs agent.token_hash or agent.client_ca; run `algod.top passwd --agent-token`", addr)
 		}
 		handler = agentGate(cfg.Agent.TokenHash, cfg.Agent.ClientCA != "", srvAPI)
 	}
@@ -602,9 +619,26 @@ func (d *Daemon) apply(it item) {
 }
 
 // enqueue hands an item to the writer. It never blocks a collector for
-// long: after 5 s the item is dropped and counted.
+// long: after 5 s the item is dropped and counted. After shutdown it drops
+// the item, and tells whoever waits on it.
 func (d *Daemon) enqueue(it item) {
-	defer func() { recover() }() // the channel closes at shutdown
+	d.inMu.RLock()
+	defer d.inMu.RUnlock()
+	if d.inClosed {
+		if it.sync != nil {
+			select {
+			case it.sync <- errStopped:
+			default:
+			}
+		}
+		if it.snap != nil {
+			select {
+			case it.snap <- snapResult{err: errStopped}:
+			default:
+			}
+		}
+		return
+	}
 	select {
 	case d.in <- it:
 		return
@@ -618,6 +652,8 @@ func (d *Daemon) enqueue(it item) {
 		d.drops.Add(1)
 	}
 }
+
+var errStopped = errors.New("the daemon has stopped")
 
 // Flush waits until the writer has applied everything queued so far.
 func (d *Daemon) Flush() error {
@@ -647,6 +683,9 @@ func (d *Daemon) emitEvent(e model.Event) {
 type daemonSink struct {
 	d      *Daemon
 	rename func(string) string // agent node name to hub name, on the hub
+	// onRound moves an agent node's round forward on the hub as soon as
+	// its round batch arrives.
+	onRound func(node string, round uint64, at int64)
 }
 
 func (d *Daemon) sink() collector.Sink { return &daemonSink{d: d} }
@@ -667,6 +706,16 @@ func (s *daemonSink) Batch(b *model.Batch) {
 	}
 	s.d.enqueue(item{batch: b})
 	s.d.publishBatch(b)
+	if b.Group == model.GroupRound {
+		if s.onRound != nil {
+			for _, smp := range b.Samples {
+				if smp.Name == "algodtop_round" {
+					s.onRound(b.Node, uint64(smp.Value), b.Time)
+				}
+			}
+		}
+		s.d.roundArrived()
+	}
 }
 
 func (s *daemonSink) Event(e model.Event) {
@@ -873,6 +922,7 @@ func (d *Daemon) Status() api.DaemonStatus {
 	if w := config.CheckPermissions(cfg.Path); w != "" {
 		st.Warnings = append(st.Warnings, w)
 	}
+	st.Latest, st.LatestTime = d.latestStatus()
 	return st
 }
 
@@ -1097,7 +1147,7 @@ func (d *Daemon) Reload() error {
 		}
 	}
 	d.remotes.reload(d.runCtx, next)
-	d.emitEvent(model.Event{Kind: "config-reload", Severity: model.SevInfo, Msg: "algodtop config reloaded"})
+	d.emitEvent(model.Event{Kind: "config-reload", Severity: model.SevInfo, Msg: "algod.top config reloaded"})
 	return nil
 }
 
@@ -1230,7 +1280,7 @@ func (d *Daemon) noteMonitorGap() {
 			gap := time.Since(time.Unix(0, last))
 			if gap > time.Minute {
 				d.emitEvent(model.Event{Time: time.Now().UnixNano(), Kind: model.EvMonitorGap, Severity: model.SevWarn,
-					Msg: fmt.Sprintf("algodtop was down for %s", gap.Round(time.Second)), Attrs: map[string]any{"from": last, "to": time.Now().UnixNano()}})
+					Msg: fmt.Sprintf("algod.top was down for %s", gap.Round(time.Second)), Attrs: map[string]any{"from": last, "to": time.Now().UnixNano()}})
 			}
 		}
 	}

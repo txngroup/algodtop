@@ -3,12 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="How to install, configure and run algodtop: the terminal UI, the daemon and web UI, remote hosts, alerts and storage.">
-<title>algodtop documentation</title>
+<meta name="description" content="How to install, configure and run algod.top: the terminal UI, the daemon and web UI, remote hosts, alerts and storage.">
+<title>algod.top documentation</title>
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="canonical" href="https://algod.top/docs/">
 <meta property="og:type" content="website">
-<meta property="og:title" content="algodtop documentation">
-<meta property="og:description" content="How to install, run and configure algodtop, monitoring for Algorand nodes.">
+<meta property="og:title" content="algod.top documentation">
+<meta property="og:description" content="How to install, run and configure algod.top, monitoring for Algorand nodes.">
 <meta property="og:url" content="https://algod.top/docs/">
 <meta property="og:image" content="https://algod.top/img/social.png">
 <meta property="og:image:width" content="1280">
@@ -19,7 +22,7 @@
 <body>
 <header class="top">
 <nav>
-<a class="brand" href="/">algod<span>top</span></a>
+<a class="brand" href="/">algod<span>.top</span></a>
 <a href="/docs/" aria-current="page">Docs</a>
 </nav>
 </header>
@@ -44,36 +47,33 @@
 
 <main class="doc">
 <h1>Documentation</h1>
-<p>algodtop is one binary with three parts:</p>
+<p>algod.top is one binary with three parts:</p>
 <ul>
-<li><code>algodtop</code> is a terminal UI in the style of <code>top</code>.</li>
-<li><code>algodtop daemon</code> collects metrics, status and log events from each node and keeps them for as long as you choose.</li>
+<li><code>algod.top</code> is a terminal UI in the style of <code>top</code>.</li>
+<li><code>algod.top daemon</code> collects metrics, status and log events from each node and keeps them for as long as you choose.</li>
 <li>The daemon serves a web UI from files built into the binary.</li>
 </ul>
 <p>Capturing data comes first. The daemon never drops or delays a sample to serve a viewer.</p>
 
 <h2 id="install">Install</h2>
-<pre><code>go install algod.top@latest            # a command named algod.top
-go install algod.top/algodtop@latest   # the same program, named algodtop</code></pre>
-<p>Use either one. Each builds the program into <code>$(go env GOPATH)/bin</code>, or into <code>$GOBIN</code> when it is set. Go names a command after the last part of its path, which is why the names differ. These docs call it <code>algodtop</code>, so with the first line, type <code>algod.top</code> in its place. One command installs both names: <code>go install algod.top@latest algod.top/algodtop@latest</code>.</p>
-<p>To try it without installing, run <code>go run algod.top@latest</code>. Flags pass through, as in <code>go run algod.top@latest -d ~/.mainnet</code>.</p>
+<pre><code>go install algod.top@latest</code></pre>
+<p>This builds the program into <code>$(go env GOPATH)/bin</code>, or into <code>$GOBIN</code> when it is set. To try it without installing, run <code>go run algod.top@latest</code>. Flags pass through, as in <code>go run algod.top@latest -d ~/.mainnet</code>.</p>
 <ul>
 <li>It needs Go 1.27 or later. An older <code>go</code> command downloads the 1.27 toolchain by itself.</li>
-<li>There are no version numbers. Every commit on main is a release, and <code>algodtop version</code> says when it was made, such as <code>2026-11-04 12:35 UTC (37f0e9db), 3 days old</code>. Run the install again to update.</li>
+<li>There are no version numbers. Every commit on main is a release, and <code>algod.top version</code> says when it was made, such as <code>2026-11-04 12:35 UTC (37f0e9db), 3 days old</code>. See <a href="#upgrade">Upgrading</a> to update.</li>
 <li>It uses no cgo and needs nothing at run time. It runs on Linux, macOS and Windows, on amd64 and arm64.</li>
-<li>Every release also has binaries for each platform on GitHub, with <code>checksums.txt</code> and its signature. Check a download with <code>sha256sum -c checksums.txt --ignore-missing</code>. <code>algodtop remote install</code> checks the signature itself.</li>
-<li>A system service on Linux copies the binary to <code>/usr/local/bin/algodtop</code>, so it runs as <code>algodtop</code> whichever name you installed.</li>
-<li>To build for a server from your laptop, leave <code>GOBIN</code> unset and set the target. <code>GOOS=linux GOARCH=amd64 go install algod.top/algodtop@latest</code> writes <code>~/go/bin/linux_amd64/algodtop</code>.</li>
+<li>Every release also has binaries for each platform on GitHub, named such as <code>algod.top_linux_amd64</code>, with <code>checksums.txt</code> and its signature. Check a download with <code>sha256sum -c checksums.txt --ignore-missing</code>. <code>algod.top upgrade</code> and <code>algod.top remote install</code> check the signature themselves.</li>
+<li>To build for a server from your laptop, leave <code>GOBIN</code> unset and set the target. <code>GOOS=linux GOARCH=amd64 go install algod.top@latest</code> writes <code>~/go/bin/linux_amd64/algod.top</code>.</li>
 </ul>
 
 <h2 id="quick-start">Quick start</h2>
-<pre><code>algodtop                              # find the nodes on this machine and show them live
-algodtop -d ~/.mainnet                # one data directory
-algodtop -u http://127.0.0.1:4001     # a REST URL; tokens from $ALGOD_TOKEN and $ALGOD_ADMIN_TOKEN
-algodtop -u ssh://relay.example.com/var/lib/algorand   # a node on another host, nothing installed there</code></pre>
+<pre><code>algod.top                              # find the nodes on this machine and show them live
+algod.top -d ~/.mainnet                # one data directory
+algod.top -u http://127.0.0.1:4001     # a REST URL; tokens from $ALGOD_TOKEN and $ALGOD_ADMIN_TOKEN
+algod.top -u ssh://relay.example.com/var/lib/algorand   # a node on another host, nothing installed there</code></pre>
 <p>Discovery looks at running algod processes, at data directories in your home directory such as <code>~/.mainnet</code>, and at <code>/var/lib/algorand</code>. Without a daemon, the terminal UI shows live values only. To keep history, run the daemon:</p>
-<pre><code>algodtop daemon --discover   # find local nodes, write them to the config file, and run
-algodtop                     # now shows the daemon's data, with history</code></pre>
+<pre><code>algod.top daemon --discover   # find local nodes, write them to the config file, and run
+algod.top                     # now shows the daemon's data, with history</code></pre>
 <p>The web UI is then at <a href="http://127.0.0.1:8090">http://127.0.0.1:8090</a>. The daemon can run in a terminal or tmux, or as a service that starts at login or boot (see <a href="#service">Running as a service</a>).</p>
 
 <h2 id="terminal-ui">Terminal UI</h2>
@@ -82,6 +82,7 @@ algodtop                     # now shows the daemon's data, with history</code><
 <table>
 <tr><th>Key</th><th>Does</th></tr>
 <tr><td><code>Up</code> <code>Down</code> <code>Enter</code> <code>Esc</code></td><td>Select a node, open it, go back</td></tr>
+<tr><td><code>PgUp</code> <code>PgDn</code> <code>Home</code> <code>End</code></td><td>On a node, scroll the open pane. <code>Up</code> and <code>Down</code> scroll it too.</td></tr>
 <tr><td><code>&lt;</code> <code>&gt;</code></td><td>Change the sort column</td></tr>
 <tr><td><code>p</code> <code>e</code> <code>l</code></td><td>Peers, events or log templates pane</td></tr>
 <tr><td><code>r</code></td><td>Cycle the range: 1h, 6h, 24h, 7d, 30d, 1y, all</td></tr>
@@ -95,11 +96,11 @@ algodtop                     # now shows the daemon's data, with history</code><
 <tr><td><code>W</code></td><td>Write discovered nodes to a config file, after showing it</td></tr>
 <tr><td><code>?</code> <code>q</code></td><td>Help, quit</td></tr>
 </table>
-<p>Batch mode suits scripts and cron. <code>algodtop -b</code> prints the node table once. <code>-n 5 -i 10</code> prints it five times, 10 seconds apart, and <code>--json</code> prints JSON.</p>
-<p>To view a daemon on another machine, use <code>algodtop -H ssh://host</code>. It runs <code>ssh host algodtop stdio</code> and opens no port. <code>-H https://host:8090</code> works with a read-only token in <code>--hub-token-file</code> or <code>$ALGODTOP_TOKEN</code>.</p>
+<p>Batch mode suits scripts and cron. <code>algod.top -b</code> prints the node table once. <code>-n 5 -i 10</code> prints it five times, 10 seconds apart, and <code>--json</code> prints JSON.</p>
+<p>To view a daemon on another machine, use <code>algod.top -H ssh://host</code>. It runs <code>ssh host algod.top stdio</code> and opens no port. <code>-H https://host:8090</code> works with a read-only token in <code>--hub-token-file</code> or <code>$ALGODTOP_TOKEN</code>.</p>
 
 <h2 id="web-ui">Daemon and web UI</h2>
-<p><code>algodtop daemon</code> runs the collectors, the store, health checks and alerts, the API and the web UI. It listens on <code>127.0.0.1:8090</code> by default. Set <code>web.listen</code> in the config, or pass <code>-l ADDR</code>. An empty value turns the web UI off.</p>
+<p><code>algod.top daemon</code> runs the collectors, the store, health checks and alerts, the API and the web UI. It listens on <code>127.0.0.1:8090</code> by default. Set <code>web.listen</code> in the config, or pass <code>-l ADDR</code>. An empty value turns the web UI off.</p>
 <figure class="shot"><picture>
 <source srcset="/img/node-dark.webp" media="(prefers-color-scheme: dark)">
 <img src="/img/node-light.webp" width="2560" height="1600" loading="lazy" alt="The node page with charts.">
@@ -115,11 +116,11 @@ algodtop                     # now shows the daemon's data, with history</code><
 <tr><td>Settings</td><td>Nodes, retention and access. Editing nodes and retention here needs <code>web.allow_config_edits</code>.</td></tr>
 </table>
 <p>A listener on loopback needs no password. Any other address needs one:</p>
-<pre><code>algodtop passwd              # the full password
-algodtop passwd --read-only  # a password that can only look
-algodtop passwd --token      # a read-only bearer token for scripts and -H https://</code></pre>
+<pre><code>algod.top passwd              # the full password
+algod.top passwd --read-only  # a password that can only look
+algod.top passwd --token      # a read-only bearer token for scripts and -H https://</code></pre>
 <p>For HTTPS, set <code>web.tls</code> to <code>"self-signed"</code>, or set <code>web.tls_cert</code> and <code>web.tls_key</code>.</p>
-<p><code>algodtop reload</code> and SIGHUP reload the nodes, alerts and retention. A change of listen address needs a restart. The daemon runs at a low CPU and I/O priority. In a ten-minute test with five nodes, it used about half a percent of one core, 53 MB of memory and 8 KB/s of disk writes.</p>
+<p><code>algod.top reload</code> and SIGHUP reload the nodes, alerts and retention. A change of listen address needs a restart. The daemon runs at a low CPU and I/O priority. In a ten-minute test with five nodes, it used about half a percent of one core, 53 MB of memory and 8 KB/s of disk writes.</p>
 
 <h2 id="config">Configuration</h2>
 <p>The config is one JSON file. It holds tokens and the password hash, so keep it mode 0600.</p>
@@ -147,7 +148,7 @@ algodtop passwd --token      # a read-only bearer token for scripts and -H https
 <table>
 <tr><th>Node field</th><th>Meaning</th></tr>
 <tr><td><code>name</code></td><td>The name shown everywhere. Data is stored under it.</td></tr>
-<tr><td><code>datadir</code></td><td>A local algod data directory. algodtop reads the address and tokens from it, and follows a port change after a restart.</td></tr>
+<tr><td><code>datadir</code></td><td>A local algod data directory. algod.top reads the address and tokens from it, and follows a port change after a restart.</td></tr>
 <tr><td><code>url</code></td><td>An <code>http://</code> or <code>https://</code> REST URL, or <code>ssh://host/&lt;datadir&gt;</code>. Set exactly one of <code>datadir</code> and <code>url</code>.</td></tr>
 <tr><td><code>token_file</code>, <code>admin_token_file</code></td><td>Tokens for a REST URL. <code>token</code> and <code>admin_token</code> hold them inline.</td></tr>
 <tr><td><code>accounts</code></td><td>Accounts to watch: online status, incentive eligibility, votes and key expiry.</td></tr>
@@ -155,39 +156,53 @@ algodtop passwd --token      # a read-only bearer token for scripts and -H https
 <tr><td><code>backfill_logs</code></td><td>Read the existing node.log and archive on first start.</td></tr>
 <tr><td><code>disabled</code></td><td>Keep the node in the file without watching it.</td></tr>
 </table>
-<p><code>algodtop check</code> validates the file, reaches each node, and projects the disk the store will use.</p>
+<p><code>algod.top check</code> validates the file, reaches each node, and projects the disk the store will use.</p>
 
 <h2 id="remote">Nodes on other hosts</h2>
-<p>algodtop reaches other hosts through the system <code>ssh</code>, so <code>~/.ssh/config</code> aliases, ProxyJump and ssh-agent all work. It always uses <code>BatchMode=yes</code>, so run <code>ssh host</code> once to accept a new host key. There are three ways to watch a node elsewhere.</p>
+<p>algod.top reaches other hosts through the system <code>ssh</code>, so <code>~/.ssh/config</code> aliases, ProxyJump and ssh-agent all work. It always uses <code>BatchMode=yes</code>, so run <code>ssh host</code> once to accept a new host key. There are three ways to watch a node elsewhere.</p>
 <h3>A REST URL</h3>
 <p><code>"url": "https://host:8080"</code> with a token. It gives status, metrics and peers, but no process stats or node.log.</p>
 <h3>SSH with nothing installed</h3>
-<p><code>"url": "ssh://[user@]host[:port]/var/lib/algorand"</code>. A path that starts with <code>/~/</code> is in the remote home directory. algodtop reads the data directory files over SSH and reaches algod's REST port through <code>ssh -W</code>. The host needs <code>cat</code> and a POSIX shell, so it must run Linux or macOS. There are no process stats or log events, and data has gaps while the hub is offline.</p>
+<p><code>"url": "ssh://[user@]host[:port]/var/lib/algorand"</code>. A path that starts with <code>/~/</code> is in the remote home directory. algod.top reads the data directory files over SSH and reaches algod's REST port through <code>ssh -W</code>. The host needs <code>cat</code> and a POSIX shell, so it must run Linux or macOS. There are no process stats or log events, and data has gaps while the hub is offline.</p>
 <h3>An agent on the host</h3>
 <p>An agent is the daemon without rollups or a web UI. It collects on the host, including process stats and node.log, and buffers 7 days. The hub pulls from it over SSH, so the hub catches up after an outage with no gap. Alerts for an agent's nodes run on the agent. The hub adds one alert of its own: "agent unreachable".</p>
-<ol>
-<li>Copy <code>algodtop</code> to the host (see <a href="#install">Install</a> for a cross-build).</li>
-<li>On the host, install the agent as a service. If algod runs as its own account, as package installs do, run <code>sudo ./algodtop service install --system --agent</code>. If algod runs as you, run <code>./algodtop service install --agent</code>.</li>
-<li>On the hub, run <code>algodtop remote add host</code>, then <code>algodtop reload</code>.</li>
-</ol>
-<p><code>remote add</code> checks that the agent answers before it saves anything. The hub names agent nodes <code>&lt;remote&gt;/&lt;node&gt;</code>. If the hub already watched that host over SSH, <code>remote add</code> offers to replace that node. The agent's node then takes over its name and history. <code>algodtop remote upgrade</code>, <code>sync</code> and <code>remove</code> cover the rest. <code>algodtop remote install host</code> copies a signed release and installs a user-level agent in one step, once a signed release exists for your version.</p>
+<p>On the hub, run <code>algod.top remote install host</code>, then <code>algod.top reload</code>. It copies a signed release to the host, shows the agent config it would write, and installs the agent as a service. When algod runs as its own account, as package installs do, the agent must run as that account, which takes a system service and root, once:</p>
+<ul>
+<li>It asks whether you become root on that host with <code>su</code> or <code>sudo</code>, and remembers the answer.</li>
+<li>It shows the command, such as <code>ssh -t host 'su -c "$HOME/.local/bin/algod.top service install --system --agent"'</code>, and runs it once you agree, so you type the password in your terminal.</li>
+<li>It then records the agent in the hub config.</li>
+</ul>
+<p>An agent installed some other way joins with <code>algod.top remote add host</code>, which checks that the agent answers before it saves anything. The hub names agent nodes <code>&lt;remote&gt;/&lt;node&gt;</code>. If the hub already watched that host over SSH, <code>remote add</code> offers to replace that node. The agent's node then takes over its name and history. <code>algod.top remote sync</code> and <code>remove</code> cover the rest, and <a href="#upgrade">Upgrading</a> covers new releases.</p>
 
 <h2 id="service">Running as a service</h2>
-<p><code>algodtop service</code> explains the service for the machine it runs on, and prints the file it would write. <code>algodtop service install</code> writes that file, enables it and starts it. <code>uninstall</code> and <code>status</code> cover the rest. Every service restarts the daemon after a failure and runs it at a low priority. Add <code>--agent</code> for the agent instead of the daemon.</p>
+<p><code>algod.top service</code> explains the service for the machine it runs on, and prints the file it would write. <code>algod.top service install</code> writes that file, enables it and starts it. <code>uninstall</code> and <code>status</code> cover the rest. Every service restarts the daemon after a failure and runs it at a low priority. Add <code>--agent</code> for the agent instead of the daemon.</p>
 <table>
 <tr><th>Platform</th><th>Service</th></tr>
 <tr><td>macOS</td><td>A launchd user agent, <code>~/Library/LaunchAgents/top.algod.daemon.plist</code>. It starts at login and logs to <code>~/Library/Logs/algodtop.log</code>.</td></tr>
 <tr><td>Linux, algod runs as you</td><td>A systemd user unit, <code>~/.config/systemd/user/algodtop.service</code>. It starts at login, or at boot after <code>sudo loginctl enable-linger $USER</code>. Logs: <code>journalctl --user -u algodtop</code>.</td></tr>
-<tr><td>Linux, algod runs as another account</td><td>A system service like <code>algorand.service</code>, from <code>sudo algodtop service install --system</code>. See below.</td></tr>
-<tr><td>Windows</td><td><code>algodtop service</code> prints the <code>sc.exe</code> commands. It does not install a Windows service yet.</td></tr>
+<tr><td>Linux, algod runs as another account</td><td>A system service like <code>algorand.service</code>, from <code>sudo algod.top service install --system</code>. See below.</td></tr>
+<tr><td>Windows</td><td><code>algod.top service</code> prints the <code>sc.exe</code> commands. It does not install a Windows service yet.</td></tr>
 </table>
 <p>A package install runs algod as the <code>algorand</code> account from <code>/var/lib/algorand</code>. The system service does the same: it runs as the owner of the data directory, from boot.</p>
 <ul>
 <li>It reads <code>/etc/algodtop/config.json</code>, written from discovery when the file does not exist, and keeps its data in <code>/var/lib/algodtop</code>.</li>
-<li>It copies the binary to <code>/usr/local/bin/algodtop</code>, so running the install again with a new binary is the upgrade.</li>
+<li>It copies the binary to <code>/usr/local/bin/algod.top</code> for people to run, and points an old <code>/usr/local/bin/algodtop</code> at it.</li>
+<li>The service runs its own copy, <code>/var/lib/algodtop/bin/algod.top</code>, owned by the account it runs as, so <code>algod.top upgrade</code> can replace it without root.</li>
 <li>It creates an <code>algodtop</code> group that may use the service's socket, and adds the person running the install to it. Members can use the terminal UI without sudo after they log in again.</li>
 </ul>
-<p>Running <code>algodtop daemon</code> in a terminal or tmux needs no service. The install refuses while such a daemon uses the same store.</p>
+<p>Running <code>algod.top daemon</code> in a terminal or tmux needs no service. The install refuses while such a daemon uses the same store.</p>
+
+<h2 id="upgrade">Upgrading</h2>
+<p>On the hub, run:</p>
+<pre><code>algod.top upgrade</code></pre>
+<p>It installs the newest release on this machine, restarts the daemon onto it, and then does the same for every agent in the hub config. <code>--version</code> names another release, and <code>--local</code> leaves the agents alone. Each daemon and agent installs the release itself:</p>
+<ul>
+<li>The hub downloads the release and sends it over the SSH connection it already uses, so servers need no internet access.</li>
+<li>The daemon or agent checks the release signature with its own built-in key, and refuses a release older than the one it runs.</li>
+<li>It replaces its binary and restarts in the same process, so systemd and launchd see no change. The agent buffers meanwhile, so the hub misses no data.</li>
+</ul>
+<p>An agent installed as a system service before this release runs a binary that root owns, so it needs root once more. <code>algod.top upgrade</code> says so, copies the release to the host, and runs the service install there with your <code>su</code> or <code>sudo</code>, as for a new agent. After that, upgrades need no root.</p>
+<p>The daemon looks for a newer release once a day. When one exists, the status line of both UIs and the Settings page say so. Set <code>"update_check": false</code> in the config to stop the check. The daemon never upgrades by itself.</p>
 
 <h2 id="health">Health</h2>
 <p>Each node is OK, Warn or Critical, and lists its reasons in words, such as "participation key for ABC... expires in 6 days".</p>
@@ -211,7 +226,7 @@ algodtop passwd --token      # a read-only bearer token for scripts and -H https
 <li>The node has no outgoing peers.</li>
 <li>The error log rate is above its baseline.</li>
 <li>The node runs an older release than another node on the same network and release channel. Developer builds take no part.</li>
-<li>algodtop itself missed scrapes, dropped series, paused writes or deleted data at the disk floor.</li>
+<li>algod.top itself missed scrapes, dropped series, paused writes or deleted data at the disk floor.</li>
 </ul>
 
 <h2 id="alerts">Alerts and silences</h2>
@@ -234,8 +249,8 @@ algodtop passwd --token      # a read-only bearer token for scripts and -H https
 <h3>Channels</h3>
 <pre><code>"channels": {
   "phone": {"type": "webhook", "url": "https://ntfy.sh/your-topic", "template": "{{.Node}}: {{.Message}}"},
-  "mail": {"type": "smtp", "smtp": {"addr": "smtp.example.com:587", "from": "algodtop@example.com",
-           "to": ["ops@example.com"], "username": "algodtop", "password_file": "~/.config/algodtop/smtp.pw"}},
+  "mail": {"type": "smtp", "smtp": {"addr": "smtp.example.com:587", "from": "algod.top@example.com",
+           "to": ["ops@example.com"], "username": "algod.top", "password_file": "~/.config/algodtop/smtp.pw"}},
   "desktop": {"type": "command", "command": ["/usr/local/bin/notify-alert"]}
 }</code></pre>
 <p>A webhook POSTs the alert as JSON, or as the output of its Go <code>template</code>, with any <code>headers</code>. A command gets the same JSON on stdin:</p>
@@ -246,9 +261,9 @@ algodtop passwd --token      # a read-only bearer token for scripts and -H https
 <p>If the daemon or its machine dies, it can't send an alert. Set <code>"heartbeat": {"url": "...", "interval": "1m"}</code> to ping a healthchecks-style service, which alerts when the pings stop.</p>
 <h3>Silences</h3>
 <p>A silence stops notifications for chosen nodes and rules for a while. Health and events are still recorded.</p>
-<pre><code>algodtop silence --node mainnet-1 --for 15m "upgrade to 5.0.5"
-algodtop silence list
-algodtop silence rm ID</code></pre>
+<pre><code>algod.top silence --node mainnet-1 --for 15m "upgrade to 5.0.5"
+algod.top silence list
+algod.top silence rm ID</code></pre>
 <p>The terminal UI (<code>s</code>) and the web UI's Events page add silences too.</p>
 
 <h2 id="storage">Storage</h2>
@@ -268,33 +283,34 @@ algodtop silence rm ID</code></pre>
 <tr><td><code>10m</code></td><td>10 minutes</td><td>5 years</td></tr>
 <tr><td><code>1h</code></td><td>1 hour</td><td>Forever</td></tr>
 </table>
-<p>With the defaults, one node settles at about 70 MB, plus under 1 MB a year for the hourly tier. <code>algodtop check</code> projects the size for your config. Peer sessions keep full addresses for a year (<code>retention.peer_addresses</code>), then only /24 totals. Warning and error log lines are kept 90 days.</p>
+<p>With the defaults, one node settles at about 70 MB, plus under 1 MB a year for the hourly tier. <code>algod.top check</code> projects the size for your config. Peer sessions keep full addresses for a year (<code>retention.peer_addresses</code>), then only /24 totals. Warning and error log lines are kept 90 days.</p>
 <p>When the disk falls to 5% free (<code>disk.floor_percent</code>), the daemon deletes the oldest data first and records it as an event. Set <code>disk.at_floor</code> to <code>pause</code> to stop writing instead.</p>
-<pre><code>algodtop export --node mainnet-1 --metric algodtop_round_time_seconds --from -24h > rounds.csv
-algodtop export --node mainnet-1 --metric algod_network_p2p_received_bytes_total --fn rate --format json
-algodtop export --events --node mainnet-1</code></pre>
+<pre><code>algod.top export --node mainnet-1 --metric algodtop_round_time_seconds --from -24h > rounds.csv
+algod.top export --node mainnet-1 --metric algod_network_p2p_received_bytes_total --fn rate --format json
+algod.top export --events --node mainnet-1</code></pre>
 
 <h2 id="commands">Commands</h2>
 <table>
 <tr><th>Command</th><th>Does</th></tr>
-<tr><td><code>algodtop</code></td><td>Terminal UI</td></tr>
-<tr><td><code>algodtop daemon</code></td><td>Collector, store, health, alerts, API and web UI</td></tr>
-<tr><td><code>algodtop agent</code></td><td>Collector and local buffer on a remote host</td></tr>
-<tr><td><code>algodtop service</code></td><td>Explain, install, uninstall or report the service that starts the daemon</td></tr>
-<tr><td><code>algodtop remote</code></td><td><code>install</code>, <code>add</code>, <code>upgrade</code>, <code>sync</code> or <code>remove</code> an agent on another host</td></tr>
-<tr><td><code>algodtop export</code></td><td>Series, events or peer sessions as CSV or JSON</td></tr>
-<tr><td><code>algodtop silence</code></td><td>Add, list or remove silences</td></tr>
-<tr><td><code>algodtop reload</code></td><td>Reload the config, the same as SIGHUP</td></tr>
-<tr><td><code>algodtop passwd</code></td><td>Set the web password, or make a read-only token</td></tr>
-<tr><td><code>algodtop check</code></td><td>Validate the config, reach each node, project disk use</td></tr>
-<tr><td><code>algodtop stdio</code></td><td>Connect stdin and stdout to the local socket, for use over SSH</td></tr>
-<tr><td><code>algodtop version</code></td><td>Print the version</td></tr>
+<tr><td><code>algod.top</code></td><td>Terminal UI</td></tr>
+<tr><td><code>algod.top daemon</code></td><td>Collector, store, health, alerts, API and web UI</td></tr>
+<tr><td><code>algod.top agent</code></td><td>Collector and local buffer on a remote host</td></tr>
+<tr><td><code>algod.top service</code></td><td>Explain, install, uninstall or report the service that starts the daemon</td></tr>
+<tr><td><code>algod.top remote</code></td><td><code>install</code>, <code>add</code>, <code>upgrade</code>, <code>sync</code> or <code>remove</code> an agent on another host</td></tr>
+<tr><td><code>algod.top upgrade</code></td><td>Install the newest release here and on every remote agent</td></tr>
+<tr><td><code>algod.top export</code></td><td>Series, events or peer sessions as CSV or JSON</td></tr>
+<tr><td><code>algod.top silence</code></td><td>Add, list or remove silences</td></tr>
+<tr><td><code>algod.top reload</code></td><td>Reload the config, the same as SIGHUP</td></tr>
+<tr><td><code>algod.top passwd</code></td><td>Set the web password, or make a read-only token</td></tr>
+<tr><td><code>algod.top check</code></td><td>Validate the config, reach each node, project disk use</td></tr>
+<tr><td><code>algod.top stdio</code></td><td>Connect stdin and stdout to the local socket, for use over SSH</td></tr>
+<tr><td><code>algod.top version</code></td><td>Print the version</td></tr>
 </table>
 <p>Every command takes <code>--help</code>.</p>
 
 <h2 id="security">Security</h2>
 <ul>
-<li>algodtop only reads. Its algod client sends GET requests to a fixed allowlist of paths, and sends the admin token only to the admin paths it needs.</li>
+<li>algod.top only reads. Its algod client sends GET requests to a fixed allowlist of paths, and sends the admin token only to the admin paths it needs.</li>
 <li>algod tokens never reach a browser or the terminal UI.</li>
 <li>The local socket is mode 0600, or 0660 for the <code>algodtop</code> group of a system service. Anyone who can open it can already read the algod tokens.</li>
 <li>The web UI binds to localhost. Another address needs a password, and every request that changes state needs a CSRF token.</li>

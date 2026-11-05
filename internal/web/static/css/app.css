@@ -1,4 +1,4 @@
-/* algodtop web UI. Colour tokens live on :root and switch with the OS
+/* algod.top web UI. Colour tokens live on :root and switch with the OS
    setting or the theme toggle (html[data-theme]). Inbound is cyan and
    outbound is orange everywhere, as in the terminal UI. WebSocket is the
    lighter step of each hue and P2P the darker one. */

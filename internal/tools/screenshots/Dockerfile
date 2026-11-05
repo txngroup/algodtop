@@ -5,7 +5,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends procps && rm -r
 RUN useradd --system --home /var/lib/algorand --shell /bin/sh algorand && mkdir -p /var/lib/algorand /var/lib/algodtop /etc/algodtop \
  && chown algorand:algorand /var/lib/algorand /var/lib/algodtop /etc/algodtop
 COPY algod /usr/bin/algod
-COPY algodtop /usr/local/bin/algodtop
+COPY algod.top /usr/local/bin/algod.top
 COPY --chown=algorand:algorand config.json /etc/algodtop/config.json
 COPY start.sh /start.sh
 COPY fakes.sh /fakes.sh

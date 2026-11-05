@@ -268,7 +268,7 @@ func (db *DB) loadMeta() error {
 		return fmt.Errorf("store: meta.json: %w", err)
 	}
 	if db.meta.Format > FormatVersion {
-		return fmt.Errorf("store: format %d is newer than this algodtop (%d)", db.meta.Format, FormatVersion)
+		return fmt.Errorf("store: format %d is newer than this algod.top (%d)", db.meta.Format, FormatVersion)
 	}
 	return nil
 }
@@ -1443,8 +1443,11 @@ func (db *DB) Sizes() map[string]int64 {
 	return out
 }
 
-// TotalSize returns the size of the whole store directory.
-func (db *DB) TotalSize() int64 { return fsx.DirSize(db.dir) }
+// TotalSize returns the size of the store directory, leaving out bin,
+// where a system service keeps its own copy of algodtop.
+func (db *DB) TotalSize() int64 {
+	return fsx.DirSize(db.dir) - fsx.DirSize(filepath.Join(db.dir, "bin"))
+}
 
 // HeadBytes returns the in-memory size of every head.
 func (db *DB) HeadBytes() int64 {
@@ -1485,4 +1488,4 @@ var _ = enc.ErrShort
 
 // ErrInUse is returned when another process (a running daemon) has the
 // store open.
-var ErrInUse = errors.New("store: in use by another algodtop process")
+var ErrInUse = errors.New("store: in use by another algod.top process")

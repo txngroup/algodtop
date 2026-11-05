@@ -76,11 +76,7 @@ func cmdCheck(args []string) int {
 			continue
 		}
 		s := &remote.SSH{Target: t}
-		p := r.AgentPath
-		if p == "" {
-			p = "~/.local/bin/algodtop"
-		}
-		out, err := s.Run(ctx, remote.RemoteBinary(p)+" version", nil)
+		out, err := s.Run(ctx, remote.AgentBinary(r.AgentPath)+" version", nil)
 		if err != nil {
 			fmt.Printf("FAIL remote %-10s %v\n", r.Name, err)
 			fmt.Printf("     run `ssh %s` once to accept the host key and check that login needs no password\n", t.Dest())

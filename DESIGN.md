@@ -1,9 +1,9 @@
-# algodtop design
+# algod.top design
 
-algodtop is a small, self-hosted monitor for one or more algod nodes. It has three parts in one binary:
+algod.top is a small, self-hosted monitor for one or more algod nodes. It has three parts in one binary:
 
 - A daemon that collects metrics, status and log events from each node and stores them indefinitely, or for as long as the operator chooses. It does nothing else, and it stays as light as possible.
-- `algodtop`, a terminal view in the style of Unix `top`, for operators who live in a shell.
+- `algod.top`, a terminal view in the style of Unix `top`, for operators who live in a shell.
 - A web UI, served by the daemon as static files, for operators who prefer a browser.
 
 The project lives at `algod.top`.
@@ -23,7 +23,7 @@ Watching a Mainnet node closely with shell scripts, CSV files and manual log gre
 - Correlation with Mainnet load (transactions per block, invalid-transaction floods). This separated network effects from local ones.
 - Per-peer history. Groups of peers that reset together only show when disconnects are grouped by remote IP over hours.
 
-algodtop should do all of this continuously and show it without anyone writing awk.
+algod.top should do all of this continuously and show it without anyone writing awk.
 
 ## 2. Goals and non-goals
 
@@ -38,11 +38,11 @@ Goals:
 - Answer "what changed" questions by overlaying events, annotations and comparisons on the history.
 - Use the Go standard library, the approved dependencies in section 15, and hand-written HTML, CSS and JavaScript. Any other dependency needs approval first.
 - Ship one self-contained binary per platform, built with `CGO_ENABLED=0`, with the web UI embedded.
-- Stay read-only toward algod. algodtop never calls an endpoint that changes node state.
+- Stay read-only toward algod. algod.top never calls an endpoint that changes node state.
 
 Non-goals:
 
-- A general-purpose TSDB or a Prometheus replacement. The storage engine serves algodtop's query patterns only.
+- A general-purpose TSDB or a Prometheus replacement. The storage engine serves algod.top's query patterns only.
 - PromQL or any query language. The front ends offer fixed aggregations (rate, avg, min, max, sum by label, percentile from histogram).
 - Indexer, conduit or relay-fleet management.
 - Remote control of nodes (restart, config edits, key generation).
@@ -50,9 +50,9 @@ Non-goals:
 ## 3. Architecture
 
 ```
-                +----------------------- algodtop daemon ------------------------+
+                +----------------------- algod.top daemon ------------------------+
                 |                                                                |
- algod REST --->| collectors (per node)     storage writer      API server       |<--- algodtop TUI
+ algod REST --->| collectors (per node)     storage writer      API server       |<--- algod.top TUI
  /metrics ----->|  - metrics scraper  --->  - WAL               - /api/* JSON    |     (unix socket)
  node.log ----->|  - round watcher    --->  - per-node heads    - /api/stream    |
  process ------>|  - log tailer       --->  - 2 h raw blocks    - /ui/* static   |<--- browser
@@ -79,26 +79,26 @@ Remote hosts (section 12) are reached over SSH, either directly to algod with no
 
 A node is identified by a user-chosen name (for example `mainnet-1`) plus the genesis ID and hash read from the node. The genesis hash stops a data directory reused for another network from merging two histories.
 
-For a local node, the config only needs the data directory. algodtop reads these files from it:
+For a local node, the config only needs the data directory. algod.top reads these files from it:
 
 | File | Use |
 |---|---|
 | `algod.net` | REST address, for example `127.0.0.1:14001`. Re-read on every restart, because algod can pick a new port. |
-| `algod.token`, `algod.admin.token` | API tokens. The admin token is needed for `/v2/node/peers` and `/v2/participation`. When `DisableAPIAuth` is true (the Mainnet node has it set), algodtop sends no token. A missing token file is not an error. |
+| `algod.token`, `algod.admin.token` | API tokens. The admin token is needed for `/v2/node/peers` and `/v2/participation`. When `DisableAPIAuth` is true (the Mainnet node has it set), algod.top sends no token. A missing token file is not an error. |
 | `algod.pid` | Process ID for CPU, RSS, FD and per-process network stats. A PID change means a restart. Absent when algod is stopped. |
 | `config.json` | Hashed and diffed key by key on change. An absent file means all defaults. See "Config changes" below. |
 | `genesis.json` | Network identity. |
-| `node.log`, `node.archive.log` | Log tailing. `LogFileDir`, `LogArchiveDir` and `LogArchiveName` in config.json can move or rename these files, so algodtop resolves them from the config. |
+| `node.log`, `node.archive.log` | Log tailing. `LogFileDir`, `LogArchiveDir` and `LogArchiveName` in config.json can move or rename these files, so algod.top resolves them from the config. |
 
 A remote node is reached by REST URL and tokens, or over SSH (section 12). Process, log and host data for a remote node need an agent on that host.
 
-algodtop can offer auto-discovery as a convenience. It would scan `$ALGORAND_DATA` and the platform's usual locations for directories that contain `algod.net` and `genesis.json`, and show what it finds for the user to confirm. On Linux and macOS the usual location is `~/.*`. The Windows locations get added once the official installer defines them. It never adds a node silently.
+algod.top can offer auto-discovery as a convenience. It would scan `$ALGORAND_DATA` and the platform's usual locations for directories that contain `algod.net` and `genesis.json`, and show what it finds for the user to confirm. On Linux and macOS the usual location is `~/.*`. The Windows locations get added once the official installer defines them. It never adds a node silently.
 
 The file names above come from the Linux and macOS builds. The Windows build is checked against them when the first official Windows release ships.
 
 ### Config changes
 
-algod reads `config.json` only at startup. algodtop therefore records two events:
+algod reads `config.json` only at startup. algod.top therefore records two events:
 
 - "Config pending" when the file changes on disk, with the key diff against the running config.
 - "Config effective" at the next restart, with the diff against the previous effective config.
@@ -148,18 +148,18 @@ Linux notes:
 
 - All reads use the stdlib.
 - Per-process network bytes are not in `/proc` for a single process. `/proc/<pid>/net/dev` covers the whole network namespace. cgroup v2 has no per-cgroup byte counters, and nftables counters need root.
-- The stdlib option to spike is sock_diag over netlink, through the `syscall` package. It returns `tcp_info` per socket, including `bytes_acked` and `bytes_received`. algodtop maps socket inodes to the process through `/proc/<pid>/fd`. It misses bytes from sockets that closed between polls, and it does not cover UDP or QUIC.
+- The stdlib option to spike is sock_diag over netlink, through the `syscall` package. It returns `tcp_info` per socket, including `bytes_acked` and `bytes_received`. algod.top maps socket inodes to the process through `/proc/<pid>/fd`. It misses bytes from sockets that closed between polls, and it does not cover UDP or QUIC.
 
 macOS notes:
 
-- The stdlib has no process-info API. algodtop runs one `ps -o pid=,rss=,time=,... -p PID1,PID2,...` for all nodes at once. It computes CPU from the cumulative `time=` field, because `%cpu` on macOS is a decaying average.
+- The stdlib has no process-info API. algod.top runs one `ps -o pid=,rss=,time=,... -p PID1,PID2,...` for all nodes at once. It computes CPU from the cumulative `time=` field, because `%cpu` on macOS is a decaying average.
 - Disk I/O per process needs `proc_pid_rusage` in libproc, which needs cgo.
-- For network, algodtop runs one `nettop -L 1` for all algod PIDs every 60 s. A single sample prints cumulative bytes per process at once, in about 0.1 s. A long-lived `nettop` in logging mode was tried first, but through a pipe its output sits in a stdio buffer and arrives late.
+- For network, algod.top runs one `nettop -L 1` for all algod PIDs every 60 s. A single sample prints cumulative bytes per process at once, in about 0.1 s. A long-lived `nettop` in logging mode was tried first, but through a pipe its output sits in a stdio buffer and arrives late.
 
 Windows notes:
 
 - Every call in the table is a plain Win32 API in `kernel32`, `psapi` or `iphlpapi`. No exec is needed, so Windows is cheaper to collect from than macOS. The calls go through `golang.org/x/sys/windows`, which is already in the module graph via `golang.org/x/term` (section 15). The stdlib fallback is `syscall.NewLazyDLL`.
-- Per-connection byte counts (`GetPerTcpConnectionEStats`) need Administrator rights to switch on, and algodtop never needs elevation. Process network bytes therefore use interface totals, labelled as such.
+- Per-connection byte counts (`GetPerTcpConnectionEStats`) need Administrator rights to switch on, and algod.top never needs elevation. Process network bytes therefore use interface totals, labelled as such.
 - Windows has no load average. The Resources section shows CPU utilisation in its place.
 
 Process network bytes are the one stat with no good method on every platform. A libp2p total bytes counter in algod (section 21), added to algod's existing ws byte counters, would give one cross-platform series close to wire bytes. It would still exclude transport framing and encryption.
@@ -178,19 +178,19 @@ Scraping 160 KB of metrics every 10 s from five nodes is negligible. The log tai
 
 ### Series
 
-A series is (node, metric name, sorted label set). algodtop stores a kind with each series: counter, gauge or histogram part.
+A series is (node, metric name, sorted label set). algod.top stores a kind with each series: counter, gauge or histogram part.
 
 algod does not emit a `histogram` TYPE. Each `_bucket`, `_sum` and `_count` is its own family typed `counter`, for example `# TYPE libp2p_swarm_dial_latency_seconds_bucket counter`. algodtop groups a family as a histogram when it finds `<base>_bucket` series with an `le` label plus matching `<base>_sum` and `<base>_count`. The 407 family names on Mainnet count those suffix families separately.
 
-- Counter. algodtop stores the raw cumulative value, and the query layer computes rates. A restart resets every counter at once, so algodtop marks a reset on every counter of a node when its PID changes. A REST-only node has no PID, so a drop in most of its counters in one scrape marks the restart. A value that goes down without a restart is also treated as a reset of that series. The rate across a reset is the new value divided by the interval. Each reset is stored as an event, so a dip in a rate chart is visibly a restart.
-- Gauge. algodtop stores the value as reported.
-- Histogram. algodtop stores each bucket, `_sum` and `_count` as a counter. Queries derive heatmaps and percentiles (p50, p90, p99) from bucket deltas.
+- Counter. algod.top stores the raw cumulative value, and the query layer computes rates. A restart resets every counter at once, so algod.top marks a reset on every counter of a node when its PID changes. A REST-only node has no PID, so a drop in most of its counters in one scrape marks the restart. A value that goes down without a restart is also treated as a reset of that series. The rate across a reset is the new value divided by the interval. Each reset is stored as an event, so a dip in a rate chart is visibly a restart.
+- Gauge. algod.top stores the value as reported.
+- Histogram. algod.top stores each bucket, `_sum` and `_count` as a counter. Queries derive heatmaps and percentiles (p50, p90, p99) from bucket deltas.
 
 Series come and go. The bucket count on Mainnet changes between scrapes as new label values (dial outcomes, protocols) appear. The chunk format records presence per sample (section 8), and a series absent from a scrape is a gap, not a zero.
 
 ### Cardinality
 
-Today no algod series carries a per-peer label, but a future version could add one. algod also puts message tags into metric names (`algod_network_p2p_received_bytes_MS`, `_PP`, `_TS` and more), so a cap per metric name does not bound the total. algodtop enforces two caps:
+Today no algod series carries a per-peer label, but a future version could add one. algod also puts message tags into metric names (`algod_network_p2p_received_bytes_MS`, `_PP`, `_TS` and more), so a cap per metric name does not bound the total. algod.top enforces two caps:
 
 - Series per metric name, default 200.
 - Series per node, default 5000.
@@ -218,7 +218,7 @@ An event has a time, node, kind, severity, short message, and a JSON attribute m
 - error and warning log lines, grouped by template
 - alert fired, repeated and cleared
 - silence started and ended
-- monitor gap (algodtop itself was down, or paused writes)
+- monitor gap (algod.top itself was down, or paused writes)
 - retention deletion (the operator shortened a window, the disk floor deleted data, or an agent buffer overflowed)
 
 ### Peer sessions
@@ -227,7 +227,7 @@ A peer session is (node, network ws/p2p, direction, remote address, P2P peer ID 
 
 ### Per-peer usage
 
-Some algod builds extend `/v2/node/peers` with five optional fields per peer. Released versions do not have them yet. algodtop reads them when they are present, so per-peer traffic appears as soon as a node runs a build that has them.
+Some algod builds extend `/v2/node/peers` with five optional fields per peer. Released versions do not have them yet. algod.top reads them when they are present, so per-peer traffic appears as soon as a node runs a build that has them.
 
 | Field | Meaning |
 |---|---|
@@ -236,12 +236,12 @@ Some algod builds extend `/v2/node/peers` with five optional fields per peer. Re
 | `active-streams` | Protocol IDs of open streams. A ws peer reports `ws-gossip/<version>`. An empty string is a stream still negotiating. |
 | `total-bytes-received`, `total-bytes-sent` | Approximate bytes exchanged with the peer |
 
-algodtop detects support per peer entry by the presence of `active-streams`, not by algod version. The branch sends that field, even as an empty list, for every peer that reports usage. An older algod omits it, and so does a peer type that does not report usage. No config change is needed after an upgrade.
+algod.top detects support per peer entry by the presence of `active-streams`, not by algod version. The branch sends that field, even as an empty list, for every peer that reports usage. An older algod omits it, and so does a peer type that does not report usage. No config change is needed after an upgrade.
 
-The field semantics shape how algodtop stores them:
+The field semantics shape how algod.top stores them:
 
-- The byte totals are cumulative and reset when the last connection to the peer closes. algodtop treats them as a counter per peer session. The rate is the delta divided by the poll interval, and a new session starts from zero. A total that drops within a session is treated as a reset, because a fast reconnect can keep or lose totals.
-- For p2p peers, the totals cover every connection to the peer ID, and each connection repeats the same totals. algodtop counts each peer ID once before summing. For ws peers, the totals are per connection.
+- The byte totals are cumulative and reset when the last connection to the peer closes. algod.top treats them as a counter per peer session. The rate is the delta divided by the poll interval, and a new session starts from zero. A total that drops within a session is treated as a reset, because a fast reconnect can keep or lose totals.
+- For p2p peers, the totals cover every connection to the peer ID, and each connection repeats the same totals. algod.top counts each peer ID once before summing. For ws peers, the totals are per connection.
 - The bytes are counted at the stream layer, so they exclude transport framing and encryption. ws totals count gossip payload only. The sum over all peers is therefore another app-level figure, not wire bytes.
 - Traffic between the last poll and a disconnect is lost, up to one poll interval. The peers poll stays at 30 s by default. Operators who want finer per-peer traffic can lower it.
 
@@ -262,7 +262,7 @@ algod writes `node.log` and renames it to the archive name at `LogSizeLimit`. Wi
 The stdlib has no inotify, kqueue or `ReadDirectoryChangesW` wrapper, so the tailer polls on every platform. It reads new bytes every 250 ms and stats the path every second. The tailer:
 
 - Keeps the open file. When the path points to a different file (`os.SameFile`, which compares inodes on Unix and volume serial plus file index on Windows), it reads the old file to EOF, then opens the new `node.log` from offset 0.
-- On Windows, opens the log with `FILE_SHARE_DELETE` through `CreateFile`. Go's `os.Open` omits that flag. Without it, algodtop's open handle would block algod from renaming `node.log`, and algodtop would break algod's log rotation.
+- On Windows, opens the log with `FILE_SHARE_DELETE` through `CreateFile`. Go's `os.Open` omits that flag. Without it, algod.top's open handle would block algod from renaming `node.log`, and algod.top would break algod's log rotation.
 - Detects truncation (size smaller than offset).
 - Persists (file identity, offset, first-line hash) every few seconds. After a daemon restart it resumes where it stopped, including reading the tail of the archive if a rotation happened while it was down.
 - On first start, it can backfill the existing `node.log` and archive. On a busy Mainnet node that can be several GB, such as a 5 GB archive plus the live file. Backfill is optional and runs under the background I/O limit (section 16).
@@ -271,7 +271,7 @@ The stdlib has no inotify, kqueue or `ReadDirectoryChangesW` wrapper, so the tai
 
 Each line is JSON. The tailer runs a byte-level prefilter first, because the noisy lines are known:
 
-- Lines with `"file":"trace.go"` are agreement telemetry. algodtop decodes only a few useful message types from them (BlockAccepted, RoundConcluded) and counts the rest without decoding.
+- Lines with `"file":"trace.go"` are agreement telemetry. algod.top decodes only a few useful message types from them (BlockAccepted, RoundConcluded) and counts the rest without decoding.
 - "Pending transaction in pool no longer valid" floods (100k lines in 10 minutes are possible) are counted per minute and per app ID, and never stored line by line.
 - HTTP access lines are counted by path and status.
 
@@ -361,8 +361,8 @@ Retention windows are guarantees:
 - For the most recent 30 days, all four tiers hold the same period. This overlap is deliberate and is included in the size estimate.
 - A block is deleted only when its whole time range is older than its tier's window, and every rollup and compaction that reads it is complete and fsynced. A block can outlive its window by up to one block length, never the reverse.
 - The compactor merges partial blocks into day, week and month blocks when the period closes. It removes the partials only after the merged block is fsynced. Partials and merged blocks are the same tier, so this loses nothing.
-- Only the operator shortens a window, by editing the config. On reload, algodtop logs a retention deletion event listing what it removed. `algodtop check` previews the deletion before the reload.
-- The disk floor (section 18) is the one exception. When the volume is nearly full, algodtop deletes the oldest data to keep capturing new data, and reports exactly what it removed.
+- Only the operator shortens a window, by editing the config. On reload, algod.top logs a retention deletion event listing what it removed. `algod.top check` previews the deletion before the reload.
+- The disk floor (section 18) is the one exception. When the volume is nearly full, algod.top deletes the oldest data to keep capturing new data, and reports exactly what it removed.
 - On Windows, a block that a query has open cannot be deleted unless it was opened with `FILE_SHARE_DELETE`. Block readers use that flag, and the deleter retries a failed delete on the next pass.
 
 The background jobs (flush, rollup, compaction, deletion) are idempotent, so an interrupted job re-runs cleanly.
@@ -394,7 +394,7 @@ Tiers with a bounded window stop growing once the window is full. Tiers kept lon
 | 10m (5 years) | grows 0.72 GB per year, up to 3.6 GB |
 | 1h (forever) | grows 0.12 GB per year |
 
-The bounded tiers settle at about 9.3 GB. After that, history adds under 1 GB per year for five nodes, and 0.12 GB per year once the 10m window is full. Setting the 1m tier to `forever` adds 7.2 GB per year for five nodes, and setting raw to `forever` adds about 25 GB per year. `algodtop check` prints the projection for the configured windows.
+The bounded tiers settle at about 9.3 GB. After that, history adds under 1 GB per year for five nodes, and 0.12 GB per year once the 10m window is full. Setting the 1m tier to `forever` adds 7.2 GB per year for five nodes, and setting raw to `forever` adds about 25 GB per year. `algod.top check` prints the projection for the configured windows.
 
 The 1m tier is the largest. This is the number to measure first in the prototype. If real compression is much better, the 1m tier can be kept longer.
 
@@ -402,15 +402,15 @@ Events and sessions are small next to series. A busy day can produce a few thous
 
 ### Why not SQLite or flat CSV
 
-SQLite would make events, sessions and ad-hoc queries easier. It needs either cgo (`mattn/go-sqlite3`) or a large pure-Go port (`modernc.org/sqlite`), and both are dependencies. Flat CSV is too large at this scale, and its range queries are slow. A purpose-built chunk store is the largest piece of work in algodtop, but its scope is narrow: append by time, read by time range, roll up, delete by window.
+SQLite would make events, sessions and ad-hoc queries easier. It needs either cgo (`mattn/go-sqlite3`) or a large pure-Go port (`modernc.org/sqlite`), and both are dependencies. Flat CSV is too large at this scale, and its range queries are slow. A purpose-built chunk store is the largest piece of work in algod.top, but its scope is narrow: append by time, read by time range, roll up, delete by window.
 
 If the custom store proves too costly, `modernc.org/sqlite` is the fallback to request. It would hold events, sessions and annotations only, and series would stay in chunk files.
 
 ### Backup and export
 
 - Snapshot: `POST /api/admin/snapshot` (auth required on TCP) hard-links the immutable blocks and copies the heads into `<data>/snapshots/<time>/`. A plain `cp -R` or `rsync` of that directory is a full backup.
-- Export: any chart offers CSV and JSON of exactly what it shows. `algodtop export --node X --metric Y --from --to --tier` exports the same data.
-- The block format is documented in `docs/format.md`, with a format version, so the data stays readable without algodtop, however old it is.
+- Export: any chart offers CSV and JSON of exactly what it shows. `algod.top export --node X --metric Y --from --to --tier` exports the same data.
+- The block format is documented in `docs/format.md`, with a format version, so the data stays readable without algod.top, however old it is.
 
 ## 9. Query API
 
@@ -429,10 +429,10 @@ The API is plain JSON over HTTP, served by stdlib `net/http` with the pattern ro
 | `GET/POST/PUT/DELETE /api/annotations` | Annotations |
 | `GET/POST/DELETE /api/silences` | Alert silences |
 | `POST /api/admin/snapshot` | Snapshot for backup (section 8) |
-| `POST /api/admin/reload` | Config reload, used by `algodtop reload` |
+| `POST /api/admin/reload` | Config reload, used by `algod.top reload` |
 | `GET /agent/v1/batches` | Agent pull protocol, served by agents only (section 12) |
 | `GET /api/stream?nodes=` | Server-Sent Events: live status and new samples for every node and series the client subscribes to |
-| `GET /metrics` | algodtop's own metrics in Prometheus text format |
+| `GET /metrics` | algod.top's own metrics in Prometheus text format |
 
 ### Tier selection
 
@@ -452,6 +452,8 @@ Queries run with a concurrency limit (default 2) and a timeout (default 10 s). A
 ### Live updates
 
 Live updates use SSE. It is plain HTTP, the stdlib supports it with `http.Flusher`, and the browser reconnects automatically. WebSocket would need `golang.org/x/net/websocket` or a hand-written frame codec, and the clients only need server-to-client updates.
+
+The daemon pushes each node's status when the node confirms a new round, so the Fleet page moves with the chain rather than with a timer. Nodes on one network confirm a round within moments of each other, so a push waits 150 ms and carries every node that moved. A 2 s timer covers the rest, such as CPU. On the hub, an agent node's round and lag move when its round batch arrives through the pull, between the 5 s polls of the agent's full status.
 
 Each client opens one multiplexed stream that covers every node it shows. Browsers allow six HTTP/1.1 connections per origin. One stream per node would use five of them on the Fleet page and stall chart fetches, and a second tab would make it worse.
 
@@ -474,7 +476,7 @@ The front ends compute these from stored data rather than storing them separatel
 - Peer clusters are groups of at least N inbound sessions that ended within W seconds, listed with the IPs involved. The view also flags IPs that appear in more than one cluster. This finds peers that reset together without anyone grouping disconnects by hand. With per-peer usage, each cluster also shows member traffic in the minutes before the disconnect. It groups members by their `supported-protocols` set, which works as a rough software fingerprint.
 - Participation shows each key's validity remaining in rounds and estimated days, its last vote round and last proposal round, whether the account is online, and whether it is incentive-eligible.
 - Expected vote interval for an account comes from its share of online stake (`/v2/ledger/supply`). A small account is selected less often, so "rounds since last vote" is judged against this interval rather than a fixed number. The last vote comes from the local key (`/v2/participation`). The on-chain view comes from the account's last proposed and last heartbeat rounds, which are what the network uses to judge absence.
-- Suspension shows in the account as status Offline with its vote key still set. algodtop names that state "suspended" rather than "offline", because recovery differs: a suspended account comes back with a heartbeat or a new keyreg.
+- Suspension shows in the account as status Offline with its vote key still set. algod.top names that state "suspended" rather than "offline", because recovery differs: a suspended account comes back with a heartbeat or a new keyreg.
 - Disk shows days until full, from a linear fit of the last 7 days' use, and the data dir size by subdirectory.
 - Memory shows RSS with a flag if the 24 h minimum has risen for 3 days running. Plain RSS spikes are normal.
 
@@ -497,7 +499,7 @@ Each node has a health state of OK, Warn or Critical, and the reasons are always
   - the node has 0 outgoing peers
   - the error log rate is above its baseline
   - the version is behind the latest release seen on another node of the same network and release channel. Developer builds take no part, because their build numbers count hours rather than patches.
-  - algodtop missed scrapes, dropped series, paused writes, or deleted data at the disk floor
+  - algod.top missed scrapes, dropped series, paused writes, or deleted data at the disk floor
 
 ## 11. Alerting
 
@@ -507,7 +509,7 @@ The channels need only the stdlib:
 
 - Webhook, a JSON POST. With a template it works for ntfy, Slack, Discord and Pushover.
 - SMTP through `net/smtp`.
-- Command: algodtop runs a configured program with the alert JSON on stdin. This covers `osascript` notifications on macOS and PowerShell toast notifications on Windows.
+- Command: algod.top runs a configured program with the alert JSON on stdin. This covers `osascript` notifications on macOS and PowerShell toast notifications on Windows.
 
 Channels are defined only in the config file. Neither front end nor the API can create or change a channel, because a command channel runs a program as the daemon's user.
 
@@ -515,11 +517,11 @@ Firing needs the condition true for the full duration. Clearing needs it false f
 
 ### Silences
 
-A planned restart for a config change would otherwise fire "algod is down". A silence suppresses notifications for chosen nodes and rules over a time range. Health state and events are still recorded. An operator creates one with `algodtop silence --node mainnet --for 10m "restart for run 4"`, from the terminal UI, or from the web UI. An annotation can carry a silence, so marking a run and silencing its restart is one step.
+A planned restart for a config change would otherwise fire "algod is down". A silence suppresses notifications for chosen nodes and rules over a time range. Health state and events are still recorded. An operator creates one with `algod.top silence --node mainnet --for 10m "restart for run 4"`, from the terminal UI, or from the web UI. An annotation can carry a silence, so marking a run and silencing its restart is one step.
 
 ### Dead-man switch
 
-A dead-man switch needs something outside algodtop. The daemon can ping an external heartbeat URL (any healthchecks-style service) every minute. If the daemon or the machine dies, that service sends the alert.
+A dead-man switch needs something outside algod.top. The daemon can ping an external heartbeat URL (any healthchecks-style service) every minute. If the daemon or the machine dies, that service sends the alert.
 
 ## 12. Multiple hosts
 
@@ -529,20 +531,20 @@ The hub is the daemon that stores everything and serves the front ends. It reach
 |---|---|---|---|---|
 | REST | nothing | HTTP(S) to algod | metrics and REST | gap |
 | SSH, no install | nothing | system `ssh -W` to algod | metrics and REST | gap |
-| SSH agent | `algodtop agent` | `ssh host algodtop stdio --agent` | everything | no gap, 7 day buffer |
-| TLS agent | `algodtop agent` | HTTPS pull with a token or mutual TLS | everything | no gap, 7 day buffer |
+| SSH agent | `algod.top agent` | `ssh host algod.top stdio --agent` | everything | no gap, 7 day buffer |
+| TLS agent | `algod.top agent` | HTTPS pull with a token or mutual TLS | everything | no gap, 7 day buffer |
 
 SSH no-install is the quick path: a remote node can be added in one line with nothing to set up on the host. The SSH agent is the recommended mode for any node worth keeping full history for. The TLS agent is for hosts the hub cannot reach over SSH.
 
 ### SSH transport
 
-algodtop runs the system `ssh` binary, rather than linking an SSH library:
+algod.top runs the system `ssh` binary, rather than linking an SSH library:
 
 - It honours `~/.ssh/config`, host aliases, ProxyJump, keys, ssh-agent and `known_hosts` with no extra setup.
 - The OpenSSH client ships with macOS, nearly every Linux distribution and Windows 10 and later.
 - `golang.org/x/crypto/ssh` would be a dependency and would ignore most of `~/.ssh/config`.
 
-algodtop always passes `-o BatchMode=yes`. A host that wants a password, or whose key is not in `known_hosts`, fails with a clear error rather than prompting inside the daemon or the terminal UI. `algodtop check` reports such hosts and tells the operator to run `ssh <host>` once.
+algod.top always passes `-o BatchMode=yes`. A host that wants a password, or whose key is not in `known_hosts`, fails with a clear error rather than prompting inside the daemon or the terminal UI. `algod.top check` reports such hosts and tells the operator to run `ssh <host>` once.
 
 A dropped connection reconnects with backoff from 1 s up to 5 minutes. A no-install node records the outage as a monitor gap. An agent node catches up from its buffer when the connection returns.
 
@@ -558,17 +560,17 @@ The node URL names the host and data directory, for example `ssh://relay1/~/.mai
 
 ### SSH agent
 
-A remote host runs `algodtop agent` as a service. The agent is the daemon minus rollups and the web UI:
+A remote host runs `algod.top agent` as a service. The agent is the daemon minus rollups and the web UI:
 
 - It runs the collectors, a local buffer (the same WAL and raw blocks, 7 days by default) and its own health rules and alerts.
 - It has its own config file listing its local nodes, usually written by discovery during install.
 - One host can carry several nodes. The hub names them `<remote>/<node>`, for example `relay1/mainnet`.
-- Its alert rules and channels come from the hub's config. `algodtop remote install` copies them into the agent config, and `algodtop remote sync <host>` pushes later changes. Both run over SSH as an operator command, never through the web UI or API, so channels stay config-file only (section 11).
+- Its alert rules and channels come from the hub's config. `algod.top remote install` copies them into the agent config, and `algod.top remote sync <host>` pushes later changes. Both run over SSH as an operator command, never through the web UI or API, so channels stay config-file only (section 11).
 - The hub runs the agent by the absolute path recorded at install, for example `~/.local/bin/algodtop`. Non-interactive SSH sessions often skip the shell profile, so `PATH` cannot be relied on. The path is a per-remote config value.
 
-The hub pulls with `ssh host algodtop stdio --agent`:
+The hub pulls with `ssh host algod.top stdio --agent`:
 
-- `algodtop stdio` connects its stdin and stdout to the local daemon or agent socket. SSH handles authentication and encryption. The remote opens no port and needs no certificate or token.
+- `algod.top stdio` connects its stdin and stdout to the local daemon or agent socket. SSH handles authentication and encryption. The remote opens no port and needs no certificate or token.
 - With `--agent`, if no agent service is running, `stdio` starts an agent for the life of the connection. The hub then gets logs, process stats and host stats, but has gaps while it is offline.
 - The hub speaks HTTP/2 without TLS over the pipe (`Protocols.SetUnencryptedHTTP2`, Go 1.24 and later). `stdio` is a plain byte relay, so the agent and daemon sockets accept HTTP/2 with prior knowledge as well as HTTP/1.1. The batch pulls, live status and any terminal UI requests all share the one ssh process per host.
 
@@ -590,30 +592,48 @@ For hosts the hub cannot reach over SSH, the agent can listen on TCP:
 
 ### Installing an agent
 
-`algodtop remote install <host>` sets up an SSH agent. It is opt-in and changes nothing on the host without showing the plan first:
+`algod.top remote install <host>` sets up an SSH agent. It is opt-in and changes nothing on the host without showing the plan first:
 
 1. It detects the remote OS and architecture over SSH.
-2. It downloads the matching release from GitHub on the hub, so the remote needs no internet access. It verifies the release's checksums file against an ed25519 signature, with the public key built into algodtop (stdlib `crypto/ed25519`).
-3. It copies the binary through the ssh pipe into the user's home, so no `scp` is needed. Unix remotes get `~/.local/bin/algodtop` through `cat`. Windows remotes get `%LOCALAPPDATA%\algodtop\algodtop.exe` through PowerShell, because the default Windows OpenSSH shell is `cmd`.
+2. It downloads the matching release from GitHub on the hub, so the remote needs no internet access. It verifies the release's checksums file against an ed25519 signature, with the public key built into algod.top (stdlib `crypto/ed25519`).
+3. It copies the binary through the ssh pipe into the user's home, so no `scp` is needed. Unix remotes get `~/.local/bin/algod.top` through `cat`. Windows remotes get `%LOCALAPPDATA%\algodtop\algod.top.exe` through PowerShell, because the default Windows OpenSSH shell is `cmd`.
 4. It runs discovery on the remote and shows the agent config it would write, including the alert rules and channels copied from the hub.
-5. It installs a user-level service where the platform allows: a launchd user agent on macOS, or a systemd user unit on Linux, which needs lingering enabled to run without a login session. On Windows it prints the `algodtop agent --install-service` command, because a service that runs as a user needs that user's password.
+5. It installs a user-level service where the platform allows: a launchd user agent on macOS, or a systemd user unit on Linux, which needs lingering enabled to run without a login session. On Windows it prints the `algod.top agent --install-service` command, because a service that runs as a user needs that user's password.
 
-The agent must run as the account that owns the algod data directory. Package installs run algod as a system user such as `algorand` under `/var/lib/algorand`. Installing a service for that user needs sudo, so the helper stops after copying the binary and prints the two commands that finish the job. algodtop never runs sudo itself:
+The agent must run as the account that owns the algod data directory. Package installs run algod as a system user such as `algorand` under `/var/lib/algorand`. A service for that account is a system agent (section 16), and installing one needs root once. algod.top never becomes root without showing the command and asking:
 
-- `ssh -t <host> sudo ~/.local/bin/algodtop service install --system --agent` on the host installs a system agent (section 16).
-- `algodtop remote add <host>` on the hub records it.
+- It asks how to become root on the host, `su` or `sudo`, and saves the answer as the remote's `root`. Some operators have no sudo rights and use `su` with the root password.
+- It shows the command, such as `ssh -t <host> 'su -c "$HOME/.local/bin/algod.top service install --system --agent"'`, and runs it over `ssh -t` once confirmed, so `su` or `sudo` asks for the password in the terminal. The single quotes keep the hub's shell from expanding anything, and the host's login shell expands `$HOME` before root's shell starts.
+- Then it runs `remote add` to record the agent. Without a terminal it prints the command for the operator to run instead.
 
-`algodtop remote add <host>` points the hub at an agent that already runs, however it was installed. It tries `/usr/local/bin/algodtop` and then `~/.local/bin/algodtop` unless `--path` names one, and runs `stdio --agent --no-start` so that a missing agent fails rather than starting one for the probe. It shows the agent's nodes and saves the remote with the agent's config path. It offers to replace nodes that watch the same host over SSH with nothing installed, since those would show twice.
+`algod.top remote add <host>` points the hub at an agent that already runs, however it was installed. It tries `/usr/local/bin/algod.top`, `/usr/local/bin/algodtop`, `~/.local/bin/algod.top` and `~/.local/bin/algodtop` in turn unless `--path` names one, and runs `stdio --agent --no-start` so that a missing agent fails rather than starting one for the probe. It shows the agent's nodes and saves the remote with the agent's config path. It offers to replace nodes that watch the same host over SSH with nothing installed, since those would show twice.
 
 The hub names an agent's node `<remote>/<node>` unless the remote's `names` maps it to another name. When `remote add` replaces an SSH node whose data directory matches one of the agent's nodes, it maps that node to the SSH node's name, so the history continues under one name. `--node-name` sets the name for an agent with one node, for remotes added before this existed. When a remote's names change, the hub pulls the agent's whole buffer again, so data already pulled under the old name is stored again under the new one. The cursor file records the names it was written under, which is how the hub notices. During that re-pull it skips items for nodes whose name did not change, up to the old cursor, so their events and sessions are not stored twice. Repeated samples are harmless, because raw merges keep one sample per timestamp and late windows rebuild their rollups from raw.
 
-`algodtop remote upgrade <host>`, `algodtop remote sync <host>` and `algodtop remote remove <host>` cover the rest of the lifecycle. For a system agent, whose config path is under `/etc`, the SSH user can write neither the binary nor the config. `upgrade` then copies the binary to `~/.local/bin/algodtop` and prints the `sudo ... service install --system --agent` command that moves it into place. `sync` prints the alert settings to merge on the host, and `remove` drops the remote from the hub and prints the uninstall command.
+`algod.top remote upgrade <host>`, `algod.top remote sync <host>` and `algod.top remote remove <host>` cover the rest of the lifecycle. Each finds the saved remote by its SSH host as well as by `--name`, so `remote upgrade node1` finds a remote saved as `partmon1`. For a system agent, whose config path is under `/etc`, the SSH user cannot write the config. `sync` prints the alert settings to merge on the host, and `remove` drops the remote from the hub and prints the uninstall command, with the remote's `su` or `sudo`.
+
+### Upgrades
+
+`algod.top upgrade`, run on the hub, installs a release everywhere: on the hub's machine, then on every agent in its config. The newest release is the default, and `--version` names another. Each daemon and agent installs the release itself:
+
+1. The hub downloads the release for each platform once, and verifies it.
+2. It sends the checksums file, its signature and the binary to the daemon or agent as a form posted to `/api/admin/upgrade` on its socket. A remote agent's socket is reached through the SSH connection the hub already uses, so the remote needs no internet access and the agent no new port. The endpoint exists on the unix socket only. Over TCP it answers 404.
+3. The daemon or agent trusts none of the hub's checks. It verifies the signature with its own built-in key and checks that the file is for its own platform. It writes the binary beside its own and runs it with `version --json`. That reads the version, which the signature does not cover, and shows that the binary runs on this machine.
+4. It refuses a release that is not newer than its own build, by the commit time in the pseudo-version. Whoever can reach the socket can therefore only move algod.top forward to a genuine release, never back to an older one with a known bug. A development build takes any signed release.
+5. It renames the new binary over its own, stops as for SIGTERM, and execs the new binary in the same process. systemd and launchd keep tracking the same PID, and the agent's buffer covers the gap, so the hub loses no data. Windows cannot exec, so there the new binary runs from the next start.
+6. The hub waits for each one to answer with the new version, then reports it.
+
+Access to the socket is the permission to upgrade. For a system agent that is the `algodtop` group, which the hub's SSH user joins at install. A member can already read the algod tokens through the socket, a bigger power than moving algod.top to a newer signed release.
+
+A system agent can only replace a binary its account owns, so a system service runs its own copy in its store, such as `/var/lib/algodtop-agent/bin/algod.top`, owned by the service account (section 16). Agents installed before this run the root-owned `/usr/local/bin` copy and refuse with `not-writable`. Agents older still answer 404. For either, `upgrade` makes a one-time switch: it copies the release to the SSH user's `~/.local/bin/algod.top` and runs the system install as root, with the remote's `su` or `sudo`, as for a new install. From then on upgrades need no root. A user agent from before upgrades the old way: the hub copies the binary over SSH and restarts its service.
+
+The hub's daemon looks for a newer release a minute after it starts and then daily, by following the redirect from GitHub's `releases/latest` to the release tag. A newer one shows in the status line of both UIs and on the Settings page, which names `algod.top upgrade`. `"update_check": false` turns the check off. The check only reports: upgrades are always run by an operator, because every merge to main is a release, and an unattended upgrade would carry a bad one to every host.
 
 The hub runs agent pulls without an OpenSSH ControlMaster. A pull is one long-lived ssh process, so a master saves nothing. A shared master would also keep the login's groups from before the user joined `algodtop`, and the hub's retries would keep that master alive.
 
 ### Remote front ends
 
-`algodtop -H ssh://hub` opens the terminal UI against the hub on the host `hub` through `ssh hub algodtop stdio`. A laptop can view an always-on hub at home with no open ports. `-H https://host:8090` with a read-only token works where SSH does not.
+`algod.top -H ssh://hub` opens the terminal UI against the hub on the host `hub` through `ssh hub algod.top stdio`. A laptop can view an always-on hub at home with no open ports. `-H https://host:8090` with a read-only token works where SSH does not.
 
 ### Clocks and cost
 
@@ -623,12 +643,12 @@ Each remote host costs one `ssh` process on the hub, about 5 MB each, outside th
 
 ## 13. Terminal UI
 
-`algodtop` with no subcommand opens the terminal UI. It behaves like `top`: one screen, live updates, single-key commands, and nothing to configure before it works.
+`algod.top` with no subcommand opens the terminal UI. It behaves like `top`: one screen, live updates, single-key commands, and nothing to configure before it works.
 
 ### Main screen
 
 ```
-algodtop  host algod-host  10:52:14  daemon up 3d 4h  store 2.1 GB  nodes 5: 4 OK, 1 Warn
+algod.top  host algod-host  10:52:14  daemon up 3d 4h  store 2.1 GB  nodes 5: 4 OK, 1 Warn
 mainnet  round 52184330  rtime 2.79s  tpb 41  pool 312     range 1h  live
 
 NODE       NET       VER       ROUND     LAG   RTIME  WS i/o  P2P i/o  CPU%  RSS   NET KB/s  HEALTH
@@ -651,7 +671,7 @@ Enter on a node opens its detail screen:
 
 - A header with round, lag, version, uptime and the last effective config change.
 - Panes for consensus, network, bandwidth and resources. Each line shows a metric's current value and a sparkline over the selected range, one bucket per terminal column.
-- Below them, a pane selected by key: peers, events or log templates.
+- Below them, a pane selected by key: peers, events or log templates. A list longer than the screen scrolls, and a footer such as `rows 21-40 of 120` says which rows show.
 
 The peers pane works like the process list in `top`. It lists address, direction, network, time connected, resets in the last 24 h and cluster membership, sortable by any column. With per-peer usage it adds receive and send rates, session totals and open streams. Sorting by rate gives a live top-talkers list.
 
@@ -660,6 +680,7 @@ The peers pane works like the process list in `top`. It lists address, direction
 | Key | Action |
 |---|---|
 | Up, Down, Enter, Esc | Select a node, open it, go back |
+| PgUp, PgDn, Home, End | On a node, scroll the open pane. Up and Down scroll it too |
 | `<`, `>` | Change the sort column |
 | `p`, `e`, `l` | Peers, events or log templates pane |
 | `r` | Cycle the range: 1h, 6h, 24h, 7d, 30d, 1y, all |
@@ -678,11 +699,11 @@ The time cursor turns the screen into a view of the past. With the cursor at 09:
 
 ### Batch mode
 
-`algodtop -b` prints the node table once and exits, like `top -b`. `-n N -i SECS` repeats it, and `--json` prints JSON for scripts. This works over SSH and in cron without a terminal.
+`algod.top -b` prints the node table once and exits, like `top -b`. `-n N -i SECS` repeats it, and `--json` prints JSON for scripts. This works over SSH and in cron without a terminal.
 
 ### Startup
 
-`algodtop` and `go run algod.top@latest` run the same code and start the same way. Each step runs only if the earlier steps found nothing. A flag that names a source skips straight to it.
+`algod.top` and `go run algod.top@latest` run the same code and start the same way. Each step runs only if the earlier steps found nothing. A flag that names a source skips straight to it.
 
 1. Daemon. Connect to the daemon at `--socket` or `--hub`, else at the default socket path. A running daemon gives the full history, and the terminal UI uses it as is.
 2. Config file. Read `--config`, else `$ALGODTOP_CONFIG`, else the platform default path (section 16). With no daemon, the terminal UI polls the config's nodes directly in live-only mode.
@@ -699,7 +720,7 @@ Finding running algod processes works on every platform without privileges:
 - Match PIDs against `algod.pid` in candidate directories. A directory whose `algod.pid` names a live algod process is a running node, even when algod was started through `$ALGORAND_DATA` rather than `-d`.
 - A data directory with no live process is shown as DOWN.
 
-Discovered nodes exist only for that session. Pressing `W` writes them to a config file after showing the path and contents, like `W` in `top`. The daemon never uses discovery on its own. `algodtop daemon --discover` prints what it found and writes it to the config, and running that command counts as the user's confirmation.
+Discovered nodes exist only for that session. Pressing `W` writes them to a config file after showing the path and contents, like `W` in `top`. The daemon never uses discovery on its own. `algod.top daemon --discover` prints what it found and writes it to the config, and running that command counts as the user's confirmation.
 
 ### Flags
 
@@ -712,7 +733,7 @@ Discovered nodes exist only for that session. Pressing `W` writes them to a conf
 | `-s, --socket PATH` | TUI, daemon | Daemon socket to connect to, or for the daemon to create |
 | `-H, --hub URL` | TUI | A remote daemon, as `ssh://host` or `https://host:port` (section 12) |
 | `-l, --listen ADDR` | daemon | Web UI listener. An empty value disables it. |
-| `--store-dir DIR` | daemon, agent | algodtop's own data directory (section 16). Named apart from `-d`, which is always an algod data directory. |
+| `--store-dir DIR` | daemon, agent | algod.top's own data directory (section 16). Named apart from `-d`, which is always an algod data directory. |
 | `--live` | TUI | Ignore any daemon and poll algod directly |
 | `--no-discover` | TUI | Skip step 4 |
 | `-b`, `-n N`, `-i SECS` | TUI | Batch mode, iteration count, interval |
@@ -721,7 +742,7 @@ Discovered nodes exist only for that session. Pressing `W` writes them to a conf
 
 Precedence is flags, then environment variables, then the config file, then discovery. Tokens are never accepted as flag values, because command lines are visible to every user in `ps`. The token sources are the token file flags, `$ALGOD_TOKEN` and `$ALGOD_ADMIN_TOKEN`, the config file, and the files in a local data directory.
 
-`-d` means data directory, as it does for `goal` and `algod`, which is what algod operators expect. `top` uses `-d` for its delay, so algodtop uses `-i` for the interval instead.
+`-d` means data directory, as it does for `goal` and `algod`, which is what algod operators expect. `top` uses `-d` for its delay, so algod.top uses `-i` for the interval instead.
 
 ### Implementation
 
@@ -744,7 +765,7 @@ The terminal UI talks to the daemon over the unix socket with the same API as th
 - Time is shared across charts. Hover shows a crosshair and values on every chart on the page at the same instant. Dragging on any chart zooms all of them. This synchronized crosshair is the netdata feature most worth keeping.
 - Events and annotations draw as thin vertical markers on every chart, with a labelled event lane above the first chart. Hovering a marker shows the event. Clicking it filters the events table. Peer connects and disconnects, log warnings and an alert's hourly reminders are too frequent for markers; they stay in their own charts and tables.
 - An events request returns the newest 5000 events and a count of every kind in its range. Peer churn on a busy relay can fill that cap in an hour or two, so a page whose answer comes back short asks again for the rarer kinds on their own.
-- Gaps show as gaps. A line is never drawn across missing data, and a hatched region marks "algodtop was down" or "algod was down" separately.
+- Gaps show as gaps. A line is never drawn across missing data, and a hatched region marks "algod.top was down" or "algod was down" separately.
 - The URL holds all view state (node, range, panels, comparison, full resolution), so any view can be bookmarked or pasted into a chat.
 - The UI follows the OS dark/light setting and has a toggle. The palette is colour-blind safe, with fixed colours per meaning used everywhere: inbound is one hue, outbound another, ws vs p2p by lightness. The terminal UI uses the same mapping.
 - The UI works at phone width for a quick check, and is designed for a desktop.
@@ -808,7 +829,7 @@ It uses system fonts only. Nothing loads from a CDN, so the UI works offline and
 
 ## 15. Dependency policy
 
-The default is the Go standard library plus the approved dependencies below. The project uses Go 1.27: `go.mod` sets `go 1.27.0` and pins the toolchain to go1.27.3. The features algodtop relies on most (`crypto/pbkdf2`, `os.Root` and unencrypted HTTP/2) arrived in Go 1.24.
+The default is the Go standard library plus the approved dependencies below. The project uses Go 1.27: `go.mod` sets `go 1.27.0` and pins the toolchain to go1.27.3. The features algod.top relies on most (`crypto/pbkdf2`, `os.Root` and unencrypted HTTP/2) arrived in Go 1.24.
 
 Approved dependencies:
 
@@ -839,23 +860,24 @@ Other candidates. Each is listed for approval, and none is planned:
 
 | Command | Does |
 |---|---|
-| `algodtop` | Terminal UI (section 13) |
-| `algodtop daemon` | Collector, store, health, alerts and API, with the web UI when `web.listen` is set |
-| `algodtop agent` | Collector and local buffer for a remote host (section 12) |
-| `algodtop export` | Exports series, events or sessions |
-| `algodtop silence` | Adds, lists or removes silences |
-| `algodtop stdio` | Connects stdin and stdout to the local daemon or agent socket, for use over SSH. `--agent` starts an agent for the connection if none is running. |
-| `algodtop remote` | `install`, `add`, `upgrade`, `sync` or `remove` an agent on a host over SSH (section 12) |
-| `algodtop service` | Explains, installs, removes or reports the service that starts the daemon at login or boot (section 16) |
-| `algodtop reload` | Asks the daemon to reload its config, the same as SIGHUP. Windows has no SIGHUP, so this is the reload method there. |
-| `algodtop passwd` | Hashes a password into the config |
-| `algodtop check` | Validates config, reaches each node, prints projected disk use and any pending retention deletion |
-| `algodtop version` | Prints the version |
+| `algod.top` | Terminal UI (section 13) |
+| `algod.top daemon` | Collector, store, health, alerts and API, with the web UI when `web.listen` is set |
+| `algod.top agent` | Collector and local buffer for a remote host (section 12) |
+| `algod.top export` | Exports series, events or sessions |
+| `algod.top silence` | Adds, lists or removes silences |
+| `algod.top stdio` | Connects stdin and stdout to the local daemon or agent socket, for use over SSH. `--agent` starts an agent for the connection if none is running. |
+| `algod.top remote` | `install`, `add`, `upgrade`, `sync` or `remove` an agent on a host over SSH (section 12) |
+| `algod.top upgrade` | Install a release here and on every remote agent (section 12) |
+| `algod.top service` | Explains, installs, removes or reports the service that starts the daemon at login or boot (section 16) |
+| `algod.top reload` | Asks the daemon to reload its config, the same as SIGHUP. Windows has no SIGHUP, so this is the reload method there. |
+| `algod.top passwd` | Hashes a password into the config |
+| `algod.top check` | Validates config, reaches each node, prints projected disk use and any pending retention deletion |
+| `algod.top version` | Prints the version |
 
 ### Config
 
-- The config is one JSON file (stdlib `encoding/json`). The file contains tokens and the password hash. On Linux and macOS, algodtop warns if the file is group- or world-readable. On Windows, it warns if the file's ACL grants read access beyond the user, SYSTEM and Administrators.
-- `SIGHUP` or `algodtop reload` reloads nodes, alerts and retention. A listen address change needs a restart.
+- The config is one JSON file (stdlib `encoding/json`). The file contains tokens and the password hash. On Linux and macOS, algod.top warns if the file is group- or world-readable. On Windows, it warns if the file's ACL grants read access beyond the user, SYSTEM and Administrators.
+- `SIGHUP` or `algod.top reload` reloads nodes, alerts and retention. A listen address change needs a restart.
 - Listen settings are `web.listen` (default `127.0.0.1:8090`, empty to disable), optional `tls_cert`/`tls_key`, or `tls: "self-signed"` to generate and persist a certificate.
 - Paths in the config accept forward slashes on every platform.
 
@@ -887,38 +909,34 @@ The daemon meets these targets with these measures:
 
 ### Service and lifecycle
 
-- `algodtop service` explains how to run the daemon as a service on the current machine and prints the file it would write. `algodtop service install` writes the file, enables it and starts it, and `uninstall` and `status` cover the rest. Every service restarts the daemon after a failure and runs it at the low priority above. Running `algodtop daemon` by hand in a terminal or tmux needs none of this.
+- `algod.top service` explains how to run the daemon as a service on the current machine and prints the file it would write. `algod.top service install` writes the file, enables it and starts it, and `uninstall` and `status` cover the rest. Every service restarts the daemon after a failure and runs it at the low priority above. Running `algod.top daemon` by hand in a terminal or tmux needs none of this.
 - On macOS it installs a launchd user agent in `~/Library/LaunchAgents/top.algod.daemon.plist`, which starts at login. launchd gives jobs a bare `PATH`, so the plist sets one that includes Homebrew and the binary's own directory for alert commands.
-- On Linux with systemd it installs a user unit in `~/.config/systemd/user/algodtop.service`, which starts at login, or at boot once lingering is enabled. When the node data belongs to another account, as with a package install where algod runs as `algorand` from `/var/lib/algorand`, it recommends a system service instead. `sudo algodtop service install --system` then mirrors `algorand.service`: it runs as the data directory owner from boot, reads `/etc/algodtop/config.json` (written from discovery when missing, and owned by that account so web UI edits can save) and stores data in `/var/lib/algodtop` through `StateDirectory`. A system unit must not run a binary from a home directory, so the install copies itself to `/usr/local/bin/algodtop`, and running it again with a new binary is the upgrade.
-- `sudo algodtop service install --system --agent` installs the agent the same way, as `algodtop-agent.service` with `/etc/algodtop/agent.json` and `/var/lib/algodtop-agent`. This is how a hub pulls from a package install (section 12).
+- On Linux with systemd it installs a user unit in `~/.config/systemd/user/algodtop.service`, which starts at login, or at boot once lingering is enabled. When the node data belongs to another account, as with a package install where algod runs as `algorand` from `/var/lib/algorand`, it recommends a system service instead. `sudo algod.top service install --system` then mirrors `algorand.service`: it runs as the data directory owner from boot, reads `/etc/algodtop/config.json` (written from discovery when missing, and owned by that account so web UI edits can save) and stores data in `/var/lib/algodtop` through `StateDirectory`. A system unit must not run a binary from a home directory, so the install copies itself to `/usr/local/bin/algod.top` for people to run, and replaces an old `/usr/local/bin/algodtop` with a link to it. The service itself runs another copy in its store, `bin/algod.top`, owned by the account it runs as, so the service can replace it when `algod.top upgrade` asks (section 12). The store's snapshots and size leave `bin` out. Before it starts the service, the install runs that copy as the service account; on a store mounted `noexec` that fails, and the service runs the `/usr/local/bin` copy instead, which only root can upgrade.
+- `sudo algod.top service install --system --agent` installs the agent the same way, as `algodtop-agent.service` with `/etc/algodtop/agent.json` and `/var/lib/algodtop-agent`. This is how a hub pulls from a package install (section 12).
 - A system service runs with `Group=algodtop` and `--socket-group algodtop`, so its state directory and its socket (mode 0660) belong to the `algodtop` group. The install creates the group and adds the person behind `sudo`. Members can use the daemon's terminal UI and CLI commands without sudo, and the hub can pull from the agent over SSH as one of them. Membership grants the socket's write role. Alert channels stay config-file only (section 11), so membership does not let anyone run a program as the service account. The group applies to new logins only.
 - CLI commands, the terminal UI and `stdio` also try the system service's sockets, `/var/lib/algodtop/algodtop.sock` and `/var/lib/algodtop-agent/agent.sock`. When a socket refuses them, they say why: the account is not in the group, or joined after this login began. `stdio --agent` then fails rather than start a second agent beside the service.
-- The install refuses when a daemon already answers on the service's socket and the service manager is not running it, since both would use one store. Elsewhere, including Linux without systemd, `algodtop service` prints what to run instead, such as a cron `@reboot` line. On Windows, `algodtop daemon --install-service` and `algodtop agent --install-service` print the `sc.exe` commands until a Windows service with restart-on-failure ships through `golang.org/x/sys/windows/svc`.
+- The install refuses when a daemon already answers on the service's socket and the service manager is not running it, since both would use one store. Elsewhere, including Linux without systemd, `algod.top service` prints what to run instead, such as a cron `@reboot` line. On Windows, `algod.top daemon --install-service` and `algod.top agent --install-service` print the `sc.exe` commands until a Windows service with restart-on-failure ships through `golang.org/x/sys/windows/svc`.
 - The daemon runs as the account that owns the algod data directories, because it needs to read the token files. It never needs root or Administrator. A Windows service that runs as a user account needs that account's password at install time. Running as LocalSystem is possible but is not the default.
 - Shutdown flushes each head block and its partial rollups, fsyncs, and exits within 10 s. SIGTERM triggers it on Unix. On Windows, a service stop request or Ctrl+C triggers it.
 
 ### Distribution
 
-The Go module path is `algod.top`. The repo has two `main` packages, and each is a five-line file that calls the same `internal/cli.Main`:
+The Go module path is `algod.top`, and so is the program's name:
 
 | Command | Builds from | Binary name |
 |---|---|---|
 | `go install algod.top@latest` | repo root | `algod.top` |
-| `go install algod.top/algodtop@latest` | `algodtop/` | `algodtop` |
 | `go run algod.top@latest` | repo root | none, runs and exits |
 
-`go install` names a binary after the last element of its import path, so the short form produces `algod.top`, or `algod.top.exe` on Windows. The canonical name is `algodtop`:
+`go install` names a binary after the last element of its import path, so the module path gives the command its name, `algod.top`, or `algod.top.exe` on Windows.
 
-- Release archives, service files, docs and examples all use `algodtop`.
-- A dot in a command name reads like a file extension, and `algodtop` is what an operator types and sees in `ps`, `top` and Task Manager.
-- Help and error text print the name the binary was run under, so either name reads correctly.
-- The site, the docs and the README show both install lines together, the short form first, each with a comment naming the command it installs. A system service on Linux copies the binary to `/usr/local/bin/algodtop`, so services run as `algodtop` either way.
+- The docs, the site, help text, both UIs and the release files (`algod.top_linux_amd64`) use `algod.top`. Help and error text print the name the binary was run under.
+- Names that machines read keep `algodtop`, where a dot is not allowed or a new name would strand existing data: environment variables (`ALGODTOP_CONFIG`), metric names (`algodtop_round`), config and data directories, systemd units, the `algodtop` group, socket names, and the User-Agent algod logs.
+- The program was first named `algodtop`. A second five-line `main` package keeps `go install algod.top/algodtop@latest` building it under that name, so earlier installs still update, but the docs do not show it. A system service install replaces an old `/usr/local/bin/algodtop` with a link to `/usr/local/bin/algod.top`.
 
-A symlink (`ln -s algodtop algod.top`) works on Linux and macOS, but Windows symlinks need Developer Mode or Administrator. The two build paths remove the need for one.
+algod.top has no release numbers. Every commit on main is a release, and Go names it with a pseudo-version that holds the commit's UTC time, such as `v0.0.0-20261104123549-37f0e9db466c`. `go install algod.top@latest` builds the newest commit on main:
 
-algodtop has no release numbers. Every commit on main is a release, and Go names it with a pseudo-version that holds the commit's UTC time, such as `v0.0.0-20261104123549-37f0e9db466c`. `go install algod.top@latest` builds the newest commit on main:
-
-- `algodtop version`, the Settings page and `remote add` show the commit's time and age, such as `2026-11-04 12:35 UTC (37f0e9db), 3 days old`. A local build reads them from Go's VCS stamp, and an installed one from its pseudo-version.
+- `algod.top version`, the Settings page and `remote add` show the commit's time and age, such as `2026-11-04 12:35 UTC (37f0e9db), 3 days old`. A local build reads them from Go's VCS stamp, and an installed one from its pseudo-version.
 - The repo has no semver tags. A v1 tag would make `@latest` follow tags rather than main, and v2 or later would move the install path to `algod.top/v2`.
 - Changes reach main through a pull request once CI passes, so every release has passed CI.
 
@@ -928,7 +946,7 @@ algodtop has no release numbers. Every commit on main is a release, and Go names
 
 `algod.top` also hosts the docs and the block format spec.
 
-Every merge to main also publishes a GitHub release, after the tests pass on all three platforms. It holds a binary per platform (Linux, macOS and Windows on amd64 and arm64, and FreeBSD on amd64), `checksums.txt` with the SHA-256 of each, `checksums.txt.sig` with the ed25519 signature of that file, and a GitHub build attestation per binary. The release is named by its commit as Go names it, and its tag is the pseudo-version without `v0.0.0-`, such as `20261104123549-37f0e9db466c`, so no semver tag ever appears. `algodtop remote install` fetches the release that matches the hub's own version, or `--version latest`.
+Every merge to main also publishes a GitHub release, after the tests pass on all three platforms. It holds a binary per platform (Linux, macOS and Windows on amd64 and arm64, and FreeBSD on amd64), `checksums.txt` with the SHA-256 of each, `checksums.txt.sig` with the ed25519 signature of that file, and a GitHub build attestation per binary. The release is named by its commit as Go names it, and its tag is the pseudo-version without `v0.0.0-`, such as `20261104123549-37f0e9db466c`, so no semver tag ever appears. `algod.top upgrade` installs the newest release (section 12), and `algod.top remote install` fetches the release that matches the hub's own version, or `--version latest`. Releases from before the rename name their files `algodtop_<os>_<arch>`, and algod.top still reads them.
 
 The release key's public half is in `internal/release`, so every build can verify a download. The private half is the `ALGODTOP_RELEASE_KEY` secret of the repository's `release` environment, which only main can use, and the owner keeps an offline copy. The release job checks its signature against the public key before it publishes. Replacing the key means a new key pair, a commit with the new public half and a new secret. Binaries built before that keep the old public key, so they can no longer verify new releases and need one manual update.
 
@@ -941,18 +959,18 @@ The release key's public half is in `internal/release`, so every build can verif
 - Every state-changing request over TCP (annotations, silences, settings, snapshot) needs login and a CSRF token.
 - Alert channels, webhook URLs and commands are config-file only (section 11). A stolen web password cannot make the daemon run a program.
 - algod tokens never reach a client. The admin token is used only for the GET endpoints listed in section 5, and a code-level allowlist of algod paths enforces it. A test asserts that no other admin path is called.
-- algodtop stores peer IP addresses. The default retention for peer-session raw addresses is 1 year. After that, algodtop keeps only aggregates (counts per /24 or per ASN if a local ASN file is supplied).
-- For access away from home, the docs recommend `algodtop -H ssh://host` or a VPN such as Tailscale over exposing the port. The SSH transport needs no open port at all.
-- Over SSH, the SSH login is the access control. Anyone who can log in as the remote user can already read that user's algod tokens, so `algodtop stdio` grants nothing new. The hub always runs `ssh` with `BatchMode=yes`, so it never accepts an unknown host key.
+- algod.top stores peer IP addresses. The default retention for peer-session raw addresses is 1 year. After that, algod.top keeps only aggregates (counts per /24 or per ASN if a local ASN file is supplied).
+- For access away from home, the docs recommend `algod.top -H ssh://host` or a VPN such as Tailscale over exposing the port. The SSH transport needs no open port at all.
+- Over SSH, the SSH login is the access control. Anyone who can log in as the remote user can already read that user's algod tokens, so `algod.top stdio` grants nothing new. The hub always runs `ssh` with `BatchMode=yes`, so it never accepts an unknown host key.
 - Tokens read over SSH for no-install nodes stay in the hub's memory and are never written to disk.
-- `algodtop remote install` only installs binaries whose checksums file carries a valid ed25519 signature from the algodtop release key.
+- `algod.top remote install` only installs binaries whose checksums file carries a valid ed25519 signature from the algod.top release key.
 
 ## 18. Running indefinitely
 
 - algod changes. Metric names change, log messages change, and new fields appear. The alias table and per-extractor fixtures catch this. A "parser health" panel shows unparsed-line rates and unknown metric names after each algod upgrade, so breakage is visible rather than silent.
-- algodtop changes. The store has a format version and migrations that run once on upgrade, with a backup taken first. Old blocks stay readable, and a new block format writes only new data.
-- Time. algodtop stores UTC with nanosecond resolution and lets each front end choose local or UTC. It records host clock jumps (wall time going backwards) as events. A jump never reorders stored data. Samples older than the current head go through the late-data path (section 8).
-- Disk. Retention windows make disk use predictable. The daemon measures bytes per stored value and projects total use for the configured windows. `algodtop check` prints the projection, and the daemon raises Warn if it exceeds free space minus the floor.
+- algod.top changes. The store has a format version and migrations that run once on upgrade, with a backup taken first. Old blocks stay readable, and a new block format writes only new data.
+- Time. algod.top stores UTC with nanosecond resolution and lets each front end choose local or UTC. It records host clock jumps (wall time going backwards) as events. A jump never reorders stored data. Samples older than the current head go through the late-data path (section 8).
+- Disk. Retention windows make disk use predictable. The daemon measures bytes per stored value and projects total use for the configured windows. `algod.top check` prints the projection, and the daemon raises Warn if it exceeds free space minus the floor.
 - Disk floor. When the volume holding the data directory drops below the floor (default 5% free), new data wins over old. An operator short on disk loses history but keeps collection, health checks and alerts. The daemon deletes the oldest data first, in this order, until free space is 1% above the floor:
   1. Optional data: raw Info lines and investigation captures.
   2. Raw blocks, down to a minimum of 2 days. Their rollups already exist, so the history keeps its shape at 1-minute resolution.
@@ -961,7 +979,7 @@ The release key's public half is in `internal/release`, so every build can verif
   5. Then the oldest block of any tier, so the newest data is always the last to go.
 
   Each pass records a retention deletion event naming the tiers and time ranges removed. The node health shows Warn with the shortened coverage in words, for example "Warn: disk floor, raw history is 12 days instead of 30". Health checks and alerts run from memory and keep working throughout.
-- If deleting everything outside the heads still leaves the volume below the floor, the daemon pauses writes and raises Critical. Collection, health checks and alerts continue in memory, and the pause is recorded as a monitor gap. algod's disk takes priority over algodtop's data.
+- If deleting everything outside the heads still leaves the volume below the floor, the daemon pauses writes and raises Critical. Collection, health checks and alerts continue in memory, and the pause is recorded as a monitor gap. algod's disk takes priority over algod.top's data.
 - An operator who prefers a strict retention guarantee sets `disk.at_floor: "pause"`. The daemon then pauses writes at the floor and never deletes data inside a window.
 - The daemon warns when its data directory and an algod data directory share a volume that is under 15% free.
 - Bit rot. Every block and record has a CRC32. A weekly scrub, under the background I/O limit, verifies them, marks bad blocks, and reports them in both front ends rather than failing queries.
@@ -992,7 +1010,7 @@ The release key's public half is in `internal/release`, so every build can verif
 6. Health and alerting. All health rules including participation, SMTP, repeat intervals and the heartbeat ping.
 7. Auth and TLS. Passwords, sessions, CSRF, read-only tokens, TLS options and the remote terminal UI.
 8. Compare and Explorer.
-9. Agents. The agent, the `stdio` relay, the SSH and TLS agent modes, `algodtop -H ssh://`, and `algodtop remote install`.
+9. Agents. The agent, the `stdio` relay, the SSH and TLS agent modes, `algod.top -H ssh://`, and `algod.top remote install`.
 
 Windows support is not a separate milestone. The platform interface, file sharing flags, socket, reload command and CI exist from milestone 1. The Windows process collectors, the service install and the discovery paths ship as soon as an official algod Windows binary exists to test them against, whichever milestone is in progress then.
 
@@ -1000,7 +1018,7 @@ Each milestone is usable on its own.
 
 ## 21. Upstream algod changes that would help
 
-These go in go-algorand, not algodtop. Each is small.
+These go in go-algorand, not algod.top. Each is small.
 
 - A libp2p total bytes counter in `/metrics`. It would close most of the gap between algod's counters and wire bytes without per-process OS tricks. The per-peer usage fields deliberately come with no host-wide total, because every stream write would contend on one counter. A total that needs no hot-path counter is possible: keep a closed-peer accumulator that the per-peer counter adds to when it drops a peer, and add the live per-peer totals at scrape time. The result only grows, and stream writes touch nothing new.
 - Release the per-peer usage fields, which add peer ID, protocols, streams and approximate bytes to `/v2/node/peers`. Supported protocols would show whether peers that reset together run the same software, and a software version string in the same response would settle it.

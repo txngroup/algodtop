@@ -40,6 +40,10 @@ const (
 	kEsc
 	kBackspace
 	kCtrlC
+	kPgUp
+	kPgDn
+	kHome
+	kEnd
 )
 
 // App is the running terminal UI.
@@ -182,6 +186,24 @@ func readKeys(r io.Reader, ch chan<- int) {
 				ch <- kRight
 			case 'D':
 				ch <- kLeft
+			case 'H':
+				ch <- kHome
+			case 'F':
+				ch <- kEnd
+			case '1', '4', '5', '6', '7', '8':
+				// ESC [ n ~: Home, End, PgUp and PgDn.
+				if b4, _ := br.ReadByte(); b4 == '~' {
+					switch b3 {
+					case '5':
+						ch <- kPgUp
+					case '6':
+						ch <- kPgDn
+					case '1', '7':
+						ch <- kHome
+					case '4', '8':
+						ch <- kEnd
+					}
+				}
 			default:
 				// Consume the rest of a longer sequence.
 				for br.Buffered() > 0 {
@@ -501,7 +523,7 @@ func (a *App) key(k int) bool {
 			if err != nil {
 				m.Err = err.Error()
 			} else {
-				m.Message = "wrote " + p + "; start the daemon with: algodtop daemon"
+				m.Message = "wrote " + p + "; start the daemon with: algod.top daemon"
 			}
 		}
 		m.Screen = ScreenMain
@@ -512,17 +534,36 @@ func (a *App) key(k int) bool {
 		return true
 	case '?', 'h':
 		m.Screen = ScreenHelp
-	case kUp, 'k':
-		if m.Sel > 0 {
-			m.Sel--
+	case kUp, 'k', kDown, 'j', kPgUp, kPgDn, kHome, kEnd:
+		if m.Screen == ScreenNode {
+			// The node screen scrolls its open pane.
+			page := max(1, m.paneRows-1)
+			switch k {
+			case kUp, 'k':
+				m.Scroll--
+			case kDown, 'j':
+				m.Scroll++
+			case kPgUp:
+				m.Scroll -= page
+			case kPgDn:
+				m.Scroll += page
+			case kHome:
+				m.Scroll = 0
+			case kEnd:
+				m.Scroll = m.paneTotal
+			}
+			m.Scroll = min(max(m.Scroll, 0), max(0, m.paneTotal-m.paneRows))
+			break
 		}
-	case kDown, 'j':
-		if m.Sel < len(m.VisibleNodes())-1 {
-			m.Sel++
+		switch k {
+		case kUp, 'k':
+			m.Sel = max(m.Sel-1, 0)
+		case kDown, 'j':
+			m.Sel = max(min(m.Sel+1, len(m.VisibleNodes())-1), 0)
 		}
 	case kEnter:
 		if n := m.selected(); n != nil && m.Screen == ScreenMain {
-			m.Screen, m.Node = ScreenNode, n.Name
+			m.Screen, m.Node, m.Scroll = ScreenNode, n.Name, 0
 			ctx, cancel := a.ctx()
 			a.refreshNodeLocked(ctx, true)
 			cancel()
@@ -530,20 +571,22 @@ func (a *App) key(k int) bool {
 	case kEsc:
 		m.Screen = ScreenMain
 	case 'p':
-		m.Pane = PanePeers
+		m.Pane, m.Scroll = PanePeers, 0
 	case 'e':
-		m.Pane = PaneEvents
+		m.Pane, m.Scroll = PaneEvents, 0
 	case 'l':
-		m.Pane = PaneLogs
+		m.Pane, m.Scroll = PaneLogs, 0
 	case '<', kLeft:
 		if m.Screen == ScreenNode && m.Pane == PanePeers {
 			m.PeerSort = (m.PeerSort + len(peerCols) - 1) % len(peerCols)
+			m.Scroll = 0
 		} else {
 			m.SortCol = (m.SortCol + len(columns) - 1) % len(columns)
 		}
 	case '>', kRight:
 		if m.Screen == ScreenNode && m.Pane == PanePeers {
 			m.PeerSort = (m.PeerSort + 1) % len(peerCols)
+			m.Scroll = 0
 		} else {
 			m.SortCol = (m.SortCol + 1) % len(columns)
 		}

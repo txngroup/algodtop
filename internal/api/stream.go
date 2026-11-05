@@ -124,7 +124,7 @@ func listenUnix(path, group string) (net.Listener, error) {
 	// daemon answers on it.
 	if c, err := net.DialTimeout("unix", fsx.SocketAddr(path), 500*time.Millisecond); err == nil {
 		c.Close()
-		return nil, fmt.Errorf("another algodtop daemon is already listening on %s", path)
+		return nil, fmt.Errorf("another algod.top daemon is already listening on %s", path)
 	}
 	os.Remove(path)
 	ln, err := net.Listen("unix", fsx.SocketAddr(path))

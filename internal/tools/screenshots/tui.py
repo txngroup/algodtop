@@ -1,4 +1,4 @@
-"""Capture the algodtop terminal UI at a fixed size and render it as an image.
+"""Capture the algod.top terminal UI at a fixed size and render it as an image.
 
 usage: tui.py BIN HUB OUT.png [KEYS...]
        tui.py --raw OUT.png.raw OUT.png

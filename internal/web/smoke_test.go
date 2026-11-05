@@ -19,6 +19,7 @@ import (
 	"algod.top/internal/health"
 	"algod.top/internal/model"
 	"algod.top/internal/query"
+	"algod.top/internal/release"
 	"algod.top/internal/store"
 	"algod.top/internal/web"
 )
@@ -79,6 +80,9 @@ func (h *testHub) ConfigJSON() ([]byte, error) {
 func (h *testHub) PutConfig(ctx context.Context, b []byte) error { return nil }
 func (h *testHub) AgentBatches(ctx context.Context, since string, wait time.Duration) ([]byte, string, error) {
 	return nil, "", nil
+}
+func (h *testHub) Upgrade(context.Context, release.Files) (release.Result, error) {
+	return release.Result{}, nil
 }
 
 // Subscribe sends one status and one event, then ends the stream. The

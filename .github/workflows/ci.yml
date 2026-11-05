@@ -28,7 +28,7 @@ jobs:
         shell: bash
         env:
           CGO_ENABLED: "0"
-        run: go build -trimpath -o build/ ./algodtop
+        run: go build -trimpath -o build/ . ./algodtop
 
   cross:
     runs-on: ubuntu-latest
@@ -42,7 +42,7 @@ jobs:
           CGO_ENABLED: "0"
         run: |
           for t in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64 freebsd/amd64; do
-            GOOS=${t%/*} GOARCH=${t#*/} go build -trimpath -o /dev/null ./algodtop
+            GOOS=${t%/*} GOARCH=${t#*/} go build -trimpath -o /dev/null .
             GOOS=${t%/*} GOARCH=${t#*/} go vet ./...
           done
       - name: ascii only
@@ -96,9 +96,9 @@ jobs:
           mkdir -p "$OUT"
           for t in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64 freebsd/amd64; do
             os=${t%/*} arch=${t#*/}
-            name=algodtop_${os}_${arch}
+            name=algod.top_${os}_${arch}
             [ "$os" = windows ] && name=$name.exe
-            GOOS=$os GOARCH=$arch go build -trimpath -ldflags "-s -w -X algod.top/internal/version.Version=$VERSION" -o "$OUT/$name" ./algodtop
+            GOOS=$os GOARCH=$arch go build -trimpath -ldflags "-s -w -X algod.top/internal/version.Version=$VERSION" -o "$OUT/$name" .
           done
           ls -l "$OUT"
       - name: Sign and check the signature
@@ -109,7 +109,7 @@ jobs:
             echo "::error::ALGODTOP_RELEASE_KEY is not set in the release environment"
             exit 1
           fi
-          files=$(cd "$OUT" && ls algodtop_*)
+          files=$(cd "$OUT" && ls algod.top_*)
           key=$(mktemp)
           chmod 600 "$key"
           printf '%s\n' "$RELEASE_KEY" > "$key"
@@ -121,7 +121,7 @@ jobs:
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         if: ${{ !github.event.repository.private }}
         with:
-          subject-path: build/release/algodtop_*
+          subject-path: build/release/algod.top_*
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -130,17 +130,17 @@ jobs:
           VERSION: ${{ steps.name.outputs.version }}
           PRIVATE: ${{ github.event.repository.private }}
         run: |
-          attested="Each binary has a GitHub build attestation: \`gh attestation verify algodtop_linux_amd64 --repo $GITHUB_REPOSITORY\`."
+          attested="Each binary has a GitHub build attestation: \`gh attestation verify algod.top_linux_amd64 --repo $GITHUB_REPOSITORY\`."
           [ "$PRIVATE" = true ] && attested="No build attestations: the repository was private when this was built."
           cat > notes.md <<NOTES
-          The build of commit $GITHUB_SHA, version \`$VERSION\`. \`go install algod.top/algodtop@$GITHUB_SHA\` builds the same commit.
+          The build of commit $GITHUB_SHA, version \`$VERSION\`. \`go install algod.top@$GITHUB_SHA\` builds the same commit.
 
           | File | Contents |
           |---|---|
-          | \`algodtop_<os>_<arch>\` | The program for Linux, macOS and Windows on amd64 and arm64, and FreeBSD on amd64 |
+          | \`algod.top_<os>_<arch>\` | The program for Linux, macOS and Windows on amd64 and arm64, and FreeBSD on amd64 |
           | \`checksums.txt\` | The SHA-256 of every binary |
-          | \`checksums.txt.sig\` | The ed25519 signature of \`checksums.txt\` by the algodtop release key |
+          | \`checksums.txt.sig\` | The ed25519 signature of \`checksums.txt\` by the algod.top release key |
 
-          Check a download with \`sha256sum -c checksums.txt --ignore-missing\`. $attested \`algodtop remote install\` checks the signature itself.
+          Check a download with \`sha256sum -c checksums.txt --ignore-missing\`. $attested \`algod.top upgrade\` and \`algod.top remote install\` check the signature themselves.
           NOTES
           gh release create "$TAG" "$OUT"/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "$TITLE" --notes-file notes.md --latest

@@ -462,7 +462,7 @@ export class Chart {
   renderFoot(d) {
     clear(this.footEl);
     const add = (cls, text) => this.footEl.appendChild(h("span", { class: cls }, text));
-    if (this.regionsShown && this.regionsShown.has("monitor")) add("k-monitor", "algodtop was down");
+    if (this.regionsShown && this.regionsShown.has("monitor")) add("k-monitor", "algod.top was down");
     if (this.regionsShown && this.regionsShown.has("algod")) add("k-algod", "algod was down");
     if (this.tierNote) add("", this.tierNote);
     if (d.raw) add("", d.downsampled ? "full resolution, " + d.downsampled : "full resolution");

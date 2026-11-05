@@ -2,6 +2,7 @@ package tui
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -164,6 +165,76 @@ func TestEventLineLongKind(t *testing.T) {
 		e := model.Event{Time: m.Now.UnixNano(), Node: "mainnet-1", Kind: k, Msg: "key-expiry: soon"}
 		if line := m.eventLine(e, true); !strings.Contains(line, k+"  ") && !strings.Contains(line, k+" key-expiry") {
 			t.Fatalf("%q", line)
+		}
+	}
+}
+
+// TestNodePaneScroll: on the node screen, the keys scroll the open pane
+// within its rows, and the footer says which rows show.
+func TestNodePaneScroll(t *testing.T) {
+	m := fixture()
+	m.Screen, m.Node, m.H = ScreenNode, "mainnet", 30
+	var peers []collector.PeerInfo
+	for i := range 50 {
+		peers = append(peers, collector.PeerInfo{Addr: fmt.Sprintf("10.0.0.%02d:4160", i), IP: fmt.Sprintf("10.0.0.%02d", i), Network: "ws", Direction: "out", Since: m.Now.UnixNano()})
+	}
+	m.Nodes[0].PeerList = peers
+	a := &App{m: *m}
+	screen := func() string { return strings.Join(Render(&a.m), "\n") }
+	footer := func() string {
+		lines := Render(&a.m)
+		return strings.TrimSpace(lines[len(lines)-1])
+	}
+	s := screen()
+	rows := a.m.paneRows
+	if !strings.Contains(s, "10.0.0.00:4160") || strings.Contains(s, "10.0.0.49:4160") || rows < 2 {
+		t.Fatalf("first page, %d rows:\n%s", rows, s)
+	}
+	if want := fmt.Sprintf("rows 1-%d of 50", rows); !strings.HasPrefix(footer(), want) {
+		t.Errorf("footer %q, want %q", footer(), want)
+	}
+	a.key(kDown)
+	if a.m.Scroll != 1 || !strings.HasPrefix(footer(), fmt.Sprintf("rows 2-%d of 50", rows+1)) {
+		t.Errorf("down: scroll %d, footer %q", a.m.Scroll, footer())
+	}
+	a.key(kEnd)
+	if s := screen(); !strings.Contains(s, "10.0.0.49:4160") || a.m.Scroll != 50-rows {
+		t.Errorf("end: scroll %d\n%s", a.m.Scroll, s)
+	}
+	a.key(kDown)
+	if a.m.Scroll != 50-rows {
+		t.Errorf("scrolled past the end: %d", a.m.Scroll)
+	}
+	a.key(kPgUp)
+	if a.m.Scroll != 50-rows-(rows-1) {
+		t.Errorf("pgup: %d", a.m.Scroll)
+	}
+	a.key(kHome)
+	if a.m.Scroll != 0 {
+		t.Errorf("home: %d", a.m.Scroll)
+	}
+	// The node list's selection does not move on the node screen.
+	if a.m.Sel != 0 {
+		t.Errorf("selection moved to %d", a.m.Sel)
+	}
+	a.key('e')
+	if a.m.Pane != PaneEvents || a.m.Scroll != 0 {
+		t.Errorf("pane change kept scroll %d", a.m.Scroll)
+	}
+}
+
+func TestReadKeysPaging(t *testing.T) {
+	ch := make(chan int, 16)
+	go readKeys(strings.NewReader("\x1b[5~\x1b[6~\x1b[H\x1b[F\x1b[1~\x1b[4~\x1b[Aq"), ch)
+	want := []int{kPgUp, kPgDn, kHome, kEnd, kHome, kEnd, kUp, 'q'}
+	for i, w := range want {
+		select {
+		case k := <-ch:
+			if k != w {
+				t.Fatalf("key %d: got %d, want %d", i, k, w)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatalf("key %d: nothing read", i)
 		}
 	}
 }

@@ -59,7 +59,7 @@ export function mount(root, app, r) {
       { key: "addr", label: "address", render: (p) => h("span", { class: "mono" }, p.addr) },
       { key: "direction", label: "dir", render: (p) => dirCell(p.direction) },
       { key: "network", label: "net" },
-      { key: "since", label: "connected", num: true, get: (p) => -p.since, render: (p) => (p.since ? h("span", { title: p.since_before ? "Connected before algodtop first looked, so at least this long" : null }, fmtDur((Date.now() - ns(p.since)) / 1000) + (p.since_before ? "+" : "")) : "-") },
+      { key: "since", label: "connected", num: true, get: (p) => -p.since, render: (p) => (p.since ? h("span", { title: p.since_before ? "Connected before algod.top first looked, so at least this long" : null }, fmtDur((Date.now() - ns(p.since)) / 1000) + (p.since_before ? "+" : "")) : "-") },
     ];
     if (usage) {
       cols.push(
@@ -100,7 +100,7 @@ export function mount(root, app, r) {
     const cols = [
       { key: "ip", label: "address", render: (x) => h("span", { class: "mono" }, (x.ip === open ? "\u25BE " : "\u25B8 ") + x.ip) },
       { key: "sessions", label: "sessions", num: true },
-      { key: "connected_s", label: "time connected", num: true, render: (x) => h("span", { title: x.connected_more ? "A session was open before algodtop first looked, so at least this long" : null }, fmtDur(x.connected_s) + (x.connected_more ? "+" : "")) },
+      { key: "connected_s", label: "time connected", num: true, render: (x) => h("span", { title: x.connected_more ? "A session was open before algod.top first looked, so at least this long" : null }, fmtDur(x.connected_s) + (x.connected_more ? "+" : "")) },
       { key: "reasons", label: "disconnect reasons", get: (x) => Object.keys(x.reasons || {}).join(","), render: (x) => reasonsCell(x.reasons), cls: "wrap" },
       { key: "resets", label: "resets", num: true },
       { key: "clusters", label: "clusters", get: (x) => (x.clusters || []).length, render: (x) => (x.clusters || []).map((id) => h("a", { href: "#cluster-" + id, class: "chip", on: { click: (e) => { e.preventDefault(); setParams({ cl: id }, { replace: true }); } } }, "#" + id)) },

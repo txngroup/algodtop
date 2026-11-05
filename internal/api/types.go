@@ -10,6 +10,7 @@ import (
 	"algod.top/internal/health"
 	"algod.top/internal/model"
 	"algod.top/internal/query"
+	"algod.top/internal/release"
 	"algod.top/internal/store"
 )
 
@@ -34,20 +35,24 @@ type DaemonStatus struct {
 	Host    string `json:"host"`
 	Version string `json:"version"`
 	// VersionTime is when the build's commit was made, Unix ns, or 0.
-	VersionTime int64             `json:"version_time,omitempty"`
-	Platform    string            `json:"platform"`
-	Started     int64             `json:"started"`
-	StoreBytes  int64             `json:"store_bytes"`
-	TierBytes   map[string]int64  `json:"tier_bytes"`
-	Retention   map[string]string `json:"retention"`
-	Live        bool              `json:"live"` // no daemon: live only, no history
-	Paused      bool              `json:"paused"`
-	Self        SelfStats         `json:"self"`
-	Agent       bool              `json:"agent,omitempty"`
-	ReadOnly    bool              `json:"read_only"`
-	Auth        string            `json:"auth"` // none, read, write
-	ConfigPath  string            `json:"config_path,omitempty"`
-	Warnings    []string          `json:"warnings,omitempty"`
+	VersionTime int64 `json:"version_time,omitempty"`
+	// Latest is a newer release than this build, with its commit time,
+	// when the hub's daily check found one.
+	Latest     string            `json:"latest,omitempty"`
+	LatestTime int64             `json:"latest_time,omitempty"`
+	Platform   string            `json:"platform"`
+	Started    int64             `json:"started"`
+	StoreBytes int64             `json:"store_bytes"`
+	TierBytes  map[string]int64  `json:"tier_bytes"`
+	Retention  map[string]string `json:"retention"`
+	Live       bool              `json:"live"` // no daemon: live only, no history
+	Paused     bool              `json:"paused"`
+	Self       SelfStats         `json:"self"`
+	Agent      bool              `json:"agent,omitempty"`
+	ReadOnly   bool              `json:"read_only"`
+	Auth       string            `json:"auth"` // none, read, write
+	ConfigPath string            `json:"config_path,omitempty"`
+	Warnings   []string          `json:"warnings,omitempty"`
 }
 
 // SelfStats are algodtop's own resource figures.
@@ -133,6 +138,9 @@ type Hub interface {
 	ConfigJSON() ([]byte, error)
 	PutConfig(ctx context.Context, b []byte) error
 	AgentBatches(ctx context.Context, since string, wait time.Duration) ([]byte, string, error)
+	// Upgrade installs a signed release over the running binary and
+	// restarts onto it. The API offers it on the unix socket only.
+	Upgrade(ctx context.Context, f release.Files) (release.Result, error)
 }
 
 // DiscoveredNode is a node found by discovery that is not in the config.

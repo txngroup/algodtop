@@ -1,4 +1,4 @@
-algodtop  host algod-host  10:52:14  daemon up 3d 4h  store 2.1GB  nodes 5: 3 OK, 1 Warn, 1 Critical                    
+algod.top  host algod-host  10:52:14  daemon up 3d 4h  store 2.1GB  nodes 5: 3 OK, 1 Warn, 1 Critical                   
 mainnet  round 52184330  rtime 2.79s  tpb 41  pool 312     range 1h  live                                               
                                                                                                                         
  NODE        NET      VER             ROUND   LAG RTIME  WS i/o P2P i/o  CPU%   RSS  NET KB/s HEALTH                    

@@ -51,7 +51,7 @@ start)
 	# the source tree.
 	ctx=$(mktemp -d)
 	cp $T/Dockerfile $T/config.json $T/start.sh $T/fakes.sh "$ctx"
-	CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -o "$ctx/algodtop" ./algodtop
+	CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -o "$ctx/algod.top" .
 	CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -o "$ctx/algod" ./internal/fakealgod/cmd/fakealgod
 	docker build -q -t $NAME "$ctx"
 	rm -rf "$ctx"
@@ -68,9 +68,9 @@ shoot)
 	echo "$R" > "$rec/range"
 	git rev-parse HEAD > "$rec/commit"
 	out=$(mktemp -d)
-	go build -o "$out/algodtop" ./algodtop
+	go build -o "$out/algod.top" .
 	web record "$rec" "$out" "$R"
-	uv run --no-project --with pyte --with playwright python -I $T/tui.py "$out/algodtop" http://127.0.0.1:18090 "$out/tui.png"
+	uv run --no-project --with pyte --with playwright python -I $T/tui.py "$out/algod.top" http://127.0.0.1:18090 "$out/tui.png"
 	cp "$out/tui.png.raw" "$rec/tui.raw"
 	ln -sfn "$stamp" $T/saved/latest
 	webp "$out"

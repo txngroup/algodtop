@@ -94,7 +94,7 @@ function fmtDays(d) {
   return d.toFixed(d < 10 ? 1 : 0) + " d";
 }
 
-// hasProc reports whether algodtop reads the node's process stats and
+// hasProc reports whether algod.top reads the node's process stats and
 // node.log. A REST or no-install SSH node has neither: an agent or a local
 // node has both.
 export function hasProc(n) {
@@ -120,7 +120,7 @@ export function notable(evs) {
   return evs.filter((e) => !QUIET.has(e.kind));
 }
 
-// regionsFrom finds "algodtop was down" (monitor-gap) and "algod was down"
+// regionsFrom finds "algod.top was down" (monitor-gap) and "algod was down"
 // (node-down until node-up) stretches.
 export function regionsFrom(evs, node, now) {
   const out = [];

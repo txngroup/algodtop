@@ -102,7 +102,7 @@ type running struct {
 	done   chan error
 }
 
-func start(t *testing.T, cfg *config.Config, agent bool) *running {
+func start(t *testing.T, cfg *config.Config, agent bool, opts ...func(*daemon.Options)) *running {
 	t.Helper()
 	var mu sync.Mutex
 	addrCh := make(chan string, 1)
@@ -117,6 +117,9 @@ func start(t *testing.T, cfg *config.Config, agent bool) *running {
 	}}
 	if !agent {
 		o.Static = web.FS
+	}
+	for _, f := range opts {
+		f(&o)
 	}
 	d, err := daemon.New(o)
 	if err != nil {

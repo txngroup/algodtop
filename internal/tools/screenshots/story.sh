@@ -18,7 +18,7 @@ at() {
 }
 x() { docker exec $NAME "$@"; }
 at 55
-x algodtop silence --node mainnet-relay --for 15m "planned restart: kernel update"
+x algod.top silence --node mainnet-relay --for 15m "planned restart: kernel update"
 at 56
 docker exec -d $NAME /fakes.sh mainnet-relay
 at 110
@@ -30,7 +30,7 @@ x sh -c 'kill "$(cat /var/lib/algorand/localnet/algod.pid)"'
 at 184
 docker exec -d $NAME /fakes.sh localnet
 at 240
-x algodtop silence --node testnet --for 20m "upgrade to 5.1.2"
+x algod.top silence --node testnet --for 20m "upgrade to 5.1.2"
 at 241
 docker exec -d -e TESTNET_VERSION=5.1.2 $NAME /fakes.sh testnet
 at 365

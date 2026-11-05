@@ -143,7 +143,7 @@ export function mount(root, app, r) {
     clear(body);
     const nodes = app.nodes.slice();
     if (!nodes.length) {
-      body.appendChild(h("div", { class: "banner" }, "No nodes are configured. Add nodes to the config file, or run algodtop daemon --discover."));
+      body.appendChild(h("div", { class: "banner" }, "No nodes are configured. Add nodes to the config file, or run algod.top daemon --discover."));
       return;
     }
     // Worst first, so a problem is on the first screen.
