@@ -55,7 +55,7 @@ The web UI listens on http://127.0.0.1:8090 by default. Press `?` in the termina
 | `algod.top service [install\|uninstall\|status]` | Start the daemon at login or boot |
 | `algod.top reload` | Reload the config (the same as SIGHUP) |
 | `algod.top passwd [--read-only\|--token]` | Set the web password or make a read-only token |
-| `algod.top check` | Validate the config, reach each node, project disk use |
+| `algod.top check [--notify]` | Validate the config and alerts, reach each node, project disk use. `--notify` tests each channel |
 
 ## Config
 

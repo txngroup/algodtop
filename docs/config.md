@@ -111,11 +111,13 @@ Shortening a window deletes data at the next maintenance pass, and the deletion 
 
 Expressions:
 
-- Booleans: `down`, `stalled`, `catchup`, `agent_unreachable`, and `rule:<name>` for any health rule (`down`, `health`, `stalled`, `disk`, `key_expiry`, `account_offline`, `key_mismatch`, `no_votes`, `clock`, `catchup`, `key_expiry_warn`, `incentive_lost`, `disk_fill`, `no_outgoing`, `error_rate`, `version_behind`, `algod.top`).
+- Booleans: `down`, `stalled`, `catchup`, `agent_unreachable`, and `rule:<name>` for any health rule (`down`, `health`, `stalled`, `disk`, `key_expiry`, `account_offline`, `key_mismatch`, `no_votes`, `clock`, `catchup`, `key_expiry_warn`, `incentive_lost`, `disk_fill`, `no_outgoing`, `error_rate`, `version_behind`, `algodtop`).
 - Comparisons `<var> <op> <value>` with `>`, `>=`, `<`, `<=`, `==`, `!=`. Variables: `lag`, `round_time`, `round_p99`, `cpu`, `rss`, `disk_free_pct`, `disk_days`, `peers`, `peers_out`, `peers_in`, `pool`, `tpb`, `error_rate`, `clock_offset`, `key_days`, `net_in`, `net_out`, `health`. Values take units: `30s`, `500ms`, `4GiB`, `10%`, or `warn` and `critical` for `health`.
 - `a or b` combines two expressions.
 
 An alert fires when its expression holds for `for`, clears after it is false for `cooldown`, and repeats every `repeat` while firing. Silences suppress notifications but keep the events.
+
+Each rule needs a name of its own. `severity` is `info`, `warn`, `error` or `critical` (the default). The daemon leaves out a rule that does not parse or that repeats a name, runs the rest, and records a `config-error` event. `algod.top check` reports such rules first.
 
 ## channels
 
@@ -131,6 +133,10 @@ Channels live only in the config file. The web UI and the API cannot create or c
 ```
 
 A webhook posts the notification JSON (`alert`, `node`, `state`, `severity`, `message`, `since`, `time`, `host`, `expr`) unless a Go `text/template` is given. A command gets the JSON on stdin and `ALGODTOP_ALERT`, `ALGODTOP_NODE`, `ALGODTOP_STATE` and `ALGODTOP_MESSAGE` in its environment.
+
+SMTP on port 465 uses TLS from the start. Any other port upgrades with STARTTLS when the server offers it. A `username` needs TLS, except to a server on localhost. `password_file` may start with `~`.
+
+A webhook or SMTP delivery that fails is tried again after 10 s, 1 min and 5 min, unless the failure is one a retry would repeat: a webhook 4xx other than 408 and 429, or an SMTP 5xx. A command runs once. A notification that never gets through is recorded as an `alert-undelivered` event on its node. Each channel delivers in order on its own, so a slow channel does not hold up the others. `algod.top check --notify` sends a test notification, with `state` set to `test`, on every channel.
 
 `heartbeat.url` is pinged every `heartbeat.interval` (1m), for a dead-man switch on any healthchecks-style service.
 

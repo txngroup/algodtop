@@ -508,12 +508,16 @@ Alert rules live in the config file with a name, expression, duration, severity,
 The channels need only the stdlib:
 
 - Webhook, a JSON POST. With a template it works for ntfy, Slack, Discord and Pushover.
-- SMTP through `net/smtp`.
+- SMTP through `net/smtp`. `net/smtp` takes no context, so algod.top dials the server itself and sets a 30 s deadline on the connection. Without it, a server that accepts and never answers would hold the channel forever. Port 465 speaks TLS from the first byte; other ports upgrade with STARTTLS when the server offers it. Each mail carries `Date` and `Message-ID`, which spam filters expect.
 - Command: algod.top runs a configured program with the alert JSON on stdin. This covers `osascript` notifications on macOS and PowerShell toast notifications on Windows.
 
 Channels are defined only in the config file. Neither front end nor the API can create or change a channel, because a command channel runs a program as the daemon's user.
 
 Firing needs the condition true for the full duration. Clearing needs it false for a cooldown, so alerts do not flap. A firing alert repeats at its repeat interval (default 1 h). Each transition is stored as an event.
+
+Each channel has its own delivery worker and queue. The worker keeps the channel's order, so a receiver never sees "cleared" before "repeat". A channel that hangs delays only its own notifications. A failed webhook or SMTP delivery is tried again after 10 s, 1 min and 5 min, which outlasts a webhook service's restart or a DNS blip. A failure that a retry would repeat is given up at once: a webhook 4xx other than 408 and 429, or an SMTP 5xx. A command runs once, because it may have done its work before it failed. A notification that never gets through is stored as an `alert-undelivered` event on its node, so a broken channel shows in both UIs before the incident it was meant for.
+
+A rule that does not parse, or that repeats another rule's name, is left out, and the daemon runs the rest. At startup a `config-error` event names it. A reload with such a rule fails and keeps the running config. `algod.top check` reports these rules before the daemon sees them, and `algod.top check --notify` sends a test notification on every channel. The daemon drops the firing state of a rule removed from the config, so the rule does not stay firing in the UIs.
 
 ### Silences
 
@@ -873,7 +877,7 @@ Other candidates. Each is listed for approval, and none is planned:
 | `algod.top service` | Explains, installs, removes or reports the service that starts the daemon at login or boot (section 16) |
 | `algod.top reload` | Asks the daemon to reload its config, the same as SIGHUP. Windows has no SIGHUP, so this is the reload method there. |
 | `algod.top passwd` | Hashes a password into the config |
-| `algod.top check` | Validates config, reaches each node, prints projected disk use and any pending retention deletion |
+| `algod.top check [--notify]` | Validates config and alert rules, reaches each node, prints projected disk use and any pending retention deletion. `--notify` sends a test notification on each channel |
 | `algod.top version` | Prints the version |
 
 ### Config
