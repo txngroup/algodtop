@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
@@ -477,6 +478,7 @@ func (n *Node) markDown(now time.Time, why string) {
 	n.st.Healthy = false
 	n.st.Ready = false
 	n.st.LastError = why
+	n.st.StatusErr, n.st.StatusErrAt = "", 0
 	if n.st.DownSince == 0 {
 		n.st.DownSince = now.UnixNano()
 	}
@@ -727,12 +729,22 @@ func (n *Node) scrape(ctx context.Context) {
 	if perr2 == nil {
 		rest = append(rest, model.Sample{Name: "algodtop_txpool_size", Kind: model.KindGauge, Value: float64(pool)})
 	}
+	var why string
+	if serr != nil {
+		why = statusProblem(serr, c.HasToken(), n.o.Source.Kind())
+	}
 	n.update(func(s *State) {
 		s.Healthy, s.Ready = healthy, ready
 		if serr == nil {
 			s.StatusLag = float64(st.TimeSinceLastRound) / 1e9
 			if st.LastRound > s.Round {
 				s.Round = st.LastRound
+			}
+			s.StatusErr, s.StatusErrAt = "", 0
+		} else {
+			s.StatusErr = why
+			if s.StatusErrAt == 0 {
+				s.StatusErrAt = now.UnixNano()
 			}
 		}
 		if perr2 == nil {
@@ -741,6 +753,23 @@ func (n *Node) scrape(ctx context.Context) {
 	})
 	n.batch(model.GroupREST, now, rest)
 	n.ensureVersion(rctx, c)
+}
+
+// statusProblem words a /v2/status failure for the health reason. A
+// missing or rejected token is the usual cause, and /metrics and /health
+// answer without one, so the node otherwise looks up and fine.
+func statusProblem(err error, hasToken bool, kind string) string {
+	var he *algod.HTTPError
+	if !errors.As(err, &he) || (he.Status != http.StatusUnauthorized && he.Status != http.StatusForbidden) {
+		return err.Error()
+	}
+	switch {
+	case hasToken:
+		return fmt.Sprintf("algod rejects the API token (HTTP %d)", he.Status)
+	case kind == "local" || kind == "ssh":
+		return fmt.Sprintf("algod.token is missing or unreadable (HTTP %d)", he.Status)
+	}
+	return fmt.Sprintf("no API token is set (HTTP %d)", he.Status)
 }
 
 func (n *Node) noteCatchup(on bool) {

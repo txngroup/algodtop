@@ -434,6 +434,8 @@ The API is plain JSON over HTTP, served by stdlib `net/http` with the pattern ro
 | `GET /api/stream?nodes=` | Server-Sent Events: live status and new samples for every node and series the client subscribes to |
 | `GET /metrics` | algod.top's own metrics in Prometheus text format |
 
+`from` and `to` take unix seconds, milliseconds or nanoseconds, told apart by size, RFC 3339, `now`, or a time relative to now such as `-6h`. A unix time may have a fraction, because JavaScript does its time arithmetic in fractional milliseconds.
+
 ### Tier selection
 
 The `points` parameter is the number of buckets the client can draw: chart width in pixels for the web UI, or columns for the terminal UI. The planner works as follows:
@@ -484,7 +486,7 @@ Each node has a health state of OK, Warn or Critical, and the reasons are always
 
 - Critical:
   - algod is down, or `/health` fails
-  - the last round is older than 30 s and the node is not in catchup
+  - the last round is older than 30 s and the node is not in catchup. A node whose `/v2/status` fails, for example because algod rejects the API token, has no round, so its lag counts from the first failure and the reason names the error. algod answers `/metrics` and `/health` without a token, so such a node would otherwise look up and well.
   - disk is under 5%
   - an account's active participation key expires within 2 days. The active key is the on-chain vote key when the account is listed, else the valid key that voted last. A renewed account keeps its old key installed until someone deletes it, and that key does not count.
   - a listed account was online and is now offline or suspended (offline with its vote key still set)
@@ -493,6 +495,7 @@ Each node has a health state of OK, Warn or Critical, and the reasons are always
   - the clock offset is over 1 s
 - Warn:
   - catchup is running
+  - no round has been read yet because `/v2/status` fails. It becomes Critical once the lag passes 30 s.
   - an account's active key expires within 14 days
   - a listed account lost incentive eligibility
   - disk will fill within 14 days

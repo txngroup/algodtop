@@ -28,7 +28,7 @@ function sumArrays(list) {
 
 async function loadSparks(n) {
   const to = Date.now();
-  const from = Math.max(to - DAY, n.history_from ? n.history_from / 1e6 : 0);
+  const from = Math.max(to - DAY, n.history_from ? Math.floor(n.history_from / 1e6) : 0);
   const p = (metric) => get("/api/series", { node: n.name, metric, from, to, points: SPARK_POINTS }).catch(() => null);
   const [rt, wsi, p2i, wso, p2o] = await Promise.all([
     p("algodtop_round_time_seconds"),

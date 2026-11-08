@@ -145,6 +145,13 @@ func (c *Client) SetTokens(token, admin string) {
 	c.tokMu.Unlock()
 }
 
+// HasToken reports whether an API token is configured.
+func (c *Client) HasToken() bool {
+	c.tokMu.RLock()
+	defer c.tokMu.RUnlock()
+	return c.token != ""
+}
+
 // HasAdmin reports whether an admin token is configured.
 func (c *Client) HasAdmin() bool {
 	c.tokMu.RLock()

@@ -132,7 +132,7 @@ func (rs *remoteSet) views() []api.NodeView {
 			v.Remote = r.cfg.Name
 			v.Kind = "agent"
 			v.ClockOffsetAgent = r.offset
-			if v.RoundAt != 0 {
+			if v.RoundAt != 0 || v.StatusErrAt != 0 {
 				v.Lag = v.State.Lag(agentNow)
 			}
 			if !reachable {
