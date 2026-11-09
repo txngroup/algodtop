@@ -661,6 +661,7 @@ func (n *Node) scrape(ctx context.Context) {
 		}
 		return
 	}
+	livePID := 0 // a local algod whose process is known to be running
 	if ls, ok := n.o.Source.(*LocalSource); ok {
 		n.mu.RLock()
 		pid := n.st.PID
@@ -674,8 +675,12 @@ func (n *Node) scrape(ctx context.Context) {
 		}
 		// A stale algod.pid naming a dead process means algod is down,
 		// even if something answers on the old REST address.
-		if a, ok := isAlive(cur); cur == 0 || (ok && !a) || c == nil {
+		a, ok := isAlive(cur)
+		if cur == 0 || (ok && !a) || c == nil {
 			return
+		}
+		if ok {
+			livePID = cur
 		}
 	}
 	rctx, cancel := context.WithTimeout(ctx, n.o.Scrape)
@@ -690,7 +695,12 @@ func (n *Node) scrape(ctx context.Context) {
 		n.update(func(s *State) { s.MissedScrapes++; s.LastError = err.Error(); s.Reachable = false })
 		rest = append(rest, model.Sample{Name: "algodtop_scrape_errors_total", Kind: model.KindCounter, Value: float64(n.st.MissedScrapes)})
 		if n.failures >= 2 {
-			n.markDown(now, "REST unreachable: "+err.Error())
+			why := "REST unreachable: " + err.Error()
+			if livePID != 0 {
+				// A hung algod needs a kill, a crashed one a start.
+				why += fmt.Sprintf("; algod pid %d is still running", livePID)
+			}
+			n.markDown(now, why)
 			n.poke()
 		}
 		rest = append(rest, model.Sample{Name: "algodtop_up", Kind: model.KindGauge, Value: 0})

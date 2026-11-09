@@ -6,6 +6,14 @@ import { h, clear } from "../dom.js";
 import { get, send, canWrite, session, logout } from "../api.js";
 import { fmt, fmtDateTime, fmtDur, ns } from "../format.js";
 
+// byTier lists a map keyed by tier from finest to coarsest. JSON objects
+// from Go arrive sorted by key, which put 10m before 1h before 1m.
+const TIERS = ["raw", "1m", "10m", "1h"];
+function byTier(m) {
+  const rank = (k) => (TIERS.indexOf(k) < 0 ? TIERS.length : TIERS.indexOf(k));
+  return Object.entries(m || {}).sort((a, b) => rank(a[0]) - rank(b[0]) || (a[0] < b[0] ? -1 : 1));
+}
+
 function kvTable(obj) {
   const rows = Object.entries(obj || {}).filter(([, v]) => v !== undefined && v !== null && v !== "" && !(Array.isArray(v) && !v.length));
   if (!rows.length) return h("p", { class: "muted" }, "Defaults.");
@@ -43,8 +51,8 @@ export function mount(root, app) {
       st.latest ? h("dd", null, "committed " + fmtDateTime(ns(st.latest_time)) + ". Run ", h("code", null, "algod.top upgrade"), " on this machine to install it here and on every remote agent.") : null,
       h("dt", null, "platform"), h("dd", null, st.platform || "-"),
       h("dt", null, "started"), h("dd", null, st.started ? fmtDateTime(ns(st.started)) + " (" + fmtDur((Date.now() - ns(st.started)) / 1000) + " ago)" : "-"),
-      h("dt", null, "store"), h("dd", null, fmt(st.store_bytes || 0, "bytes") + "  " + Object.entries(st.tier_bytes || {}).map(([k, v]) => k + " " + fmt(v, "bytes")).join(", ")),
-      h("dt", null, "retention"), h("dd", null, Object.entries(st.retention || {}).map(([k, v]) => k + " " + v).join(", ")),
+      h("dt", null, "store"), h("dd", null, fmt(st.store_bytes || 0, "bytes") + "  " + byTier(st.tier_bytes).map(([k, v]) => k + " " + fmt(v, "bytes")).join(", ")),
+      h("dt", null, "retention"), h("dd", null, byTier(st.retention).map(([k, v]) => k + " " + v).join(", ")),
       h("dt", null, "algod.top itself"), h("dd", null, st.self ? "CPU " + (st.self.cpu || 0).toFixed(1) + "%, RSS " + fmt(st.self.rss || 0, "bytes") + ", " + st.self.sse_clients + " live viewers, " + (st.self.samples || 0).toLocaleString("en-US") + " samples stored" : "-"),
       h("dt", null, "session"), h("dd", null, session.auth_required ? "logged in as " + session.role + " " : "no password set; this listener allows writes from this machine ",
         session.auth_required ? h("button", { type: "button", class: "small", on: { click: async () => { await logout(); location.reload(); } } }, "log out") : null)));

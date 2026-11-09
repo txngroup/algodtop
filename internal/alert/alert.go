@@ -207,7 +207,11 @@ func (e *Expr) eval1(in Input) (bool, string) {
 	s := in.State
 	switch e.Var {
 	case "down":
-		return !s.Up, "algod is down"
+		why := "algod is down"
+		if s.LastError != "" {
+			why += " (" + s.LastError + ")"
+		}
+		return !s.Up, why
 	case "stalled":
 		lag := s.Lag(in.Now)
 		why := fmt.Sprintf("last round is %.0fs old", lag)
@@ -327,6 +331,11 @@ type alertState struct {
 	FiredAt    int64  `json:"fired_at,omitempty"`
 	LastSent   int64  `json:"last_sent,omitempty"`
 	Message    string `json:"message,omitempty"`
+	// FiredMessage is the message the alert fired with. The cleared
+	// notification names it, rather than whatever held last: a node back
+	// from down is briefly stalled, and "cleared: last round is 81s old"
+	// read as a new problem.
+	FiredMessage string `json:"fired_message,omitempty"`
 }
 
 // Engine evaluates rules and sends notifications.
@@ -468,7 +477,7 @@ func (e *Engine) Evaluate(node string, in Input) {
 			}
 			st.Message = why
 			if !st.Firing && now.Sub(time.Unix(0, st.TrueSince)) >= forD {
-				st.Firing, st.FiredAt, st.LastSent = true, now.UnixNano(), now.UnixNano()
+				st.Firing, st.FiredAt, st.LastSent, st.FiredMessage = true, now.UnixNano(), now.UnixNano(), why
 				note = &Notification{State: "firing"}
 				changed = true
 			} else if st.Firing && now.Sub(time.Unix(0, st.LastSent)) >= repeat {
@@ -485,7 +494,11 @@ func (e *Engine) Evaluate(node string, in Input) {
 				if now.Sub(time.Unix(0, st.FalseSince)) >= cool {
 					st.Firing = false
 					note = &Notification{State: "cleared"}
-					why = "cleared: " + st.Message
+					fired := st.FiredMessage
+					if fired == "" {
+						fired = st.Message // state saved by an older release
+					}
+					why = "cleared: " + fired
 					changed = true
 				}
 			}

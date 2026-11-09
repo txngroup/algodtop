@@ -73,6 +73,10 @@ export function mount(root, app, r) {
     }
     const fi = h("input", { type: "search", placeholder: "filter", value: q.get("f") || "", on: { change: (e) => setParams({ f: e.target.value || null }, { replace: true }) } });
     clear(cur);
+    if (!res.has_admin) {
+      cur.append(h("p", { class: "note" }, "The peer list needs the admin token, and this node has none. Set admin_token or admin_token_file for a URL node, or make algod.admin.token in the data directory readable."));
+      return;
+    }
     cur.append(h("div", { class: "bar" },
       h("span", null, peers.length + " peers: WS " + (c.ws_in || 0) + " in / " + (c.ws_out || 0) + " out, P2P " + (c.p2p_in || 0) + " in / " + (c.p2p_out || 0) + " out"),
       usage ? null : h("span", { class: "note" }, "Per-peer usage is not available on this node, so rates and peer IDs are not shown."),
@@ -120,9 +124,9 @@ export function mount(root, app, r) {
         clear(cell);
         const ss = sr.sessions || [];
         cell.appendChild(sortableTable([
-          { key: "start", label: "start", num: true, render: (z) => fmtDateTime(ns(z.start)) },
+          { key: "start", label: "start", num: true, render: (z) => (z.open_before ? h("span", { title: "Connected before algod.top first looked" }, "before " + fmtDateTime(ns(z.start))) : fmtDateTime(ns(z.start))) },
           { key: "end", label: "end", num: true, render: (z) => (z.end ? fmtDateTime(ns(z.end)) : "open") },
-          { key: "dur", label: "length", num: true, get: (z) => (z.end ? z.end - z.start : Date.now() * 1e6 - z.start), render: (z) => fmtDur(((z.end || Date.now() * 1e6) - z.start) / 1e9) },
+          { key: "dur", label: "length", num: true, get: (z) => (z.end ? z.end - z.start : Date.now() * 1e6 - z.start), render: (z) => fmtDur(((z.end || Date.now() * 1e6) - z.start) / 1e9) + (z.open_before ? "+" : "") },
           { key: "direction", label: "dir", render: (z) => dirCell(z.direction) },
           { key: "network", label: "net" },
           { key: "reason", label: "reason" },

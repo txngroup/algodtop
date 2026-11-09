@@ -651,7 +651,7 @@ func (s *Server) handlePeers(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusNotFound, "no such node")
 		return
 	}
-	writeJSON(w, map[string]any{"peers": n.PeerList, "usage": n.PeerUsage, "counts": n.Peers})
+	writeJSON(w, map[string]any{"peers": n.PeerList, "usage": n.PeerUsage, "counts": n.Peers, "has_admin": n.HasAdmin})
 }
 
 func (s *Server) handleTemplates(w http.ResponseWriter, r *http.Request) {
