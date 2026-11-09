@@ -225,6 +225,8 @@ An event has a time, node, kind, severity, short message, and a JSON attribute m
 
 A peer session is (node, network ws/p2p, direction, remote address, P2P peer ID if known, start, end, end reason). Sessions come from two sources. Log connect and disconnect events give exact times and reasons. `/v2/node/peers` diffs fill in what the log level hides. The session store keeps the per-peer history that the reset-cluster analysis needed.
 
+A session already open when algod.top first looks has an unknown start. It is marked open before, and the UIs show its length as a lower bound. This covers a peer in the first poll and a log disconnect with no connect before it. Without the mark, such a disconnect read as a session of 0 s.
+
 ### Per-peer usage
 
 Some algod builds extend `/v2/node/peers` with five optional fields per peer. Released versions do not have them yet. algod.top reads them when they are present, so per-peer traffic appears as soon as a node runs a build that has them.
@@ -485,7 +487,7 @@ The front ends compute these from stored data rather than storing them separatel
 Each node has a health state of OK, Warn or Critical, and the reasons are always listed in words, for example "Warn: participation key for ABC... expires in 6 days". The defaults are:
 
 - Critical:
-  - algod is down, or `/health` fails
+  - algod is down, or `/health` fails. When a local algod stops answering while its process runs, the reason names the pid, because a hung algod needs a kill and a crashed one a start.
   - the last round is older than 30 s and the node is not in catchup. A node whose `/v2/status` fails, for example because algod rejects the API token, has no round, so its lag counts from the first failure and the reason names the error. algod answers `/metrics` and `/health` without a token, so such a node would otherwise look up and well.
   - disk is under 5%
   - an account's active participation key expires within 2 days. The active key is the on-chain vote key when the account is listed, else the valid key that voted last. A renewed account keeps its old key installed until someone deletes it, and that key does not count.
@@ -517,6 +519,8 @@ The channels need only the stdlib:
 Channels are defined only in the config file. Neither front end nor the API can create or change a channel, because a command channel runs a program as the daemon's user.
 
 Firing needs the condition true for the full duration. Clearing needs it false for a cooldown, so alerts do not flap. A firing alert repeats at its repeat interval (default 1 h). Each transition is stored as an event.
+
+A notification says why in the words of the health reason, so `down` names the error, such as a timeout. A cleared notification names the message the alert fired with. A node back from down is stalled until its next round, and the last message, such as "last round is 81s old", read as a new problem.
 
 Each channel has its own delivery worker and queue. The worker keeps the channel's order, so a receiver never sees "cleared" before "repeat". A channel that hangs delays only its own notifications. A failed webhook or SMTP delivery is tried again after 10 s, 1 min and 5 min, which outlasts a webhook service's restart or a DNS blip. A failure that a retry would repeat is given up at once: a webhook 4xx other than 408 and 429, or an SMTP 5xx. A command runs once, because it may have done its work before it failed. A notification that never gets through is stored as an `alert-undelivered` event on its node, so a broken channel shows in both UIs before the incident it was meant for.
 
@@ -785,7 +789,7 @@ The terminal UI talks to the daemon over the unix socket with the same API as th
 1. Fleet. One card per node shows:
    - the health state and its reason
    - network, version, round and lag
-   - peers as in/out for ws and p2p
+   - peers as in/out for ws and p2p, or n/a when the node has no admin token. The counts come from `/v2/node/peers`, so without the token they would read 0.
    - a 24 h sparkline each for bandwidth and round time
    - participation status
    - the last notable event

@@ -101,6 +101,12 @@ export function hasProc(n) {
   return !!n && n.kind !== "rest" && n.kind !== "ssh";
 }
 
+// hasPeers reports whether a node's peer counts are known. They come from
+// /v2/node/peers, which needs the admin token; without it they read 0.
+export function hasPeers(n) {
+  return !!n && !!n.has_admin;
+}
+
 export function uptime(n) {
   const st = ns(n.start_time) || ns(n.up_since);
   return st ? fmtDur((Date.now() - st) / 1000) : "-";
