@@ -116,7 +116,7 @@ Usage:
   %s service [install|uninstall|status]  start the daemon at login or boot
   %s reload                ask the daemon to reload its config
   %s passwd [--read-only|--token]
-  %s check                 validate config, reach each node, project disk use
+  %s check [--notify]      validate config, reach each node, project disk use
   %s version
 
 Run '%s COMMAND --help' for a command's flags.

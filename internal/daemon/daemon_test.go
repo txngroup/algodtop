@@ -650,3 +650,30 @@ func TestRemoteNamesValidate(t *testing.T) {
 func hashToken(s string) string { return api.HashToken(s) }
 
 func insecureTLS() *tls.Config { return &tls.Config{InsecureSkipVerify: true} }
+
+// An alert rule that does not parse leaves the daemon running with the
+// others, and an event says which rule is missing.
+func TestBadAlertRuleIsAnEvent(t *testing.T) {
+	dir := shortDir(t)
+	listen := "127.0.0.1:0"
+	cfg := &config.Config{Path: filepath.Join(dir, "config.json"), StoreDir: filepath.Join(dir, "store"), Web: config.Web{Listen: &listen},
+		NTP:    config.NTP{Disable: true},
+		Alerts: []config.AlertRule{{Name: "stall", Expr: "down or stalled"}, {Name: "lagging", Expr: "lag > 30 s"}}}
+	if err := cfg.Save(cfg.Path); err != nil {
+		t.Fatal(err)
+	}
+	r := start(t, cfg, false)
+	var evs struct {
+		Events []struct {
+			Severity string `json:"severity"`
+			Msg      string `json:"msg"`
+		} `json:"events"`
+	}
+	waitFor(t, "config-error event", 10*time.Second, func() bool {
+		getJSON(t, "http://"+r.addr+"/api/events?from=-1h&kind=config-error", &evs)
+		return len(evs.Events) == 1
+	})
+	if e := evs.Events[0]; e.Severity != "error" || !strings.Contains(e.Msg, `alert rules not running: alert "lagging"`) || strings.Contains(e.Msg, `"stall"`) {
+		t.Fatalf("event %+v", e)
+	}
+}

@@ -74,6 +74,7 @@ type Daemon struct {
 	started  time.Time
 	host     *collector.Host
 	alerts   *alert.Engine
+	alertErr error // rules left out at startup
 	sil      *silences
 	auth     *api.Auth
 	hostNm   string
@@ -171,7 +172,10 @@ func New(o Options) (*Daemon, error) {
 	d.sil = openSilences(filepath.Join(dir, "state", "silences.json"))
 	rules, err := alert.Compile(cfg.Alerts)
 	if err != nil {
+		// The daemon starts with the rules that parse. Run records the
+		// rest as an event, so they show in both UIs.
 		d.logf("alerts: %v", err)
+		d.alertErr = err
 	}
 	d.alerts = alert.NewEngine(rules, cfg.Channels, filepath.Join(dir, "state", "alerts.json"), d.emitEvent, d.sil.active)
 	d.alerts.Logf = d.logf
@@ -278,6 +282,10 @@ func (d *Daemon) Run(ctx context.Context) error {
 		go func() { defer bg.Done(); alert.Heartbeat(ctx, hb, cfg.Heartbeat.Interval.D(), d.logf) }()
 	}
 	d.emitEvent(model.Event{Kind: "algodtop-start", Severity: model.SevInfo, Msg: "algod.top " + version.String() + " started"})
+	if d.alertErr != nil {
+		d.emitEvent(model.Event{Kind: model.EvConfigError, Severity: model.SevError,
+			Msg: "alert rules not running: " + strings.ReplaceAll(d.alertErr.Error(), "\n", "; ")})
+	}
 	d.noteMonitorGap()
 	d.startProfile(ctx)
 	stopSig := d.handleSignals(ctx)

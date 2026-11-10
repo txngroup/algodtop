@@ -156,7 +156,7 @@ algod.top passwd --token      # a read-only bearer token for scripts and -H http
 <tr><td><code>backfill_logs</code></td><td>Read the existing node.log and archive on first start.</td></tr>
 <tr><td><code>disabled</code></td><td>Keep the node in the file without watching it.</td></tr>
 </table>
-<p><code>algod.top check</code> validates the file, reaches each node, and projects the disk the store will use.</p>
+<p><code>algod.top check</code> validates the file and each alert rule, reaches each node, and projects the disk the store will use. <code>algod.top check --notify</code> also sends a test notification on every channel.</p>
 
 <h2 id="remote">Nodes on other hosts</h2>
 <p>algod.top reaches other hosts through the system <code>ssh</code>, so <code>~/.ssh/config</code> aliases, ProxyJump and ssh-agent all work. It always uses <code>BatchMode=yes</code>, so run <code>ssh host</code> once to accept a new host key. There are three ways to watch a node elsewhere.</p>
@@ -243,7 +243,7 @@ algod.top passwd --token      # a read-only bearer token for scripts and -H http
 <tr><th>Field</th><th>Meaning</th></tr>
 <tr><td><code>name</code>, <code>expr</code></td><td>The rule's name and expression.</td></tr>
 <tr><td><code>for</code>, <code>cooldown</code>, <code>repeat</code></td><td>Durations such as <code>1m</code> or <code>2h</code>. <code>cooldown</code> defaults to the longer of <code>for</code> and 1 minute, and <code>repeat</code> to 1 h.</td></tr>
-<tr><td><code>severity</code></td><td>The severity sent with the alert.</td></tr>
+<tr><td><code>severity</code></td><td>The severity sent with the alert: <code>info</code>, <code>warn</code>, <code>error</code> or <code>critical</code>, the default.</td></tr>
 <tr><td><code>channels</code></td><td>Channel names from <code>channels</code>.</td></tr>
 <tr><td><code>nodes</code></td><td>Limit the rule to these nodes. Empty means every node.</td></tr>
 </table>
@@ -265,7 +265,9 @@ algod.top passwd --token      # a read-only bearer token for scripts and -H http
 <pre><code>{"alert": "down", "node": "mainnet-1", "state": "firing", "severity": "critical",
  "message": "algod is down: connection refused", "since": 1793745203000000000,
  "time": 1793745263000000000, "host": "algod-host", "expr": "down or stalled"}</code></pre>
-<p><code>state</code> is <code>firing</code>, <code>repeat</code> or <code>cleared</code>. Channels exist only in the config file. Neither UI nor the API can create or change one, because a command channel runs a program.</p>
+<p><code>state</code> is <code>firing</code>, <code>repeat</code> or <code>cleared</code>, or <code>test</code> from <code>algod.top check --notify</code>. Channels exist only in the config file. Neither UI nor the API can create or change one, because a command channel runs a program.</p>
+<p>SMTP on port 465 uses TLS from the start. Other ports upgrade with STARTTLS when the server offers it. A webhook or SMTP delivery that fails is tried again after 10 s, 1 min and 5 min, unless a retry would fail the same way, such as a webhook that answers 404. A command runs once. A notification that never gets through shows as an <code>alert-undelivered</code> event on its node. Each channel delivers on its own, so a slow one does not hold up the others.</p>
+<p>A rule that does not parse, or that reuses another rule's name, does not run. The daemon runs the other rules and records a <code>config-error</code> event. <code>algod.top check</code> reports such a rule before you start the daemon.</p>
 <p>If the daemon or its machine dies, it can't send an alert. Set <code>"heartbeat": {"url": "...", "interval": "1m"}</code> to ping a healthchecks-style service, which alerts when the pings stop.</p>
 <h3>Silences</h3>
 <p>A silence stops notifications for chosen nodes and rules for a while. Health and events are still recorded.</p>
@@ -310,7 +312,7 @@ algod.top export --events --node mainnet-1</code></pre>
 <tr><td><code>algod.top silence</code></td><td>Add, list or remove silences</td></tr>
 <tr><td><code>algod.top reload</code></td><td>Reload the config, the same as SIGHUP</td></tr>
 <tr><td><code>algod.top passwd</code></td><td>Set the web password, or make a read-only token</td></tr>
-<tr><td><code>algod.top check</code></td><td>Validate the config, reach each node, project disk use</td></tr>
+<tr><td><code>algod.top check [--notify]</code></td><td>Validate the config and alerts, reach each node, project disk use. <code>--notify</code> tests each channel</td></tr>
 <tr><td><code>algod.top stdio</code></td><td>Connect stdin and stdout to the local socket, for use over SSH</td></tr>
 <tr><td><code>algod.top version</code></td><td>Print the version</td></tr>
 </table>

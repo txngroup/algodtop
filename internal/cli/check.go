@@ -2,15 +2,19 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
+	"algod.top/internal/alert"
 	"algod.top/internal/algod"
 	"algod.top/internal/collector"
 	"algod.top/internal/config"
 	"algod.top/internal/daemon"
+	"algod.top/internal/model"
 	"algod.top/internal/remote"
 	"algod.top/internal/store"
 	"algod.top/internal/tui"
@@ -22,6 +26,7 @@ func cmdCheck(args []string) int {
 	fs := newFlags(prog + " check")
 	cfgF := fs.str("c", "config", "PATH", "Config file")
 	agentF := fs.flag("", "agent", "Check the agent config")
+	notifyF := fs.flag("", "notify", "Send a test notification on every channel")
 	if err := fs.parse(args); err != nil {
 		return errf("%v", err)
 	}
@@ -86,9 +91,7 @@ func cmdCheck(args []string) int {
 		first, _, _ := strings.Cut(strings.TrimSpace(string(out)), "\n")
 		fmt.Printf("ok   remote %-10s %s\n", r.Name, first)
 	}
-	for name, ch := range cfg.Channels {
-		fmt.Printf("info channel %-10s %s\n", name, ch.Type)
-	}
+	fails += checkAlerts(cfg, notifyF.Bool())
 	// Disk projection and retention preview.
 	in, err := store.Inspect(cfg.StorePath())
 	if err != nil {
@@ -131,6 +134,52 @@ func cmdCheck(args []string) int {
 		return 1
 	}
 	return 0
+}
+
+// checkAlerts parses each alert rule as the daemon will and, with notify,
+// sends a test notification on each channel. A rule the daemon cannot
+// parse would never fire, and nothing else would say so before the
+// incident it was meant for. It returns the number of failures.
+func checkAlerts(cfg *config.Config, notify bool) int {
+	fails := 0
+	seen := map[string]bool{}
+	for _, a := range cfg.Alerts {
+		err := alert.CheckRule(a)
+		if err == nil && seen[a.Name] {
+			err = errors.New("another alert has this name; the daemon runs only the first")
+		}
+		seen[a.Name] = true
+		switch {
+		case err != nil:
+			fmt.Printf("FAIL alert %-11s %v\n", a.Name, err)
+			fails++
+		case a.Severity != "" && !slices.Contains(alert.Severities, a.Severity):
+			fmt.Printf("warn alert %-11s severity %q is not one of %s\n", a.Name, a.Severity, strings.Join(alert.Severities, ", "))
+		default:
+			fmt.Printf("ok   alert %-11s %s\n", a.Name, a.Expr)
+		}
+	}
+	host, _ := os.Hostname()
+	for _, name := range sortedKeys(cfg.Channels) {
+		ch := cfg.Channels[name]
+		if !notify {
+			fmt.Printf("info channel %-10s %s\n", name, ch.Type)
+			continue
+		}
+		now := time.Now().UnixNano()
+		n := alert.Notification{Alert: "test", Node: host, State: "test", Severity: model.SevInfo,
+			Message: "test notification from " + prog + " check --notify", Since: now, Time: now, Host: host}
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		err := alert.Send(ctx, ch, n)
+		cancel()
+		if err != nil {
+			fmt.Printf("FAIL channel %-10s %s: %v\n", name, ch.Type, err)
+			fails++
+		} else {
+			fmt.Printf("ok   channel %-10s %s: test notification sent\n", name, ch.Type)
+		}
+	}
+	return fails
 }
 
 func sshURL(host string) string {
