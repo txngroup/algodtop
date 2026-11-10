@@ -11,6 +11,8 @@ go run ./algodtop
 
 Go 1.27 builds it. CI runs `go vet` and `go test -race` on Linux, macOS and Windows, builds every release platform, and checks that sources are ASCII. `main` only takes pull requests that pass CI, and every merge to `main` is a release.
 
+Open pull requests against the `release` branch, not `main`. When a batch of changes is ready, one pull request from `release` into `main` ships it as a single release. Branch from `release` so your change starts from what will ship next.
+
 ## Conventions
 
 - Use the Go standard library and the dependencies approved in DESIGN.md section 15. Anything else needs an issue first.

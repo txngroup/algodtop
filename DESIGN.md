@@ -954,6 +954,7 @@ algod.top has no release numbers. Every commit on main is a release, and Go name
 - `algod.top version`, the Settings page and `remote add` show the commit's time and age, such as `2026-11-04 12:35 UTC (37f0e9db), 3 days old`. A local build reads them from Go's VCS stamp, and an installed one from its pseudo-version.
 - The repo has no semver tags. A v1 tag would make `@latest` follow tags rather than main, and v2 or later would move the install path to `algod.top/v2`.
 - Changes reach main through a pull request once CI passes, so every release has passed CI.
+- Feature pull requests target the `release` branch. A pull request from `release` into `main` ships a batch, so related changes make one release rather than one each, and no partial batch reaches `go install`.
 
 `go run algod.top@latest` is the zero-install entry point. It follows the startup order in section 13: a running daemon if one exists, then a config file, then flags, then discovered local nodes. Flags pass through as usual, for example `go run algod.top@latest -d ~/.mainnet` or `go run algod.top@latest daemon -l :8090`.
 
