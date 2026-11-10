@@ -279,6 +279,15 @@ func dash(v float64, f func(float64) string) string {
 	return f(v)
 }
 
+// roundText shows an unknown round as "-". It is 0 until /v2/status
+// answers, for example while algod rejects the API token.
+func roundText(v float64) string {
+	if math.IsNaN(v) || v == 0 {
+		return "-"
+	}
+	return fmt.Sprintf("%.0f", v)
+}
+
 func (m *Model) summaryLine(n *api.NodeView) string {
 	if n == nil {
 		return ""
@@ -288,7 +297,7 @@ func (m *Model) summaryLine(n *api.NodeView) string {
 	if m.Cursor != 0 && hist {
 		round, rt, tpb = p.Round, p.RTime, math.NaN()
 	}
-	parts := []string{m.Style.c(cBold, n.Name), "round " + dash(round, func(v float64) string { return fmt.Sprintf("%.0f", v) }),
+	parts := []string{m.Style.c(cBold, n.Name), "round " + roundText(round),
 		"rtime " + dash(rt, func(v float64) string { return fmt.Sprintf("%.2fs", v) }), "tpb " + Num(tpb), "pool " + Num(n.PoolSize)}
 	return strings.Join(parts, "  ") + "     " + m.rangeLabel()
 }
@@ -373,7 +382,7 @@ func (m *Model) row(n api.NodeView, selected bool) string {
 		cells[0] = n.Name
 		cells[1] = n.Network
 		cells[2] = n.Version
-		cells[3] = dash(round, func(v float64) string { return fmt.Sprintf("%.0f", v) })
+		cells[3] = roundText(round)
 		cells[4] = Secs(lag)
 		cells[5] = dash(rt, func(v float64) string {
 			if v == 0 {
@@ -580,7 +589,7 @@ func renderNode(m *Model) []string {
 	if n.ConfigChanged != nil {
 		cfgChange = "  config: " + truncate(n.ConfigChanged.Msg, 40) + " (" + Dur(m.Now.Sub(time.Unix(0, n.ConfigChanged.Time))) + " ago)"
 	}
-	head := fmt.Sprintf("%s  round %d  lag %s  ver %s  up %s%s", m.Style.c(cBold, n.Name), n.Round, Secs(n.Lag), n.Version, up, cfgChange)
+	head := fmt.Sprintf("%s  round %s  lag %s  ver %s  up %s%s", m.Style.c(cBold, n.Name), roundText(float64(n.Round)), Secs(n.Lag), n.Version, up, cfgChange)
 	lines = append(lines, head+"     "+m.rangeLabel())
 	if m.Err != "" {
 		lines = append(lines, m.Style.c(cRed, m.Err))

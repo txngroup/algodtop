@@ -210,7 +210,11 @@ func (e *Expr) eval1(in Input) (bool, string) {
 		return !s.Up, "algod is down"
 	case "stalled":
 		lag := s.Lag(in.Now)
-		return s.Up && !s.Catchup && lag > 30, fmt.Sprintf("last round is %.0fs old", lag)
+		why := fmt.Sprintf("last round is %.0fs old", lag)
+		if s.StatusErr != "" {
+			why = fmt.Sprintf("cannot read the round for %.0fs: %s", lag, s.StatusErr)
+		}
+		return s.Up && !s.Catchup && lag > 30, why
 	case "catchup":
 		return s.Catchup, "catchup is running"
 	case "agent_unreachable":

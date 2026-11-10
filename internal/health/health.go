@@ -170,8 +170,17 @@ func Evaluate(s *collector.State, c Context) Status {
 		add("health", Critical, 1, "/health fails")
 	}
 	lag := s.Lag(c.Now)
-	if lag > c.LagCritical.Seconds() && !s.Catchup {
+	switch {
+	case s.Catchup:
+	case lag > c.LagCritical.Seconds() && s.StatusErr != "":
+		add("stalled", Critical, lag, "cannot read the round for %s: %s", fmtDur(lag), s.StatusErr)
+	case lag > c.LagCritical.Seconds():
 		add("stalled", Critical, lag, "last round is %s old", fmtDur(lag))
+	case s.StatusErr != "" && s.RoundAt == 0:
+		// No round was ever read, so a one-shot view would show OK. A
+		// node that had rounds waits for the lag, so a timeout never
+		// flaps its health.
+		add("stalled", Warn, lag, "cannot read the round: %s", s.StatusErr)
 	}
 	if s.Catchup {
 		add("catchup", Warn, 1, "catchup is running")

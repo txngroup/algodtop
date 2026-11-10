@@ -270,7 +270,8 @@ func decode(r *http.Request, v any) error {
 	return json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(v)
 }
 
-// timeParam parses unix ns, unix s, RFC3339 or a relative "-1h".
+// timeParam parses unix ns, ms or s, with an optional fraction, RFC3339
+// or a relative "-1h".
 func timeParam(s string, def time.Time) (int64, error) {
 	if s == "" {
 		return def.UnixNano(), nil
@@ -295,12 +296,38 @@ func timeParam(s string, def time.Time) (int64, error) {
 			return n * int64(time.Second), nil
 		}
 	}
+	// JavaScript times are fractional milliseconds, such as a nanosecond
+	// time divided by 1e6.
+	if f, ok := decimal(s); ok {
+		switch {
+		case f > 1e17:
+			return int64(f), nil
+		case f > 1e11:
+			return int64(math.Round(f * 1e6)), nil
+		default:
+			return int64(math.Round(f * 1e9)), nil
+		}
+	}
 	for _, layout := range []string{time.RFC3339Nano, "2006-01-02 15:04:05", "2006-01-02 15:04", "2006-01-02T15:04", "2006-01-02"} {
 		if t, err := time.ParseInLocation(layout, s, time.Local); err == nil {
 			return t.UnixNano(), nil
 		}
 	}
 	return 0, fmt.Errorf("bad time %q", s)
+}
+
+// decimal parses digits with one decimal point, such as 1794094676942.322.
+// It refuses exponents, signs and values past the int64 range.
+func decimal(s string) (float64, bool) {
+	whole, frac, ok := strings.Cut(s, ".")
+	if !ok || whole == "" || strings.Trim(whole, "0123456789") != "" || strings.Trim(frac, "0123456789") != "" {
+		return 0, false
+	}
+	f, err := strconv.ParseFloat(s, 64)
+	if err != nil || f >= math.MaxInt64 {
+		return 0, false
+	}
+	return f, true
 }
 
 func parseDur(s string) (time.Duration, error) {

@@ -217,7 +217,7 @@ algod.top passwd --token      # a read-only bearer token for scripts and -H http
 <h3>Critical</h3>
 <ul>
 <li>algod is down, or <code>/health</code> fails.</li>
-<li>The last round is older than 30 s and the node is not in catchup.</li>
+<li>The last round is older than 30 s and the node is not in catchup. A node whose round cannot be read, for example because algod rejects the API token, counts from the first failure, and the reason names the error.</li>
 <li>The disk has less than 5% free.</li>
 <li>An account's active participation key expires within 2 days. A renewed account's old key does not count.</li>
 <li>A watched account was online and is now offline or suspended.</li>
@@ -228,6 +228,7 @@ algod.top passwd --token      # a read-only bearer token for scripts and -H http
 <h3>Warn</h3>
 <ul>
 <li>Catchup is running.</li>
+<li>No round has been read yet because <code>/v2/status</code> fails. This becomes Critical after 30 s.</li>
 <li>An account's active key expires within 14 days.</li>
 <li>A watched account lost incentive eligibility.</li>
 <li>The disk will fill within 14 days.</li>

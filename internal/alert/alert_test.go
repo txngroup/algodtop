@@ -51,6 +51,22 @@ func TestRuleAlertListsEveryReason(t *testing.T) {
 	}
 }
 
+// A node whose token algod rejects has never had a round. "down or
+// stalled" fires for it after 30 s and says why.
+func TestStalledNamesTheStatusError(t *testing.T) {
+	e, _ := ParseExpr("down or stalled")
+	now := time.Now()
+	s := &collector.State{Up: true, Healthy: true, StatusErr: "algod rejects the API token (HTTP 401)", StatusErrAt: now.Add(-time.Minute).UnixNano()}
+	ok, why := e.Eval(Input{State: s, Now: now})
+	if !ok || why != "cannot read the round for 60s: algod rejects the API token (HTTP 401)" {
+		t.Fatalf("%v %q", ok, why)
+	}
+	s.StatusErrAt = now.Add(-10 * time.Second).UnixNano()
+	if ok, why := e.Eval(Input{State: s, Now: now}); ok {
+		t.Fatalf("fired 10 s after the first failure: %q", why)
+	}
+}
+
 func TestFireRepeatClearAndSilence(t *testing.T) {
 	var mu sync.Mutex
 	var got []Notification
