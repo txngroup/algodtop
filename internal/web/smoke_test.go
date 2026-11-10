@@ -245,7 +245,7 @@ func newHub(t *testing.T) *testHub {
 	st := func(name string, up bool) collector.State {
 		return collector.State{Name: name, Kind: "local", Network: "testnet", Up: up, Healthy: up, Ready: up, Reachable: up,
 			Version: "5.1.0", Round: 1000 + uint64(i)*4, RoundAt: real.UnixNano(), RoundTime: 2.75, RoundP99: 2.9,
-			Peers: collector.PeerCounts{WSIn: 2, WSOut: 4, P2PIn: 40, P2POut: 48}, CPU: 22, RSS: 1.1e9,
+			HasAdmin: true, Peers: collector.PeerCounts{WSIn: 2, WSOut: 4, P2PIn: 40, P2POut: 48}, CPU: 22, RSS: 1.1e9,
 			WSIn: 4e3, WSOut: 3e3, P2PIn: 3e4, P2POut: 7e4, DiskFree: 3e11, DiskTotal: 1e12,
 			StartTime: real.Add(-2 * time.Hour).UnixNano(), UpSince: real.Add(-2 * time.Hour).UnixNano()}
 	}

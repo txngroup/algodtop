@@ -6,7 +6,7 @@ import { h, clear, sortableTable } from "../dom.js";
 import { get } from "../api.js";
 import { setParams, nodeURL } from "../state.js";
 import { fmt, fmtInt, fmtSeconds, fmtShortTime, ns, isNum } from "../format.js";
-import { healthBadge, healthLevel, healthReasons, hasProc, participation } from "../common.js";
+import { healthBadge, healthLevel, healthReasons, hasPeers, hasProc, participation } from "../common.js";
 import { spark } from "../chart/spark.js";
 import { IN, OUT, PAL } from "../colors.js";
 
@@ -103,7 +103,7 @@ export function mount(root, app, r) {
       h("div", { class: "kv" },
         kv("network", n.network || "-"), kv("version", n.version || "-"),
         kv("round", n.round ? fmtInt(n.round) : "-"), kv("lag", n.up && isNum(n.lag) ? fmtSeconds(n.lag) : "-"),
-        kv("WS in/out", (peers.ws_in || 0) + " / " + (peers.ws_out || 0)), kv("P2P in/out", (peers.p2p_in || 0) + " / " + (peers.p2p_out || 0)),
+        kv("WS in/out", !hasPeers(n) ? "n/a" : (peers.ws_in || 0) + " / " + (peers.ws_out || 0)), kv("P2P in/out", !hasPeers(n) ? "n/a" : (peers.p2p_in || 0) + " / " + (peers.p2p_out || 0)),
         kv("round time", n.round_time ? fmtSeconds(n.round_time) : "-"), kv("CPU", !hasProc(n) ? "n/a" : n.up && isNum(n.cpu) ? n.cpu.toFixed(1) + "%" : "-")),
       h("div", { class: "sparks" },
         h("div", { class: "spark-box" }, h("div", { class: "label" }, "bandwidth " + sparkSpan(sp)),
@@ -123,8 +123,8 @@ export function mount(root, app, r) {
     { key: "round", label: "ROUND", num: true, render: (n) => (n.round ? fmtInt(n.round) : "-") },
     { key: "lag", label: "LAG", num: true, get: (n) => (n.up ? n.lag : null), render: (n) => (n.up && isNum(n.lag) ? fmtSeconds(n.lag) : "-") },
     { key: "round_time", label: "RTIME", num: true, render: (n) => (n.round_time ? n.round_time.toFixed(2) + "s" : "-") },
-    { key: "ws", label: "WS i/o", num: true, get: (n) => (n.peers ? n.peers.ws_in + n.peers.ws_out : 0), render: (n) => (n.peers ? n.peers.ws_in + "/" + n.peers.ws_out : "-") },
-    { key: "p2p", label: "P2P i/o", num: true, get: (n) => (n.peers ? n.peers.p2p_in + n.peers.p2p_out : 0), render: (n) => (n.peers ? n.peers.p2p_in + "/" + n.peers.p2p_out : "-") },
+    { key: "ws", label: "WS i/o", num: true, get: (n) => (hasPeers(n) && n.peers ? n.peers.ws_in + n.peers.ws_out : null), render: (n) => (!hasPeers(n) ? "n/a" : n.peers ? n.peers.ws_in + "/" + n.peers.ws_out : "-") },
+    { key: "p2p", label: "P2P i/o", num: true, get: (n) => (hasPeers(n) && n.peers ? n.peers.p2p_in + n.peers.p2p_out : null), render: (n) => (!hasPeers(n) ? "n/a" : n.peers ? n.peers.p2p_in + "/" + n.peers.p2p_out : "-") },
     { key: "cpu", label: "CPU%", num: true, get: (n) => (hasProc(n) && n.up ? n.cpu : null), render: (n) => (!hasProc(n) ? "n/a" : isNum(n.cpu) && n.up ? n.cpu.toFixed(1) : "-") },
     { key: "rss", label: "RSS", num: true, render: (n) => (!hasProc(n) ? "n/a" : n.rss && n.up ? fmt(n.rss, "bytes") : "-") },
     { key: "net", label: "NET KB/s", num: true, title: "App-level received / sent", get: (n) => appIn(n) + appOut(n), render: (n) => (n.up ? (appIn(n) / 1e3).toFixed(0) + "/" + (appOut(n) / 1e3).toFixed(0) : "-") },

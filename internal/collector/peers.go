@@ -307,8 +307,9 @@ func (t *sessionTracker) logDisconnect(at time.Time, addr, ip string, incoming b
 	k := sessKey(netw, dir, addr)
 	s, ok := t.live[k]
 	if !ok {
-		// Started before monitoring began: the start is unknown.
-		s = &model.Session{Node: t.n.o.Name, Network: netw, Direction: dir, Addr: NormalizeAddr(addr), IP: ip, Source: "log"}
+		// Started before monitoring began: the start is unknown, so the
+		// session is marked open before and its length is a lower bound.
+		s = &model.Session{Node: t.n.o.Name, Network: netw, Direction: dir, Addr: NormalizeAddr(addr), IP: ip, Source: "log", OpenBefore: true}
 	}
 	if s.IP == "" || s.IP == IPOf(addr) {
 		s.IP = ip

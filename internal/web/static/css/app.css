@@ -245,7 +245,8 @@ legend { padding: 0 4px; color: var(--ink2); }
 .reasons li.critical::before { content: "\25A0"; color: var(--crit); }
 .stat .d .reasons { font-size: 12px; }
 .stat .d .reasons li::before { line-height: 17px; }
-.kv { display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 2px 10px; font-size: 13px; }
+/* The first value column holds the round, which must never be cut off. */
+.kv { display: grid; grid-template-columns: auto minmax(max-content, 1fr) auto 1fr; gap: 2px 10px; font-size: 13px; }
 .kv .k { color: var(--muted); white-space: nowrap; }
 .kv .v { font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sparks { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
