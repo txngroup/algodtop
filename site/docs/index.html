@@ -110,7 +110,7 @@ algod.top                     # now shows the daemon's data, with history</code>
 <tr><td>Fleet</td><td>Every node as a card or a table row, with its health reasons, round, peers and recent bandwidth and round time. Peer counts need the admin token and show n/a without it.</td></tr>
 <tr><td>Node</td><td>Live values with their change from 24 h ago, and synchronized charts in sections. An event lane marks restarts, config changes and alerts.</td></tr>
 <tr><td>Peers</td><td>Current connections, the history of each remote address, and inbound peers that disconnected together.</td></tr>
-<tr><td>Events</td><td>A timeline and a filterable table of events, annotations and silences. You can add annotations and silences here.</td></tr>
+<tr><td>Events</td><td>A timeline and a filterable table of events, annotations and silences. You can add annotations and silences here. The CSV link downloads the events of the range, node and kinds shown.</td></tr>
 <tr><td>Compare</td><td>Two time ranges of one node aligned at their start, or two nodes over one range, with mean, p50, p99 and the difference.</td></tr>
 <tr><td>Explorer</td><td>Any stored metric with a label filter, for questions no chart anticipated.</td></tr>
 <tr><td>Settings</td><td>Nodes, retention and access. Editing nodes and retention here needs <code>web.allow_config_edits</code>.</td></tr>
@@ -298,7 +298,8 @@ algod.top silence rm ID</code></pre>
 <p>When the disk falls to 5% free (<code>disk.floor_percent</code>), the daemon deletes the oldest data first and records it as an event. Set <code>disk.at_floor</code> to <code>pause</code> to stop writing instead.</p>
 <pre><code>algod.top export --node mainnet-1 --metric algodtop_round_time_seconds --from -24h > rounds.csv
 algod.top export --node mainnet-1 --metric algod_network_p2p_received_bytes_total --fn rate --format json
-algod.top export --events --node mainnet-1</code></pre>
+algod.top export --events --node mainnet-1 --from -7d > events.csv
+algod.top export --sessions --node mainnet-1 --format json</code></pre>
 
 <h2 id="commands">Commands</h2>
 <table>

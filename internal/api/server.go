@@ -590,11 +590,38 @@ func (s *Server) handleMetricNames(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"metrics": out, "dropped": db.Dropped(node)})
 }
 
+// listFormat reads the format parameter of a list such as events: json,
+// the default, or csv.
+func listFormat(w http.ResponseWriter, r *http.Request) (string, bool) {
+	switch f := r.URL.Query().Get("format"); f {
+	case "", "json":
+		return "json", true
+	case "csv":
+		return f, true
+	default:
+		httpError(w, http.StatusBadRequest, "format must be csv or json")
+		return "", false
+	}
+}
+
+// csvTime formats a nanosecond time for CSV. Zero, such as the end of an
+// open session, is empty.
+func csvTime(t int64) string {
+	if t == 0 {
+		return ""
+	}
+	return time.Unix(0, t).UTC().Format(time.RFC3339Nano)
+}
+
 func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	from, to, err := rangeParams(r, 24*time.Hour)
 	if err != nil {
 		httpError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	format, ok := listFormat(w, r)
+	if !ok {
 		return
 	}
 	f := store.EventFilter{Node: q.Get("node"), From: from, To: to}
@@ -603,12 +630,19 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	}
 	if l := q.Get("limit"); l != "" {
 		f.Limit, _ = strconv.Atoi(l)
-	} else {
+	} else if format == "json" {
+		// The Events page draws what it gets. An export wants every row.
 		f.Limit = 5000
 	}
 	evs, counts := s.hub.Store().EventsCounted(f)
 	if evs == nil {
 		evs = []model.Event{}
+	}
+	if format == "csv" {
+		w.Header().Set("Content-Type", "text/csv")
+		w.Header().Set("Content-Disposition", `attachment; filename="events.csv"`)
+		WriteEventsCSV(w, evs)
+		return
 	}
 	// counts has every kind in the range, so a client can tell what the
 	// limit left out and ask for it by kind.
@@ -638,11 +672,49 @@ func (s *Server) handleSessions(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	format, ok := listFormat(w, r)
+	if !ok {
+		return
+	}
 	ss := s.hub.Store().Sessions(q.Get("node"), q.Get("addr"), from, to)
 	if ss == nil {
 		ss = []model.Session{}
 	}
+	if format == "csv" {
+		w.Header().Set("Content-Type", "text/csv")
+		w.Header().Set("Content-Disposition", `attachment; filename="sessions.csv"`)
+		WriteSessionsCSV(w, ss)
+		return
+	}
 	writeJSON(w, map[string]any{"sessions": ss})
+}
+
+// WriteEventsCSV writes events as CSV. attrs is the event's attributes
+// as one JSON object, since their keys differ by kind.
+func WriteEventsCSV(w io.Writer, evs []model.Event) {
+	cw := csv.NewWriter(w)
+	cw.Write([]string{"time", "node", "kind", "severity", "message", "attrs"})
+	for _, e := range evs {
+		attrs := ""
+		if len(e.Attrs) > 0 {
+			if b, err := json.Marshal(e.Attrs); err == nil {
+				attrs = string(b)
+			}
+		}
+		cw.Write([]string{csvTime(e.Time), e.Node, e.Kind, e.Severity, e.Msg, attrs})
+	}
+	cw.Flush()
+}
+
+// WriteSessionsCSV writes peer sessions as CSV, one row per session.
+func WriteSessionsCSV(w io.Writer, ss []model.Session) {
+	cw := csv.NewWriter(w)
+	cw.Write([]string{"node", "network", "direction", "addr", "ip", "peer_id", "start", "end", "reason", "source", "open_before", "bytes_in", "bytes_out", "protocols"})
+	for _, s := range ss {
+		cw.Write([]string{s.Node, s.Network, s.Direction, s.Addr, s.IP, s.PeerID, csvTime(s.Start), csvTime(s.End), s.Reason, s.Source,
+			strconv.FormatBool(s.OpenBefore), strconv.FormatInt(s.BytesIn, 10), strconv.FormatInt(s.BytesOut, 10), strings.Join(s.Protocols, " ")})
+	}
+	cw.Flush()
 }
 
 func (s *Server) handlePeers(w http.ResponseWriter, r *http.Request) {

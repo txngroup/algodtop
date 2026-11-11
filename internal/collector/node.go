@@ -425,7 +425,7 @@ func (n *Node) checkPID(pid int, fileStart int64, now time.Time, first bool) {
 	n.mu.Unlock()
 	if !alive {
 		if local {
-			n.markDown(now, "algod is not running (no live algod.pid)")
+			n.markDown(now, "process not running, no live algod.pid")
 		}
 		return
 	}

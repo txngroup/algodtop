@@ -895,6 +895,13 @@ func cmdExport(args []string) int {
 		}
 		return 2
 	}
+	format := formatF.String()
+	if format == "" {
+		format = "csv"
+	}
+	if format != "csv" && format != "json" {
+		return errf("--format must be csv or json")
+	}
 	c, err := daemonClient(sockF.String())
 	if err != nil {
 		return errf("%v", err)
@@ -911,8 +918,10 @@ func cmdExport(args []string) int {
 	set("node", nodeF.String())
 	set("from", fromF.String())
 	set("to", toF.String())
+	q.Set("format", format)
 	switch {
 	case evF.Bool():
+		q.Set("limit", "0") // every event in the range, not the Events page's last 5000
 		b, err := c.GetRaw(ctx, "/api/events", q)
 		if err != nil {
 			return errf("%v", err)
@@ -938,7 +947,6 @@ func cmdExport(args []string) int {
 	for _, m := range matchF.vals {
 		q.Add("match", m)
 	}
-	q.Set("format", formatF.String())
 	b, err := c.GetRaw(ctx, "/api/export", q)
 	if err != nil {
 		return errf("%v", err)
