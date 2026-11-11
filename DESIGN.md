@@ -411,7 +411,7 @@ If the custom store proves too costly, `modernc.org/sqlite` is the fallback to r
 ### Backup and export
 
 - Snapshot: `POST /api/admin/snapshot` (auth required on TCP) hard-links the immutable blocks and copies the heads into `<data>/snapshots/<time>/`. A plain `cp -R` or `rsync` of that directory is a full backup.
-- Export: any chart offers CSV and JSON of exactly what it shows. `algod.top export --node X --metric Y --from --to --tier` exports the same data.
+- Export: any chart offers CSV and JSON of exactly what it shows. `algod.top export --node X --metric Y --from --to --tier` exports the same data. `algod.top export --events` and `--sessions` export every event or peer session in the range, 24 hours by default, as CSV unless `--format json` asks for the API's JSON. An event's attributes fill one CSV column as a JSON object, since their keys differ by kind.
 - The block format is documented in `docs/format.md`, with a format version, so the data stays readable without algod.top, however old it is.
 
 ## 9. Query API
@@ -810,7 +810,7 @@ The terminal UI talks to the daemon over the unix socket with the same API as th
    - bytes received and sent per session, with per-peer usage
 
    With per-peer usage, the current peers table adds peer ID, rates, open streams and supported protocols. The clusters list shows each cluster's timeline.
-4. Events. This is a filterable table of events, annotations and silences, with a timeline strip. The user can add an annotation from here, or by selecting a range on any chart.
+4. Events. This is a filterable table of events, annotations and silences, with a timeline strip. The user can add an annotation from here, or by selecting a range on any chart. A CSV link downloads every event of the range, node and kinds shown, which the table caps at the newest 2000.
 5. Compare. It overlays two time ranges for one node, aligned to their start, such as run 2 vs run 3. It can also overlay two nodes over the same range. For each metric it shows a summary table of mean, p50, p99, and the difference.
 6. Explorer. The user picks any stored metric and label filter and gets a chart. It covers questions nobody anticipated, without code changes.
 7. Settings. Nodes, retention and auth, read-only by default. Edits require login and write the config file atomically. Alert channels are never editable here (section 11).
