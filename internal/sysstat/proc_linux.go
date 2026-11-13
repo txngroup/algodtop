@@ -126,18 +126,32 @@ func (p *platformState) netBytes(pids []int) map[int]NetIO {
 			return m
 		}
 	}
-	in, o, err := interfaces()
-	if err != nil {
-		return out
-	}
+	self := procNetns(os.Getpid())
 	for _, pid := range pids {
-		out[pid] = NetIO{In: in, Out: o, Method: "interface totals"}
+		in, o, err := procInterfaces(pid)
+		if err != nil {
+			continue
+		}
+		m := methodIfaces
+		if ns := procNetns(pid); self != "" && ns != "" && ns != self {
+			m = methodNetnsIfaces
+		}
+		out[pid] = NetIO{In: in, Out: o, Method: m}
 	}
 	return out
 }
 
-func interfaces() (float64, float64, error) {
-	b, err := os.ReadFile("/proc/net/dev")
+func interfaces() (float64, float64, error) { return readNetDev("/proc/net/dev") }
+
+// procInterfaces sums the interfaces of a process's network namespace,
+// which is the host's unless the process runs in a container. Any user
+// can read it.
+func procInterfaces(pid int) (float64, float64, error) {
+	return readNetDev("/proc/" + strconv.Itoa(pid) + "/net/dev")
+}
+
+func readNetDev(path string) (float64, float64, error) {
+	b, err := os.ReadFile(path)
 	if err != nil {
 		return 0, 0, err
 	}

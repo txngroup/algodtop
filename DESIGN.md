@@ -136,7 +136,7 @@ Process and host stats go through one Go interface with an implementation per pl
 | Threads | `/proc/<pid>/status` | `ps -M` line count | Toolhelp32 snapshot |
 | Open FDs or handles | `/proc/<pid>/fd` | `lsof`, every 5 min | `GetProcessHandleCount` |
 | Disk I/O bytes | `/proc/<pid>/io` | not available | `GetProcessIoCounters` |
-| Process network bytes | sock_diag (to spike), else interface totals | `nettop` | interface totals |
+| Process network bytes | sock_diag, else the interface totals of the process's namespace | `nettop` | interface totals |
 | Interface bytes | `/proc/net/dev` | `netstat -ib` | `GetIfTable2` |
 | Disk free | `syscall.Statfs` | `syscall.Statfs` | `GetDiskFreeSpaceExW` |
 | Load average | `/proc/loadavg` | `sysctl -n vm.loadavg` | not available |
@@ -149,6 +149,8 @@ Linux notes:
 - All reads use the stdlib.
 - Per-process network bytes are not in `/proc` for a single process. `/proc/<pid>/net/dev` covers the whole network namespace. cgroup v2 has no per-cgroup byte counters, and nftables counters need root.
 - The stdlib option to spike is sock_diag over netlink, through the `syscall` package. It returns `tcp_info` per socket, including `bytes_acked` and `bytes_received`. algod.top maps socket inodes to the process through `/proc/<pid>/fd`. It misses bytes from sockets that closed between polls, and it does not cover UDP or QUIC.
+- sock_diag only sees sockets in algod.top's own network namespace. When algod runs in another one, such as a container while algod.top runs on the host, algod.top reads `/proc/<pid>/net/dev` instead, under the method `netns interface totals`. It does the same, as `interface totals`, when it cannot read the process's fds, or when three polls in a row find its sockets missing from the dump.
+- A rate needs two readings from the same method, so a switch of method skips one rate rather than charting the jump between two counters.
 
 macOS notes:
 
@@ -277,7 +279,7 @@ Each line is JSON. The tailer runs a byte-level prefilter first, because the noi
 - "Pending transaction in pool no longer valid" floods (100k lines in 10 minutes are possible) are counted per minute and per app ID, and never stored line by line.
 - HTTP access lines are counted by path and status.
 
-The remaining lines become message templates. The tailer replaces addresses, numbers, base32 IDs, hashes, durations and peer IDs with placeholders. Each template gets a per-minute count, stored as a series in the chunk store under the template caps (section 6). This keeps "what is the node complaining about" cheap to chart over the whole history.
+The remaining lines become message templates. The tailer replaces addresses, numbers, base32 IDs, hashes, durations and peer IDs with placeholders. Host names with a port, such as relays from SRV records, become `<addr>` like IP addresses, so each relay does not get its own template. Each template gets a per-minute count, stored as a series in the chunk store under the template caps (section 6). This keeps "what is the node complaining about" cheap to chart over the whole history.
 
 Specific extractors turn known lines into events with attributes. Each extractor is a small Go function with a test fixture taken from a real log. The first set covers:
 
