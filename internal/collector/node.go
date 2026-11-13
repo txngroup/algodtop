@@ -62,6 +62,12 @@ type Options struct {
 	LastRound     func() uint64 // newest stored round, for header backfill
 	Logf          func(string, ...any)
 	Now           func() time.Time
+
+	// Stored returns the label sets the store already holds for one of
+	// this node's metrics. The log tailer uses it to start its caps from
+	// what the store has, so a restart does not emit values the store's
+	// own caps would drop.
+	Stored func(metric string) []model.Labels
 }
 
 // Node collects one algod.

@@ -5,6 +5,7 @@ package health
 import (
 	"fmt"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -164,7 +165,7 @@ func Evaluate(s *collector.State, c Context) Status {
 			why = "not reachable"
 		}
 		add("down", Critical, 1, "algod is down (%s)", why)
-		return finish(st, s, c, add, disable)
+		return finish(&st, s, c, add, disable)
 	}
 	if !s.Healthy {
 		add("health", Critical, 1, "/health fails")
@@ -252,10 +253,12 @@ func Evaluate(s *collector.State, c Context) Status {
 	if latest, from := latestVersion(s, c.Fleet); from != "" {
 		add("version_behind", Warn, 0, "version %s is behind %s on %s, another %s %s node", s.Version, latest, from, s.Network, releaseChannel(s))
 	}
-	return finish(st, s, c, add, disable)
+	return finish(&st, s, c, add, disable)
 }
 
-func finish(st Status, s *collector.State, c Context, add func(string, Level, float64, string, ...any), disable func(string, string)) Status {
+// finish adds algod.top's own problems. It takes st by pointer because
+// add and disable write to the caller's Status.
+func finish(st *Status, s *collector.State, c Context, add func(string, Level, float64, string, ...any), disable func(string, string)) Status {
 	d := c.Daemon
 	if d.Paused {
 		add("algodtop", Critical, 0, "algod.top paused writes at the disk floor")
@@ -265,6 +268,7 @@ func finish(st Status, s *collector.State, c Context, add func(string, Level, fl
 		for n := range drops {
 			names = append(names, n)
 		}
+		sort.Strings(names)
 		if len(names) > 3 {
 			names = append(names[:3], "...")
 		}
@@ -285,7 +289,7 @@ func finish(st Status, s *collector.State, c Context, add func(string, Level, fl
 	for _, u := range s.Unavailable {
 		disable(u, "not available on this platform")
 	}
-	return st
+	return *st
 }
 
 // latestVersion returns a newer release seen on another node of the same
