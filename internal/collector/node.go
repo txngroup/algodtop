@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
@@ -424,7 +425,7 @@ func (n *Node) checkPID(pid int, fileStart int64, now time.Time, first bool) {
 	n.mu.Unlock()
 	if !alive {
 		if local {
-			n.markDown(now, "algod is not running (no live algod.pid)")
+			n.markDown(now, "process not running, no live algod.pid")
 		}
 		return
 	}
@@ -477,6 +478,7 @@ func (n *Node) markDown(now time.Time, why string) {
 	n.st.Healthy = false
 	n.st.Ready = false
 	n.st.LastError = why
+	n.st.StatusErr, n.st.StatusErrAt = "", 0
 	if n.st.DownSince == 0 {
 		n.st.DownSince = now.UnixNano()
 	}
@@ -659,6 +661,7 @@ func (n *Node) scrape(ctx context.Context) {
 		}
 		return
 	}
+	livePID := 0 // a local algod whose process is known to be running
 	if ls, ok := n.o.Source.(*LocalSource); ok {
 		n.mu.RLock()
 		pid := n.st.PID
@@ -672,8 +675,12 @@ func (n *Node) scrape(ctx context.Context) {
 		}
 		// A stale algod.pid naming a dead process means algod is down,
 		// even if something answers on the old REST address.
-		if a, ok := isAlive(cur); cur == 0 || (ok && !a) || c == nil {
+		a, ok := isAlive(cur)
+		if cur == 0 || (ok && !a) || c == nil {
 			return
+		}
+		if ok {
+			livePID = cur
 		}
 	}
 	rctx, cancel := context.WithTimeout(ctx, n.o.Scrape)
@@ -688,7 +695,12 @@ func (n *Node) scrape(ctx context.Context) {
 		n.update(func(s *State) { s.MissedScrapes++; s.LastError = err.Error(); s.Reachable = false })
 		rest = append(rest, model.Sample{Name: "algodtop_scrape_errors_total", Kind: model.KindCounter, Value: float64(n.st.MissedScrapes)})
 		if n.failures >= 2 {
-			n.markDown(now, "REST unreachable: "+err.Error())
+			why := "REST unreachable: " + err.Error()
+			if livePID != 0 {
+				// A hung algod needs a kill, a crashed one a start.
+				why += fmt.Sprintf("; algod pid %d is still running", livePID)
+			}
+			n.markDown(now, why)
 			n.poke()
 		}
 		rest = append(rest, model.Sample{Name: "algodtop_up", Kind: model.KindGauge, Value: 0})
@@ -727,12 +739,22 @@ func (n *Node) scrape(ctx context.Context) {
 	if perr2 == nil {
 		rest = append(rest, model.Sample{Name: "algodtop_txpool_size", Kind: model.KindGauge, Value: float64(pool)})
 	}
+	var why string
+	if serr != nil {
+		why = statusProblem(serr, c.HasToken(), n.o.Source.Kind())
+	}
 	n.update(func(s *State) {
 		s.Healthy, s.Ready = healthy, ready
 		if serr == nil {
 			s.StatusLag = float64(st.TimeSinceLastRound) / 1e9
 			if st.LastRound > s.Round {
 				s.Round = st.LastRound
+			}
+			s.StatusErr, s.StatusErrAt = "", 0
+		} else {
+			s.StatusErr = why
+			if s.StatusErrAt == 0 {
+				s.StatusErrAt = now.UnixNano()
 			}
 		}
 		if perr2 == nil {
@@ -741,6 +763,23 @@ func (n *Node) scrape(ctx context.Context) {
 	})
 	n.batch(model.GroupREST, now, rest)
 	n.ensureVersion(rctx, c)
+}
+
+// statusProblem words a /v2/status failure for the health reason. A
+// missing or rejected token is the usual cause, and /metrics and /health
+// answer without one, so the node otherwise looks up and fine.
+func statusProblem(err error, hasToken bool, kind string) string {
+	var he *algod.HTTPError
+	if !errors.As(err, &he) || (he.Status != http.StatusUnauthorized && he.Status != http.StatusForbidden) {
+		return err.Error()
+	}
+	switch {
+	case hasToken:
+		return fmt.Sprintf("algod rejects the API token (HTTP %d)", he.Status)
+	case kind == "local" || kind == "ssh":
+		return fmt.Sprintf("algod.token is missing or unreadable (HTTP %d)", he.Status)
+	}
+	return fmt.Sprintf("no API token is set (HTTP %d)", he.Status)
 }
 
 func (n *Node) noteCatchup(on bool) {

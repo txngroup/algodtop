@@ -245,7 +245,7 @@ func newHub(t *testing.T) *testHub {
 	st := func(name string, up bool) collector.State {
 		return collector.State{Name: name, Kind: "local", Network: "testnet", Up: up, Healthy: up, Ready: up, Reachable: up,
 			Version: "5.1.0", Round: 1000 + uint64(i)*4, RoundAt: real.UnixNano(), RoundTime: 2.75, RoundP99: 2.9,
-			Peers: collector.PeerCounts{WSIn: 2, WSOut: 4, P2PIn: 40, P2POut: 48}, CPU: 22, RSS: 1.1e9,
+			HasAdmin: true, Peers: collector.PeerCounts{WSIn: 2, WSOut: 4, P2PIn: 40, P2POut: 48}, CPU: 22, RSS: 1.1e9,
 			WSIn: 4e3, WSOut: 3e3, P2PIn: 3e4, P2POut: 7e4, DiskFree: 3e11, DiskTotal: 1e12,
 			StartTime: real.Add(-2 * time.Hour).UnixNano(), UpSince: real.Add(-2 * time.Hour).UnixNano()}
 	}
@@ -364,10 +364,18 @@ func TestSmokePages(t *testing.T) {
 				"--virtual-time-budget=5000", "--dump-dom", url)
 			var stdout, stderr bytes.Buffer
 			cmd.Stdout, cmd.Stderr = &stdout, &stderr
-			if err := cmd.Run(); err != nil {
-				t.Fatalf("chrome: %v\n%s", err, stderr.String())
-			}
+			err := cmd.Run()
 			dom := stdout.String()
+			if err != nil {
+				// Headless Chrome on the macOS runners sometimes hangs while
+				// it shuts down, after it has printed the DOM, and its
+				// watchdog exits with status 2. The page itself loaded, so
+				// the checks below still judge it.
+				if !strings.Contains(stderr.String(), "Teardown watchdog expired") || !strings.Contains(dom, "</html>") {
+					t.Fatalf("chrome: %v\n%s", err, stderr.String())
+				}
+				t.Logf("chrome: %v during shutdown, after the DOM was printed", err)
+			}
 			if dir := os.Getenv("ALGODTOP_SMOKE_DUMP"); dir != "" {
 				// For debugging: keep each page's DOM and Chrome log.
 				file := strings.NewReplacer("/", "_", "?", "_", "&", "_", "=", "-", ",", "-").Replace(name)

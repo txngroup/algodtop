@@ -270,7 +270,8 @@ func decode(r *http.Request, v any) error {
 	return json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(v)
 }
 
-// timeParam parses unix ns, unix s, RFC3339 or a relative "-1h".
+// timeParam parses unix ns, ms or s, with an optional fraction, RFC3339
+// or a relative "-1h".
 func timeParam(s string, def time.Time) (int64, error) {
 	if s == "" {
 		return def.UnixNano(), nil
@@ -295,12 +296,38 @@ func timeParam(s string, def time.Time) (int64, error) {
 			return n * int64(time.Second), nil
 		}
 	}
+	// JavaScript times are fractional milliseconds, such as a nanosecond
+	// time divided by 1e6.
+	if f, ok := decimal(s); ok {
+		switch {
+		case f > 1e17:
+			return int64(f), nil
+		case f > 1e11:
+			return int64(math.Round(f * 1e6)), nil
+		default:
+			return int64(math.Round(f * 1e9)), nil
+		}
+	}
 	for _, layout := range []string{time.RFC3339Nano, "2006-01-02 15:04:05", "2006-01-02 15:04", "2006-01-02T15:04", "2006-01-02"} {
 		if t, err := time.ParseInLocation(layout, s, time.Local); err == nil {
 			return t.UnixNano(), nil
 		}
 	}
 	return 0, fmt.Errorf("bad time %q", s)
+}
+
+// decimal parses digits with one decimal point, such as 1794094676942.322.
+// It refuses exponents, signs and values past the int64 range.
+func decimal(s string) (float64, bool) {
+	whole, frac, ok := strings.Cut(s, ".")
+	if !ok || whole == "" || strings.Trim(whole, "0123456789") != "" || strings.Trim(frac, "0123456789") != "" {
+		return 0, false
+	}
+	f, err := strconv.ParseFloat(s, 64)
+	if err != nil || f >= math.MaxInt64 {
+		return 0, false
+	}
+	return f, true
 }
 
 func parseDur(s string) (time.Duration, error) {
@@ -563,11 +590,38 @@ func (s *Server) handleMetricNames(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"metrics": out, "dropped": db.Dropped(node)})
 }
 
+// listFormat reads the format parameter of a list such as events: json,
+// the default, or csv.
+func listFormat(w http.ResponseWriter, r *http.Request) (string, bool) {
+	switch f := r.URL.Query().Get("format"); f {
+	case "", "json":
+		return "json", true
+	case "csv":
+		return f, true
+	default:
+		httpError(w, http.StatusBadRequest, "format must be csv or json")
+		return "", false
+	}
+}
+
+// csvTime formats a nanosecond time for CSV. Zero, such as the end of an
+// open session, is empty.
+func csvTime(t int64) string {
+	if t == 0 {
+		return ""
+	}
+	return time.Unix(0, t).UTC().Format(time.RFC3339Nano)
+}
+
 func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	from, to, err := rangeParams(r, 24*time.Hour)
 	if err != nil {
 		httpError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	format, ok := listFormat(w, r)
+	if !ok {
 		return
 	}
 	f := store.EventFilter{Node: q.Get("node"), From: from, To: to}
@@ -576,12 +630,19 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	}
 	if l := q.Get("limit"); l != "" {
 		f.Limit, _ = strconv.Atoi(l)
-	} else {
+	} else if format == "json" {
+		// The Events page draws what it gets. An export wants every row.
 		f.Limit = 5000
 	}
 	evs, counts := s.hub.Store().EventsCounted(f)
 	if evs == nil {
 		evs = []model.Event{}
+	}
+	if format == "csv" {
+		w.Header().Set("Content-Type", "text/csv")
+		w.Header().Set("Content-Disposition", `attachment; filename="events.csv"`)
+		WriteEventsCSV(w, evs)
+		return
 	}
 	// counts has every kind in the range, so a client can tell what the
 	// limit left out and ask for it by kind.
@@ -611,11 +672,49 @@ func (s *Server) handleSessions(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	format, ok := listFormat(w, r)
+	if !ok {
+		return
+	}
 	ss := s.hub.Store().Sessions(q.Get("node"), q.Get("addr"), from, to)
 	if ss == nil {
 		ss = []model.Session{}
 	}
+	if format == "csv" {
+		w.Header().Set("Content-Type", "text/csv")
+		w.Header().Set("Content-Disposition", `attachment; filename="sessions.csv"`)
+		WriteSessionsCSV(w, ss)
+		return
+	}
 	writeJSON(w, map[string]any{"sessions": ss})
+}
+
+// WriteEventsCSV writes events as CSV. attrs is the event's attributes
+// as one JSON object, since their keys differ by kind.
+func WriteEventsCSV(w io.Writer, evs []model.Event) {
+	cw := csv.NewWriter(w)
+	cw.Write([]string{"time", "node", "kind", "severity", "message", "attrs"})
+	for _, e := range evs {
+		attrs := ""
+		if len(e.Attrs) > 0 {
+			if b, err := json.Marshal(e.Attrs); err == nil {
+				attrs = string(b)
+			}
+		}
+		cw.Write([]string{csvTime(e.Time), e.Node, e.Kind, e.Severity, e.Msg, attrs})
+	}
+	cw.Flush()
+}
+
+// WriteSessionsCSV writes peer sessions as CSV, one row per session.
+func WriteSessionsCSV(w io.Writer, ss []model.Session) {
+	cw := csv.NewWriter(w)
+	cw.Write([]string{"node", "network", "direction", "addr", "ip", "peer_id", "start", "end", "reason", "source", "open_before", "bytes_in", "bytes_out", "protocols"})
+	for _, s := range ss {
+		cw.Write([]string{s.Node, s.Network, s.Direction, s.Addr, s.IP, s.PeerID, csvTime(s.Start), csvTime(s.End), s.Reason, s.Source,
+			strconv.FormatBool(s.OpenBefore), strconv.FormatInt(s.BytesIn, 10), strconv.FormatInt(s.BytesOut, 10), strings.Join(s.Protocols, " ")})
+	}
+	cw.Flush()
 }
 
 func (s *Server) handlePeers(w http.ResponseWriter, r *http.Request) {
@@ -624,7 +723,7 @@ func (s *Server) handlePeers(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusNotFound, "no such node")
 		return
 	}
-	writeJSON(w, map[string]any{"peers": n.PeerList, "usage": n.PeerUsage, "counts": n.Peers})
+	writeJSON(w, map[string]any{"peers": n.PeerList, "usage": n.PeerUsage, "counts": n.Peers, "has_admin": n.HasAdmin})
 }
 
 func (s *Server) handleTemplates(w http.ResponseWriter, r *http.Request) {

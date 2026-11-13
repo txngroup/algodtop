@@ -51,6 +51,77 @@ func TestRuleAlertListsEveryReason(t *testing.T) {
 	}
 }
 
+// A node whose token algod rejects has never had a round. "down or
+// stalled" fires for it after 30 s and says why.
+func TestStalledNamesTheStatusError(t *testing.T) {
+	e, _ := ParseExpr("down or stalled")
+	now := time.Now()
+	s := &collector.State{Up: true, Healthy: true, StatusErr: "algod rejects the API token (HTTP 401)", StatusErrAt: now.Add(-time.Minute).UnixNano()}
+	ok, why := e.Eval(Input{State: s, Now: now})
+	if !ok || why != "cannot read the round for 60s: algod rejects the API token (HTTP 401)" {
+		t.Fatalf("%v %q", ok, why)
+	}
+	s.StatusErrAt = now.Add(-10 * time.Second).UnixNano()
+	if ok, why := e.Eval(Input{State: s, Now: now}); ok {
+		t.Fatalf("fired 10 s after the first failure: %q", why)
+	}
+}
+
+// The down alert names the reason, as the health rule does, and the
+// cleared notification names what fired. A node back from down is briefly
+// stalled until its next round, and that must not become the message.
+func TestDownNamesTheReasonAndClearNamesWhatFired(t *testing.T) {
+	var mu sync.Mutex
+	var got []Notification
+	rules, err := Compile([]config.AlertRule{{Name: "down", Expr: "down or stalled", For: config.Duration(10 * time.Second), Channels: []string{"c"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := NewEngine(rules, map[string]config.Chan{"c": {Type: "webhook", URL: "http://127.0.0.1:1"}}, filepath.Join(t.TempDir(), "a.json"), nil, nil)
+	e.send = func(_ config.Chan, n Notification) error {
+		mu.Lock()
+		got = append(got, n)
+		mu.Unlock()
+		return nil
+	}
+	now := time.Now()
+	lastRound := now.Add(-5 * time.Second).UnixNano()
+	down := collector.State{Name: "n", Up: false, LastError: "REST unreachable: context deadline exceeded", RoundAt: lastRound}
+	step := func(s collector.State, at time.Time) {
+		e.Evaluate("n", Input{State: &s, Now: at})
+	}
+	step(down, now)
+	step(down, now.Add(11*time.Second))
+	// Back up 80 s after the last round: stalled until the next one.
+	up := collector.State{Name: "n", Up: true, Healthy: true, RoundAt: lastRound}
+	step(up, now.Add(75*time.Second))
+	up.RoundAt = now.Add(78 * time.Second).UnixNano()
+	step(up, now.Add(78*time.Second))
+	up.RoundAt = now.Add(138 * time.Second).UnixNano()
+	step(up, now.Add(140*time.Second))
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		mu.Lock()
+		n := len(got)
+		mu.Unlock()
+		if n >= 2 || time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(got) != 2 {
+		t.Fatalf("notifications %+v", got)
+	}
+	if got[0].State != "firing" || got[0].Message != "algod is down (REST unreachable: context deadline exceeded)" {
+		t.Errorf("firing %q %q", got[0].State, got[0].Message)
+	}
+	if got[1].State != "cleared" || got[1].Message != "cleared: algod is down (REST unreachable: context deadline exceeded)" {
+		t.Errorf("cleared %q %q", got[1].State, got[1].Message)
+	}
+}
+
 func TestFireRepeatClearAndSilence(t *testing.T) {
 	var mu sync.Mutex
 	var got []Notification

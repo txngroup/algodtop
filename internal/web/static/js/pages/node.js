@@ -7,7 +7,7 @@ import { h, clear, sortableTable, inlineBar } from "../dom.js";
 import { get, canWrite } from "../api.js";
 import { rangeOf, setParams, encodeTime, decodeTime, listParam, nodeURL, navigate } from "../state.js";
 import { fmt, fmtInt, fmtSeconds, fmtDelta, fmtShortTime, fmtDateTime, ns, isNum, shortAddr } from "../format.js";
-import { healthBadge, healthReasons, hasProc, keyStatus, uptime, loadMarkers, toEv, notable, regionsFrom, rangeBar, nodePicker, annotateForm } from "../common.js";
+import { healthBadge, healthReasons, hasPeers, hasProc, keyStatus, uptime, loadMarkers, toEv, notable, regionsFrom, rangeBar, nodePicker, annotateForm } from "../common.js";
 import { Bus } from "../chart/crosshair.js";
 import { Lane } from "../chart/lane.js";
 import { Panel } from "../panel.js";
@@ -102,7 +102,9 @@ export function mount(root, app, r) {
       stat("round", n.round ? fmtInt(n.round) : "-", isNum(ago.round) && n.round ? "+" + fmtInt(n.round - ago.round) + " rounds in 24 h" : ""),
       stat("lag", n.up && isNum(n.lag) ? fmtSeconds(n.lag) : "-", delta(n.lag, ago.lag, "s")),
       stat("round time", n.round_time ? fmtSeconds(n.round_time) : "-", delta(n.round_time, ago.rtime, "s")),
-      stat("peers", String(total), "WS " + (p.ws_in || 0) + "/" + (p.ws_out || 0) + "  P2P " + (p.p2p_in || 0) + "/" + (p.p2p_out || 0) + (isNum(ago.peers) ? ", " + fmtDelta(total - ago.peers, "") + " vs 24 h" : "")),
+      hasPeers(n)
+        ? stat("peers", String(total), "WS " + (p.ws_in || 0) + "/" + (p.ws_out || 0) + "  P2P " + (p.p2p_in || 0) + "/" + (p.p2p_out || 0) + (isNum(ago.peers) ? ", " + fmtDelta(total - ago.peers, "") + " vs 24 h" : ""))
+        : stat("peers", "n/a", "needs the admin token"),
       hasProc(n) ? stat("CPU", isNum(n.cpu) && n.up ? n.cpu.toFixed(1) + "%" : "-", delta(n.cpu, ago.cpu, "%")) : null,
       hasProc(n) ? stat("RSS", n.rss && n.up ? fmt(n.rss, "bytes") : "-", delta(n.rss, ago.rss, "bytes")) : null,
       stat("version", n.version || "-", n.branch || n.network || ""),

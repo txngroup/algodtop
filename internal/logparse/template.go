@@ -6,8 +6,8 @@ import (
 
 // Template replaces the variable parts of a message with placeholders:
 // addresses, numbers, base32 IDs, hashes, durations, peer IDs, multiaddrs,
-// IP addresses and hex. Messages that differ only in those parts share a
-// template.
+// IP addresses, host names with a port and hex. Messages that differ only
+// in those parts share a template.
 func Template(msg string) string {
 	if len(msg) > 400 {
 		msg = msg[:400]
@@ -50,7 +50,7 @@ func classify(w string) string {
 		return "<peer>" + suffix
 	case strings.HasPrefix(w, "http://") || strings.HasPrefix(w, "https://") || strings.HasPrefix(w, "ws://"):
 		return "<url>" + suffix
-	case isIPPort(w):
+	case isIPPort(w) || isHostPort(w):
 		return "<addr>" + suffix
 	case isAlgoAddr(w):
 		return "<account>" + suffix
@@ -75,7 +75,12 @@ func classify(w string) string {
 
 func isAlgoAddr(w string) bool { return len(w) == 58 && allBase32(w) }
 
-func isBase32ID(w string) bool { return len(w) >= 26 && allBase32(w) && hasDigit(w) }
+// isBase32ID wants a digit in shorter words, which keeps upper-case words
+// out. libp2p logs DHT keys such as CIQAAAA... that are mostly padding and
+// can lack one.
+func isBase32ID(w string) bool {
+	return len(w) >= 26 && allBase32(w) && (hasDigit(w) || len(w) >= 40)
+}
 
 func allBase32(w string) bool {
 	for i := 0; i < len(w); i++ {
@@ -176,6 +181,46 @@ func isIPPort(w string) bool {
 		return true
 	}
 	return strings.Count(host, ":") >= 2 && isHexish(strings.ReplaceAll(host, ":", ""))
+}
+
+// isHostPort matches a DNS name with a port, such as a relay from SRV
+// records. Each relay would otherwise get its own template. The name needs
+// a dot and an alphabetic last label, and a Go source position such as
+// node.go:42 does not count.
+func isHostPort(w string) bool {
+	i := strings.LastIndexByte(w, ':')
+	if i <= 0 {
+		return false
+	}
+	port := w[i+1:]
+	if len(port) == 0 || len(port) > 5 || !isNumber(port) || strings.ContainsAny(port, ".+-") {
+		return false
+	}
+	labels := strings.Split(w[:i], ".")
+	if len(labels) < 2 {
+		return false
+	}
+	for _, l := range labels {
+		if l == "" || len(l) > 63 || l[0] == '-' || l[len(l)-1] == '-' {
+			return false
+		}
+		for j := 0; j < len(l); j++ {
+			c := l[j]
+			if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '-') {
+				return false
+			}
+		}
+	}
+	tld := labels[len(labels)-1]
+	if len(tld) < 2 || tld == "go" {
+		return false
+	}
+	for j := 0; j < len(tld); j++ {
+		if c := tld[j]; !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z') {
+			return false
+		}
+	}
+	return true
 }
 
 func isHexish(s string) bool {

@@ -136,7 +136,7 @@ Process and host stats go through one Go interface with an implementation per pl
 | Threads | `/proc/<pid>/status` | `ps -M` line count | Toolhelp32 snapshot |
 | Open FDs or handles | `/proc/<pid>/fd` | `lsof`, every 5 min | `GetProcessHandleCount` |
 | Disk I/O bytes | `/proc/<pid>/io` | not available | `GetProcessIoCounters` |
-| Process network bytes | sock_diag (to spike), else interface totals | `nettop` | interface totals |
+| Process network bytes | sock_diag, else the interface totals of the process's namespace | `nettop` | interface totals |
 | Interface bytes | `/proc/net/dev` | `netstat -ib` | `GetIfTable2` |
 | Disk free | `syscall.Statfs` | `syscall.Statfs` | `GetDiskFreeSpaceExW` |
 | Load average | `/proc/loadavg` | `sysctl -n vm.loadavg` | not available |
@@ -149,6 +149,8 @@ Linux notes:
 - All reads use the stdlib.
 - Per-process network bytes are not in `/proc` for a single process. `/proc/<pid>/net/dev` covers the whole network namespace. cgroup v2 has no per-cgroup byte counters, and nftables counters need root.
 - The stdlib option to spike is sock_diag over netlink, through the `syscall` package. It returns `tcp_info` per socket, including `bytes_acked` and `bytes_received`. algod.top maps socket inodes to the process through `/proc/<pid>/fd`. It misses bytes from sockets that closed between polls, and it does not cover UDP or QUIC.
+- sock_diag only sees sockets in algod.top's own network namespace. When algod runs in another one, such as a container while algod.top runs on the host, algod.top reads `/proc/<pid>/net/dev` instead, under the method `netns interface totals`. It does the same, as `interface totals`, when it cannot read the process's fds, or when three polls in a row find its sockets missing from the dump.
+- A rate needs two readings from the same method, so a switch of method skips one rate rather than charting the jump between two counters.
 
 macOS notes:
 
@@ -225,6 +227,8 @@ An event has a time, node, kind, severity, short message, and a JSON attribute m
 
 A peer session is (node, network ws/p2p, direction, remote address, P2P peer ID if known, start, end, end reason). Sessions come from two sources. Log connect and disconnect events give exact times and reasons. `/v2/node/peers` diffs fill in what the log level hides. The session store keeps the per-peer history that the reset-cluster analysis needed.
 
+A session already open when algod.top first looks has an unknown start. It is marked open before, and the UIs show its length as a lower bound. This covers a peer in the first poll and a log disconnect with no connect before it. Without the mark, such a disconnect read as a session of 0 s.
+
 ### Per-peer usage
 
 Some algod builds extend `/v2/node/peers` with five optional fields per peer. Released versions do not have them yet. algod.top reads them when they are present, so per-peer traffic appears as soon as a node runs a build that has them.
@@ -240,7 +244,7 @@ algod.top detects support per peer entry by the presence of `active-streams`, no
 
 The field semantics shape how algod.top stores them:
 
-- The byte totals are cumulative and reset when the last connection to the peer closes. algod.top treats them as a counter per peer session. The rate is the delta divided by the poll interval, and a new session starts from zero. A total that drops within a session is treated as a reset, because a fast reconnect can keep or lose totals.
+- The byte totals are cumulative and reset when the last connection to the peer closes. algod.top treats them as a counter per peer session. The rate is the delta divided by the time since the last poll that answered, so a failed poll does not inflate it. A new session starts from zero, and its rate shows as unknown until the second poll. A total that drops within a session is treated as a reset, because a fast reconnect can keep or lose totals.
 - For p2p peers, the totals cover every connection to the peer ID, and each connection repeats the same totals. algod.top counts each peer ID once before summing. For ws peers, the totals are per connection.
 - The bytes are counted at the stream layer, so they exclude transport framing and encryption. ws totals count gossip payload only. The sum over all peers is therefore another app-level figure, not wire bytes.
 - Traffic between the last poll and a disconnect is lost, up to one poll interval. The peers poll stays at 30 s by default. Operators who want finer per-peer traffic can lower it.
@@ -275,7 +279,7 @@ Each line is JSON. The tailer runs a byte-level prefilter first, because the noi
 - "Pending transaction in pool no longer valid" floods (100k lines in 10 minutes are possible) are counted per minute and per app ID, and never stored line by line.
 - HTTP access lines are counted by path and status.
 
-The remaining lines become message templates. The tailer replaces addresses, numbers, base32 IDs, hashes, durations and peer IDs with placeholders. Each template gets a per-minute count, stored as a series in the chunk store under the template caps (section 6). This keeps "what is the node complaining about" cheap to chart over the whole history.
+The remaining lines become message templates. The tailer replaces addresses, numbers, base32 IDs, hashes, durations and peer IDs with placeholders. Host names with a port, such as relays from SRV records, become `<addr>` like IP addresses, so each relay does not get its own template. Each template gets a per-minute count, stored as a series in the chunk store under the template caps (section 6). This keeps "what is the node complaining about" cheap to chart over the whole history.
 
 Specific extractors turn known lines into events with attributes. Each extractor is a small Go function with a test fixture taken from a real log. The first set covers:
 
@@ -409,7 +413,7 @@ If the custom store proves too costly, `modernc.org/sqlite` is the fallback to r
 ### Backup and export
 
 - Snapshot: `POST /api/admin/snapshot` (auth required on TCP) hard-links the immutable blocks and copies the heads into `<data>/snapshots/<time>/`. A plain `cp -R` or `rsync` of that directory is a full backup.
-- Export: any chart offers CSV and JSON of exactly what it shows. `algod.top export --node X --metric Y --from --to --tier` exports the same data.
+- Export: any chart offers CSV and JSON of exactly what it shows. `algod.top export --node X --metric Y --from --to --tier` exports the same data. `algod.top export --events` and `--sessions` export every event or peer session in the range, 24 hours by default, as CSV unless `--format json` asks for the API's JSON. An event's attributes fill one CSV column as a JSON object, since their keys differ by kind.
 - The block format is documented in `docs/format.md`, with a format version, so the data stays readable without algod.top, however old it is.
 
 ## 9. Query API
@@ -433,6 +437,8 @@ The API is plain JSON over HTTP, served by stdlib `net/http` with the pattern ro
 | `GET /agent/v1/batches` | Agent pull protocol, served by agents only (section 12) |
 | `GET /api/stream?nodes=` | Server-Sent Events: live status and new samples for every node and series the client subscribes to |
 | `GET /metrics` | algod.top's own metrics in Prometheus text format |
+
+`from` and `to` take unix seconds, milliseconds or nanoseconds, told apart by size, RFC 3339, `now`, or a time relative to now such as `-6h`. A unix time may have a fraction, because JavaScript does its time arithmetic in fractional milliseconds.
 
 ### Tier selection
 
@@ -469,7 +475,7 @@ The front ends compute these from stored data rather than storing them separatel
   - the process wire bytes, with the method named
   - the gap between the two, which shows libp2p overhead (DHT, gossipsub control, encryption)
   - traffic by peer, as the top N peers stacked plus "other", from per-peer usage
-- Top talkers are the peers with the highest receive or send rate over the selected range, from per-peer usage.
+- Top talkers are the peers with the highest receive or send rate over the selected range, from per-peer usage. A peer's rate is its bytes over the time it was connected in the range, so a peer seen for two minutes of an hour shows the rate it moved bytes at. Polls that missed a peer between two of its samples mean it reconnected, and only the gap since the poll before its return counts. A gap with no polls at all, while algod.top was stopped, keeps its full length. The traffic by peer view divides by the same time.
 - Idle peers are connected peers with no open gossip stream in `active-streams`. A peer that stays connected without gossip uses a slot and carries nothing.
 - Peers are counts by network (ws/p2p) and direction (in/out), plus gossip streams, pubsub peers and DHT peers.
 - Branch metrics are metrics that exist only on some algod builds, such as the setup timeouts and inbound evictions (busy/idle) on builds that add them. They show as rates and appear automatically when present.
@@ -483,8 +489,8 @@ The front ends compute these from stored data rather than storing them separatel
 Each node has a health state of OK, Warn or Critical, and the reasons are always listed in words, for example "Warn: participation key for ABC... expires in 6 days". The defaults are:
 
 - Critical:
-  - algod is down, or `/health` fails
-  - the last round is older than 30 s and the node is not in catchup
+  - algod is down, or `/health` fails. When a local algod stops answering while its process runs, the reason names the pid, because a hung algod needs a kill and a crashed one a start.
+  - the last round is older than 30 s and the node is not in catchup. A node whose `/v2/status` fails, for example because algod rejects the API token, has no round, so its lag counts from the first failure and the reason names the error. algod answers `/metrics` and `/health` without a token, so such a node would otherwise look up and well.
   - disk is under 5%
   - an account's active participation key expires within 2 days. The active key is the on-chain vote key when the account is listed, else the valid key that voted last. A renewed account keeps its old key installed until someone deletes it, and that key does not count.
   - a listed account was online and is now offline or suspended (offline with its vote key still set)
@@ -493,6 +499,7 @@ Each node has a health state of OK, Warn or Critical, and the reasons are always
   - the clock offset is over 1 s
 - Warn:
   - catchup is running
+  - no round has been read yet because `/v2/status` fails. It becomes Critical once the lag passes 30 s.
   - an account's active key expires within 14 days
   - a listed account lost incentive eligibility
   - disk will fill within 14 days
@@ -508,12 +515,18 @@ Alert rules live in the config file with a name, expression, duration, severity,
 The channels need only the stdlib:
 
 - Webhook, a JSON POST. With a template it works for ntfy, Slack, Discord and Pushover.
-- SMTP through `net/smtp`.
+- SMTP through `net/smtp`. `net/smtp` takes no context, so algod.top dials the server itself and sets a 30 s deadline on the connection. Without it, a server that accepts and never answers would hold the channel forever. Port 465 speaks TLS from the first byte; other ports upgrade with STARTTLS when the server offers it. Each mail carries `Date` and `Message-ID`, which spam filters expect.
 - Command: algod.top runs a configured program with the alert JSON on stdin. This covers `osascript` notifications on macOS and PowerShell toast notifications on Windows.
 
 Channels are defined only in the config file. Neither front end nor the API can create or change a channel, because a command channel runs a program as the daemon's user.
 
 Firing needs the condition true for the full duration. Clearing needs it false for a cooldown, so alerts do not flap. A firing alert repeats at its repeat interval (default 1 h). Each transition is stored as an event.
+
+A notification says why in the words of the health reason, so `down` names the error, such as a timeout. A cleared notification names the message the alert fired with. A node back from down is stalled until its next round, and the last message, such as "last round is 81s old", read as a new problem.
+
+Each channel has its own delivery worker and queue. The worker keeps the channel's order, so a receiver never sees "cleared" before "repeat". A channel that hangs delays only its own notifications. A failed webhook or SMTP delivery is tried again after 10 s, 1 min and 5 min, which outlasts a webhook service's restart or a DNS blip. A failure that a retry would repeat is given up at once: a webhook 4xx other than 408 and 429, or an SMTP 5xx. A command runs once, because it may have done its work before it failed. A notification that never gets through is stored as an `alert-undelivered` event on its node, so a broken channel shows in both UIs before the incident it was meant for.
+
+A rule that does not parse, or that repeats another rule's name, is left out, and the daemon runs the rest. At startup a `config-error` event names it. A reload with such a rule fails and keeps the running config. `algod.top check` reports these rules before the daemon sees them, and `algod.top check --notify` sends a test notification on every channel. The daemon drops the firing state of a rule removed from the config, so the rule does not stay firing in the UIs.
 
 ### Silences
 
@@ -778,7 +791,7 @@ The terminal UI talks to the daemon over the unix socket with the same API as th
 1. Fleet. One card per node shows:
    - the health state and its reason
    - network, version, round and lag
-   - peers as in/out for ws and p2p
+   - peers as in/out for ws and p2p, or n/a when the node has no admin token. The counts come from `/v2/node/peers`, so without the token they would read 0.
    - a 24 h sparkline each for bandwidth and round time
    - participation status
    - the last notable event
@@ -799,7 +812,7 @@ The terminal UI talks to the daemon over the unix socket with the same API as th
    - bytes received and sent per session, with per-peer usage
 
    With per-peer usage, the current peers table adds peer ID, rates, open streams and supported protocols. The clusters list shows each cluster's timeline.
-4. Events. This is a filterable table of events, annotations and silences, with a timeline strip. The user can add an annotation from here, or by selecting a range on any chart.
+4. Events. This is a filterable table of events, annotations and silences, with a timeline strip. The user can add an annotation from here, or by selecting a range on any chart. A CSV link downloads every event of the range, node and kinds shown, which the table caps at the newest 2000.
 5. Compare. It overlays two time ranges for one node, aligned to their start, such as run 2 vs run 3. It can also overlay two nodes over the same range. For each metric it shows a summary table of mean, p50, p99, and the difference.
 6. Explorer. The user picks any stored metric and label filter and gets a chart. It covers questions nobody anticipated, without code changes.
 7. Settings. Nodes, retention and auth, read-only by default. Edits require login and write the config file atomically. Alert channels are never editable here (section 11).
@@ -873,7 +886,7 @@ Other candidates. Each is listed for approval, and none is planned:
 | `algod.top service` | Explains, installs, removes or reports the service that starts the daemon at login or boot (section 16) |
 | `algod.top reload` | Asks the daemon to reload its config, the same as SIGHUP. Windows has no SIGHUP, so this is the reload method there. |
 | `algod.top passwd` | Hashes a password into the config |
-| `algod.top check` | Validates config, reaches each node, prints projected disk use and any pending retention deletion |
+| `algod.top check [--notify]` | Validates config and alert rules, reaches each node, prints projected disk use and any pending retention deletion. `--notify` sends a test notification on each channel |
 | `algod.top version` | Prints the version |
 
 ### Config
@@ -943,6 +956,7 @@ algod.top has no release numbers. Every commit on main is a release, and Go name
 - `algod.top version`, the Settings page and `remote add` show the commit's time and age, such as `2026-11-04 12:35 UTC (37f0e9db), 3 days old`. A local build reads them from Go's VCS stamp, and an installed one from its pseudo-version.
 - The repo has no semver tags. A v1 tag would make `@latest` follow tags rather than main, and v2 or later would move the install path to `algod.top/v2`.
 - Changes reach main through a pull request once CI passes, so every release has passed CI.
+- Feature pull requests target the `release` branch. A pull request from `release` into `main` ships a batch, so related changes make one release rather than one each, and no partial batch reaches `go install`.
 
 `go run algod.top@latest` is the zero-install entry point. It follows the startup order in section 13: a running daemon if one exists, then a config file, then flags, then discovered local nodes. Flags pass through as usual, for example `go run algod.top@latest -d ~/.mainnet` or `go run algod.top@latest daemon -l :8090`.
 

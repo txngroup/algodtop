@@ -64,8 +64,8 @@ export function mount(root, app, r) {
     if (usage) {
       cols.push(
         { key: "peer_id", label: "peer ID", render: (p) => h("span", { class: "mono", title: p.peer_id || "" }, p.peer_id ? p.peer_id.slice(0, 12) + "..." : "") },
-        { key: "rate_in", label: "receive rate", num: true, render: (p) => inlineBar(p.rate_in || 0, maxRate, fmt(p.rate_in || 0, "B/s"), "in") },
-        { key: "rate_out", label: "send rate", num: true, render: (p) => inlineBar(p.rate_out || 0, maxRate, fmt(p.rate_out || 0, "B/s"), "out") },
+        { key: "rate_in", label: "receive rate", num: true, get: (p) => rateOf(p, "rate_in"), render: (p) => rateCell(p, "rate_in", maxRate, "in") },
+        { key: "rate_out", label: "send rate", num: true, get: (p) => rateOf(p, "rate_out"), render: (p) => rateCell(p, "rate_out", maxRate, "out") },
         { key: "bytes_in", label: "session in", num: true, render: (p) => fmt(p.bytes_in || 0, "bytes") },
         { key: "bytes_out", label: "session out", num: true, render: (p) => fmt(p.bytes_out || 0, "bytes") },
         { key: "streams", label: "streams", num: true, get: (p) => (p.streams || []).length, render: (p) => h("span", { title: (p.streams || []).join("\n") }, String((p.streams || []).length)) },
@@ -73,11 +73,25 @@ export function mount(root, app, r) {
     }
     const fi = h("input", { type: "search", placeholder: "filter", value: q.get("f") || "", on: { change: (e) => setParams({ f: e.target.value || null }, { replace: true }) } });
     clear(cur);
+    if (!res.has_admin) {
+      cur.append(h("p", { class: "note" }, "The peer list needs the admin token, and this node has none. Set admin_token or admin_token_file for a URL node, or make algod.admin.token in the data directory readable."));
+      return;
+    }
     cur.append(h("div", { class: "bar" },
       h("span", null, peers.length + " peers: WS " + (c.ws_in || 0) + " in / " + (c.ws_out || 0) + " out, P2P " + (c.p2p_in || 0) + " in / " + (c.p2p_out || 0) + " out"),
       usage ? null : h("span", { class: "note" }, "Per-peer usage is not available on this node, so rates and peer IDs are not shown."),
       h("span", { class: "grow" }), fi),
     h("div", { class: "table-wrap", style: { maxHeight: "480px", overflowY: "auto" } }, sortableTable(cols, list, { sort: usage ? "rate_in" : "since", desc: true, empty: "No peers." })));
+  }
+
+  // A rate needs two polls. Until then the peer shows "-" and sorts below
+  // peers whose rate is a measured zero.
+  function rateOf(p, key) {
+    return p.rate_unknown ? -1 : p[key] || 0;
+  }
+  function rateCell(p, key, max, cls) {
+    if (p.rate_unknown) return h("span", { class: "note", title: "Known after the next peers poll, within 30 s" }, "-");
+    return inlineBar(p[key] || 0, max, fmt(p[key] || 0, "B/s"), cls);
   }
 
   async function drawHistory() {
@@ -120,9 +134,9 @@ export function mount(root, app, r) {
         clear(cell);
         const ss = sr.sessions || [];
         cell.appendChild(sortableTable([
-          { key: "start", label: "start", num: true, render: (z) => fmtDateTime(ns(z.start)) },
+          { key: "start", label: "start", num: true, render: (z) => (z.open_before ? h("span", { title: "Connected before algod.top first looked" }, "before " + fmtDateTime(ns(z.start))) : fmtDateTime(ns(z.start))) },
           { key: "end", label: "end", num: true, render: (z) => (z.end ? fmtDateTime(ns(z.end)) : "open") },
-          { key: "dur", label: "length", num: true, get: (z) => (z.end ? z.end - z.start : Date.now() * 1e6 - z.start), render: (z) => fmtDur(((z.end || Date.now() * 1e6) - z.start) / 1e9) },
+          { key: "dur", label: "length", num: true, get: (z) => (z.end ? z.end - z.start : Date.now() * 1e6 - z.start), render: (z) => fmtDur(((z.end || Date.now() * 1e6) - z.start) / 1e9) + (z.open_before ? "+" : "") },
           { key: "direction", label: "dir", render: (z) => dirCell(z.direction) },
           { key: "network", label: "net" },
           { key: "reason", label: "reason" },

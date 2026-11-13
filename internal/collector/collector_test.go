@@ -318,3 +318,55 @@ func TestRestartSkipsTheFirstGap(t *testing.T) {
 		t.Errorf("round %d after %d has round time %.3fs, want about 0.2s", rs[2].round, rs[1].round, rs[2].gap)
 	}
 }
+
+// algod answers /metrics and /health without a token, so a node whose
+// token is missing or wrong looks up and well. Its round is unknown: the
+// state says why, and the lag runs from the first failure.
+func TestRejectedTokenIsNotOK(t *testing.T) {
+	dir := t.TempDir()
+	fake, err := fakealgod.Start(fakealgod.Options{DataDir: dir, RoundEvery: 200 * time.Millisecond, Token: "tok", AdminToken: "admintok"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer fake.Close()
+	tokenFile := filepath.Join(dir, "algod.token")
+	if err := os.Remove(tokenFile); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		name string
+		src  Source
+		want string
+	}{
+		{"wrong", &RESTSource{URL: fake.URL(), Token: "nope"}, "algod rejects the API token (HTTP 401)"},
+		{"unset", &RESTSource{URL: fake.URL()}, "no API token is set (HTTP 401)"},
+		{"datadir", &LocalSource{Dir: dir}, "algod.token is missing or unreadable (HTTP 401)"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			n := NewNode(Options{Name: c.name, Source: c.src, Sink: &recSink{}, Scrape: 200 * time.Millisecond})
+			ctx, cancel := context.WithCancel(context.Background())
+			done := make(chan struct{})
+			go func() { n.Run(ctx); close(done) }()
+			defer func() { cancel(); <-done }()
+			waitFor(t, "status error", 5*time.Second, func() bool { return n.State().StatusErr != "" })
+			st := n.State()
+			if !st.Up || st.Round != 0 || st.StatusErr != c.want {
+				t.Fatalf("up %v, round %d, status error %q, want %q", st.Up, st.Round, st.StatusErr, c.want)
+			}
+			if lag := st.Lag(time.Unix(0, st.StatusErrAt).Add(31 * time.Second)); lag < 30 {
+				t.Fatalf("lag %.1fs 31 s after the first failure", lag)
+			}
+			if c.name != "datadir" {
+				return
+			}
+			// The data directory is read again every 5 s.
+			if err := os.WriteFile(tokenFile, []byte("tok\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			waitFor(t, "a round with the token back", 10*time.Second, func() bool {
+				st := n.State()
+				return st.StatusErr == "" && st.StatusErrAt == 0 && st.Round != 0
+			})
+		})
+	}
+}

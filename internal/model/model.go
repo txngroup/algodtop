@@ -222,6 +222,15 @@ const (
 	EvAnnotation      = "annotation"
 )
 
+const (
+	// EvAlertUndelivered is a notification that failed on its channel
+	// after every retry.
+	EvAlertUndelivered = "alert-undelivered"
+	// EvConfigError is a part of the config that could not take effect,
+	// such as an alert rule that does not parse.
+	EvConfigError = "config-error"
+)
+
 // Event is something that happened at a point in time.
 type Event struct {
 	Time     int64          `json:"time"`

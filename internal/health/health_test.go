@@ -34,6 +34,14 @@ func TestRules(t *testing.T) {
 		{"down", func(s *collector.State) { s.Up = false; s.LastError = "connection refused" }, "down", Critical, "algod is down"},
 		{"stalled", func(s *collector.State) { s.RoundAt = now.Add(-45 * time.Second).UnixNano() }, "stalled", Critical, "last round is"},
 		{"catchup", func(s *collector.State) { s.RoundAt = now.Add(-45 * time.Second).UnixNano(); s.Catchup = true }, "catchup", Warn, "catchup"},
+		{"token", func(s *collector.State) {
+			s.Round, s.RoundAt = 0, 0
+			s.StatusErr, s.StatusErrAt = "algod rejects the API token (HTTP 401)", now.Add(-45*time.Second).UnixNano()
+		}, "stalled", Critical, "cannot read the round for 45s: algod rejects the API token (HTTP 401)"},
+		{"tokenlater", func(s *collector.State) {
+			s.RoundAt = now.Add(-2 * time.Minute).UnixNano()
+			s.StatusErr, s.StatusErrAt = "algod rejects the API token (HTTP 401)", now.Add(-time.Minute).UnixNano()
+		}, "stalled", Critical, "cannot read the round for 2m0s"},
 		{"disk", func(s *collector.State) { s.DiskFree = 20 }, "disk", Critical, "2.0% free"},
 		{"key6", func(s *collector.State) {
 			s.Keys = []collector.PartKeyState{{Address: "ABCDEFGHIJ", RoundsLeft: 1000, DaysLeft: 6}}
@@ -60,6 +68,31 @@ func TestRules(t *testing.T) {
 		if !found {
 			t.Errorf("%s: reasons %+v", c.name, st.Reasons)
 		}
+	}
+}
+
+// A node whose /v2/status fails has no round. It used to read as a lag of
+// 0 and stay OK. It is now Warn at once and stalled after 30 s, since its
+// lag runs from the first failure.
+func TestStatusErrorCountsAsLag(t *testing.T) {
+	now := time.Now()
+	s := base()
+	s.Round, s.RoundAt = 0, 0
+	s.StatusErr, s.StatusErrAt = "no API token is set (HTTP 401)", now.Add(-10*time.Second).UnixNano()
+	st := Evaluate(&s, Context{Now: now})
+	if want := "Warn: cannot read the round: no API token is set (HTTP 401)"; st.Summary() != want {
+		t.Fatalf("10 s after the first failure: %q, want %q", st.Summary(), want)
+	}
+	st = Evaluate(&s, Context{Now: now.Add(25 * time.Second)})
+	if want := "Critical: cannot read the round for 35s: no API token is set (HTTP 401)"; st.Summary() != want {
+		t.Fatalf("35 s after the first failure: %q, want %q", st.Summary(), want)
+	}
+	// A node that had rounds rides out a short failure, such as a timeout.
+	s = base()
+	s.RoundAt = now.Add(-3 * time.Second).UnixNano()
+	s.StatusErr, s.StatusErrAt = "context deadline exceeded", now.UnixNano()
+	if st := Evaluate(&s, Context{Now: now}); st.Level != OK {
+		t.Fatalf("a timeout after a round 3 s ago: %s", st.Summary())
 	}
 }
 

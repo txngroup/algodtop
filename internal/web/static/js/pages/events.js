@@ -2,7 +2,7 @@
 // timeline strip above it. Annotations and silences can be added here.
 
 import { h, clear, sortableTable } from "../dom.js";
-import { send, canWrite } from "../api.js";
+import { send, canWrite, qs } from "../api.js";
 import { rangeOf, setParams, listParam, encodeTime, decodeTime } from "../state.js";
 import { fmtDateTime, fmtShortTime, toLocalInput, ns } from "../format.js";
 import { rangeBar, toEv, regionsFrom, nodePicker, fetchEvents } from "../common.js";
@@ -195,7 +195,13 @@ export function mount(root, app, r) {
   async function load() {
     const rg = rangeOf(q, { def: "24h" });
     clear(head);
-    head.append(h("h1", null, "Events"));
+    // The CSV holds every event of the range, node and kinds, which the
+    // table caps; severity and search filter only the table.
+    const exportKinds = listParam(q, "kind").filter((k) => k !== "annotation" && k !== "silence");
+    const csv = "/api/events" + qs({ node: q.get("node") || "", from: Math.floor(rg.from), to: Math.ceil(rg.to), kind: exportKinds.join(","), format: "csv", limit: 0 });
+    // Annotations and silences alone leave no events to export.
+    const onlyNotes = listParam(q, "kind").length > 0 && !exportKinds.length;
+    head.append(h("h1", null, "Events"), onlyNotes ? null : h("a", { class: "btn small", href: csv, download: "events.csv", title: "Download every event of this range, node and kinds as CSV" }, "CSV"));
     clear(rangeEl);
     rangeEl.appendChild(rangeBar(q, { def: "24h", raw: false, restart: false }));
     try {

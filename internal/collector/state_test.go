@@ -1,6 +1,12 @@
 package collector
 
 import (
+	"context"
+	"fmt"
+	"net"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -97,6 +103,29 @@ func TestFirstPollPeersAreOpenBefore(t *testing.T) {
 	}
 }
 
+// A disconnect with no connect before it ends a session that began before
+// algodtop looked. Its start is unknown, so it is marked open before
+// rather than stored as a session of zero length.
+func TestLogDisconnectWithoutConnectIsOpenBefore(t *testing.T) {
+	sink := &recSink{}
+	n := &Node{o: Options{Name: "n", Sink: sink, PeersEvery: 30 * time.Second}}
+	tr := newSessionTracker(n)
+	now := time.Unix(1_800_000_000, 0)
+	s := tr.logDisconnect(now, "/ip4/1.2.3.4/tcp/4190", "", false, "ReadError")
+	if !s.OpenBefore || s.Start != s.End || s.End != now.UnixNano() {
+		t.Fatalf("unknown start: %+v", s)
+	}
+	// A session whose connect the log saw has a real start.
+	tr.logConnect(now, "/ip4/5.6.7.8/tcp/4190", "", true)
+	s = tr.logDisconnect(now.Add(time.Minute), "/ip4/5.6.7.8/tcp/4190", "", true, "IdleConnection")
+	if s.OpenBefore || s.Start != now.UnixNano() {
+		t.Fatalf("known start: %+v", s)
+	}
+	if len(sink.sessions) != 2 {
+		t.Fatalf("%d sessions stored, want 2", len(sink.sessions))
+	}
+}
+
 // A node still marked down after a restart must not log the restart again
 // on the next check under the same pid.
 func TestRestartLoggedOnce(t *testing.T) {
@@ -122,5 +151,67 @@ func TestRestartLoggedOnce(t *testing.T) {
 	}
 	if restarts != 1 {
 		t.Fatalf("%d restart events, want 1", restarts)
+	}
+}
+
+// A local algod that stops answering while its process runs is hung, not
+// crashed. The down reason says the process is still there.
+func TestDownReasonNamesARunningPID(t *testing.T) {
+	// A listener that never accepts: connects succeed and requests hang,
+	// as they do for an algod stopped with SIGSTOP.
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	dir := t.TempDir()
+	for name, body := range map[string]string{"algod.net": ln.Addr().String() + "\n", "algod.pid": fmt.Sprint(os.Getpid()) + "\n", "algod.token": "tok\n"} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	prev := processAlive.Load()
+	SetProcessAlive(func(int) bool { return true })
+	defer processAlive.Store(prev)
+	n := NewNode(Options{Name: "n", Source: &LocalSource{Dir: dir}, Sink: &recSink{}, Scrape: 100 * time.Millisecond})
+	ctx := context.Background()
+	n.refreshFiles(ctx, true)
+	n.mu.Lock()
+	n.st.Up = true
+	n.mu.Unlock()
+	n.scrape(ctx)
+	n.scrape(ctx)
+	st := n.State()
+	want := fmt.Sprintf("; algod pid %d is still running", os.Getpid())
+	if st.Up || !strings.HasPrefix(st.LastError, "REST unreachable: ") || !strings.HasSuffix(st.LastError, want) {
+		t.Fatalf("up %v, last error %q", st.Up, st.LastError)
+	}
+}
+
+// A peer's rate is its bytes over the time since the last poll that
+// answered. A failed poll in between must not double the rate, and a new
+// peer or a reset total has no rate yet.
+func TestPeerRateUsesThePollGap(t *testing.T) {
+	n := &Node{o: Options{Name: "n", Sink: &recSink{}, PeersEvery: 30 * time.Second}}
+	tr := newSessionTracker(n)
+	now := time.Unix(1_800_000_000, 0)
+	p := PeerInfo{Addr: "/ip4/1.2.3.4/tcp/4190", IP: "1.2.3.4", Network: "p2p", Direction: "in", HasUsage: true}
+	at := func(sec int, in, out int64) PeerInfo {
+		q := p
+		q.BytesIn, q.BytesOut = in, out
+		return tr.observe(now.Add(time.Duration(sec)*time.Second), []PeerInfo{q})[0]
+	}
+	if got := at(0, 1000, 500); !got.RateUnknown || got.RateIn != 0 {
+		t.Fatalf("first poll: %+v", got)
+	}
+	if got := at(30, 31000, 15500); got.RateUnknown || got.RateIn != 1000 || got.RateOut != 500 {
+		t.Fatalf("after 30 s: %+v", got)
+	}
+	// The poll at 60 s failed, so the next answer comes 60 s later.
+	if got := at(90, 91000, 45500); got.RateUnknown || got.RateIn != 1000 || got.RateOut != 500 {
+		t.Fatalf("after a missed poll: %+v", got)
+	}
+	if got := at(120, 100, 45600); !got.RateUnknown {
+		t.Fatalf("a total that went down: %+v", got)
 	}
 }

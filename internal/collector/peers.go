@@ -183,6 +183,7 @@ type sessionTracker struct {
 	cumIn    float64
 	cumOut   float64
 	prevPoll map[string]PeerInfo
+	prevAt   time.Time                // when prevPoll was taken
 	pending  map[string]model.Session // log disconnects awaiting a poll
 }
 
@@ -236,13 +237,16 @@ func (t *sessionTracker) observe(now time.Time, peers []PeerInfo) []PeerInfo {
 			if len(p.Protocols) > 0 {
 				s.Protocols = p.Protocols
 			}
-			if prev, ok := t.prevPoll[k]; ok && t.n.o.PeersEvery > 0 {
-				dt := t.n.o.PeersEvery.Seconds()
-				if d := p.BytesIn - prev.BytesIn; d >= 0 {
-					p.RateIn = float64(d) / dt
-				}
-				if d := p.BytesOut - prev.BytesOut; d >= 0 {
-					p.RateOut = float64(d) / dt
+			// The gap is the time since the last poll that answered. A
+			// failed or late poll makes it longer than PeersEvery, and
+			// dividing by PeersEvery would inflate the rate.
+			p.RateUnknown = true
+			if prev, ok := t.prevPoll[k]; ok {
+				dt := now.Sub(t.prevAt).Seconds()
+				din, dout := p.BytesIn-prev.BytesIn, p.BytesOut-prev.BytesOut
+				if dt > 0 && din >= 0 && dout >= 0 {
+					p.RateIn, p.RateOut = float64(din)/dt, float64(dout)/dt
+					p.RateUnknown = false
 				}
 			}
 		}
@@ -261,6 +265,7 @@ func (t *sessionTracker) observe(now time.Time, peers []PeerInfo) []PeerInfo {
 		delete(t.live, k)
 	}
 	t.prevPoll = map[string]PeerInfo{}
+	t.prevAt = now
 	for _, p := range peers {
 		t.prevPoll[sessKey(p.Network, p.Direction, p.Addr)] = p
 	}
@@ -307,8 +312,9 @@ func (t *sessionTracker) logDisconnect(at time.Time, addr, ip string, incoming b
 	k := sessKey(netw, dir, addr)
 	s, ok := t.live[k]
 	if !ok {
-		// Started before monitoring began: the start is unknown.
-		s = &model.Session{Node: t.n.o.Name, Network: netw, Direction: dir, Addr: NormalizeAddr(addr), IP: ip, Source: "log"}
+		// Started before monitoring began: the start is unknown, so the
+		// session is marked open before and its length is a lower bound.
+		s = &model.Session{Node: t.n.o.Name, Network: netw, Direction: dir, Addr: NormalizeAddr(addr), IP: ip, Source: "log", OpenBefore: true}
 	}
 	if s.IP == "" || s.IP == IPOf(addr) {
 		s.IP = ip

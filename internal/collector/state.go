@@ -41,7 +41,9 @@ type State struct {
 	Round       uint64  `json:"round"`
 	RoundAt     int64   `json:"round_at"` // local arrival, unix ns
 	StatusLag   float64 `json:"status_lag"`
-	RoundTime   float64 `json:"round_time"` // mean of recent gaps, s
+	StatusErr   string  `json:"status_error,omitempty"`       // why /v2/status fails, "" once it answers
+	StatusErrAt int64   `json:"status_error_since,omitempty"` // first failure in a row, unix ns
+	RoundTime   float64 `json:"round_time"`                   // mean of recent gaps, s
 	RoundP99    float64 `json:"round_p99"`
 	Catchup     bool    `json:"catchup"`
 	TxnsPerBlk  float64 `json:"tpb"`
@@ -85,8 +87,14 @@ type State struct {
 }
 
 // Lag returns seconds since the last round, from local arrival when known.
+// A node whose status never answered has no round at all, so its lag runs
+// from the first failure. Otherwise a rejected token would read as a lag
+// of 0 and the node would never count as stalled.
 func (s *State) Lag(now time.Time) float64 {
 	if s.RoundAt == 0 {
+		if s.StatusErrAt != 0 {
+			return now.Sub(time.Unix(0, s.StatusErrAt)).Seconds()
+		}
 		return s.StatusLag
 	}
 	return now.Sub(time.Unix(0, s.RoundAt)).Seconds()
@@ -121,6 +129,10 @@ type PeerInfo struct {
 	Streams   []string `json:"streams,omitempty"`
 	Protocols []string `json:"protocols,omitempty"`
 	HasUsage  bool     `json:"has_usage,omitempty"`
+	// RateUnknown means the rates need another poll: the peer is new, or
+	// its totals went down. The flag is negative so that a front end
+	// reading an older daemon, which never sends it, still shows rates.
+	RateUnknown bool `json:"rate_unknown,omitempty"`
 	// SinceBefore means the peer was connected before algodtop first
 	// looked, so Since is a lower bound on the time connected.
 	SinceBefore bool `json:"since_before,omitempty"`

@@ -34,7 +34,7 @@ type Host struct {
 	mu       sync.Mutex
 	start    map[int]int64
 	prevCPU  map[string][2]float64 // node -> cpu seconds, unix seconds
-	prevNet  map[string][3]float64 // node -> in, out, unix seconds
+	prevNet  map[string]netPoint   // node -> last process net counters
 	diskHist map[string][]diskPoint
 	offset   float64
 	offKnown bool
@@ -43,6 +43,23 @@ type Host struct {
 type diskPoint struct {
 	t    float64
 	used float64
+}
+
+// netPoint is one reading of a process's cumulative network bytes.
+type netPoint struct {
+	in, out, t float64 // t in unix seconds
+	method     string
+}
+
+// netRate is the byte rate between two readings. Two methods count
+// different things, such as one process's sockets and a whole namespace's
+// interfaces, so a rate needs two readings from the same method.
+func netRate(prev, cur netPoint) (in, out float64, ok bool) {
+	if prev.t <= 0 || cur.t <= prev.t || cur.method != prev.method || cur.in < prev.in || cur.out < prev.out {
+		return 0, 0, false
+	}
+	dt := cur.t - prev.t
+	return (cur.in - prev.in) / dt, (cur.out - prev.out) / dt, true
 }
 
 // NewHost returns a host collector over the nodes returned by nodes.
@@ -60,7 +77,7 @@ func NewHost(o HostOptions, sink Sink, nodes func() []*Node) *Host {
 		o.Now = time.Now
 	}
 	h := &Host{o: o, sys: sysstat.New(), sink: sink, nodes: nodes, start: map[int]int64{}, prevCPU: map[string][2]float64{},
-		prevNet: map[string][3]float64{}, diskHist: map[string][]diskPoint{}}
+		prevNet: map[string]netPoint{}, diskHist: map[string][]diskPoint{}}
 	SetProcessAlive(sysstat.Alive)
 	return h
 }
@@ -260,13 +277,13 @@ func (h *Host) netPass() {
 		})
 		t := float64(now.UnixNano()) / 1e9
 		h.mu.Lock()
+		cur := netPoint{v.In, v.Out, t, v.Method}
 		prev := h.prevNet[n.o.Name]
-		h.prevNet[n.o.Name] = [3]float64{v.In, v.Out, t}
+		h.prevNet[n.o.Name] = cur
 		h.mu.Unlock()
-		if prev[2] > 0 && t > prev[2] && v.In >= prev[0] && v.Out >= prev[1] {
-			dt := t - prev[2]
+		if in, out, ok := netRate(prev, cur); ok {
 			n.update(func(s *State) {
-				s.NetIn, s.NetOut, s.NetMethod = (v.In-prev[0])/dt, (v.Out-prev[1])/dt, v.Method
+				s.NetIn, s.NetOut, s.NetMethod = in, out, v.Method
 			})
 		} else {
 			n.update(func(s *State) { s.NetMethod = v.Method })
