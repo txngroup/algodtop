@@ -187,3 +187,31 @@ func TestDownReasonNamesARunningPID(t *testing.T) {
 		t.Fatalf("up %v, last error %q", st.Up, st.LastError)
 	}
 }
+
+// A peer's rate is its bytes over the time since the last poll that
+// answered. A failed poll in between must not double the rate, and a new
+// peer or a reset total has no rate yet.
+func TestPeerRateUsesThePollGap(t *testing.T) {
+	n := &Node{o: Options{Name: "n", Sink: &recSink{}, PeersEvery: 30 * time.Second}}
+	tr := newSessionTracker(n)
+	now := time.Unix(1_800_000_000, 0)
+	p := PeerInfo{Addr: "/ip4/1.2.3.4/tcp/4190", IP: "1.2.3.4", Network: "p2p", Direction: "in", HasUsage: true}
+	at := func(sec int, in, out int64) PeerInfo {
+		q := p
+		q.BytesIn, q.BytesOut = in, out
+		return tr.observe(now.Add(time.Duration(sec)*time.Second), []PeerInfo{q})[0]
+	}
+	if got := at(0, 1000, 500); !got.RateUnknown || got.RateIn != 0 {
+		t.Fatalf("first poll: %+v", got)
+	}
+	if got := at(30, 31000, 15500); got.RateUnknown || got.RateIn != 1000 || got.RateOut != 500 {
+		t.Fatalf("after 30 s: %+v", got)
+	}
+	// The poll at 60 s failed, so the next answer comes 60 s later.
+	if got := at(90, 91000, 45500); got.RateUnknown || got.RateIn != 1000 || got.RateOut != 500 {
+		t.Fatalf("after a missed poll: %+v", got)
+	}
+	if got := at(120, 100, 45600); !got.RateUnknown {
+		t.Fatalf("a total that went down: %+v", got)
+	}
+}

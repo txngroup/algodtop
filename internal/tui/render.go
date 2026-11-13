@@ -778,7 +778,9 @@ func (m *Model) peersPane(n *api.NodeView, room int) []string {
 		}
 		in, out, total := "-", "-", "-"
 		if p.HasUsage {
-			in, out = KBps(p.RateIn), KBps(p.RateOut)
+			if !p.RateUnknown {
+				in, out = KBps(p.RateIn), KBps(p.RateOut)
+			}
 			total = Bytes(float64(p.BytesIn)) + "/" + Bytes(float64(p.BytesOut))
 		}
 		col := cCyan

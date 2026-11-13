@@ -129,6 +129,10 @@ type PeerInfo struct {
 	Streams   []string `json:"streams,omitempty"`
 	Protocols []string `json:"protocols,omitempty"`
 	HasUsage  bool     `json:"has_usage,omitempty"`
+	// RateUnknown means the rates need another poll: the peer is new, or
+	// its totals went down. The flag is negative so that a front end
+	// reading an older daemon, which never sends it, still shows rates.
+	RateUnknown bool `json:"rate_unknown,omitempty"`
 	// SinceBefore means the peer was connected before algodtop first
 	// looked, so Since is a lower bound on the time connected.
 	SinceBefore bool `json:"since_before,omitempty"`

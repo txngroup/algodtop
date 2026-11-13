@@ -64,8 +64,8 @@ export function mount(root, app, r) {
     if (usage) {
       cols.push(
         { key: "peer_id", label: "peer ID", render: (p) => h("span", { class: "mono", title: p.peer_id || "" }, p.peer_id ? p.peer_id.slice(0, 12) + "..." : "") },
-        { key: "rate_in", label: "receive rate", num: true, render: (p) => inlineBar(p.rate_in || 0, maxRate, fmt(p.rate_in || 0, "B/s"), "in") },
-        { key: "rate_out", label: "send rate", num: true, render: (p) => inlineBar(p.rate_out || 0, maxRate, fmt(p.rate_out || 0, "B/s"), "out") },
+        { key: "rate_in", label: "receive rate", num: true, get: (p) => rateOf(p, "rate_in"), render: (p) => rateCell(p, "rate_in", maxRate, "in") },
+        { key: "rate_out", label: "send rate", num: true, get: (p) => rateOf(p, "rate_out"), render: (p) => rateCell(p, "rate_out", maxRate, "out") },
         { key: "bytes_in", label: "session in", num: true, render: (p) => fmt(p.bytes_in || 0, "bytes") },
         { key: "bytes_out", label: "session out", num: true, render: (p) => fmt(p.bytes_out || 0, "bytes") },
         { key: "streams", label: "streams", num: true, get: (p) => (p.streams || []).length, render: (p) => h("span", { title: (p.streams || []).join("\n") }, String((p.streams || []).length)) },
@@ -82,6 +82,16 @@ export function mount(root, app, r) {
       usage ? null : h("span", { class: "note" }, "Per-peer usage is not available on this node, so rates and peer IDs are not shown."),
       h("span", { class: "grow" }), fi),
     h("div", { class: "table-wrap", style: { maxHeight: "480px", overflowY: "auto" } }, sortableTable(cols, list, { sort: usage ? "rate_in" : "since", desc: true, empty: "No peers." })));
+  }
+
+  // A rate needs two polls. Until then the peer shows "-" and sorts below
+  // peers whose rate is a measured zero.
+  function rateOf(p, key) {
+    return p.rate_unknown ? -1 : p[key] || 0;
+  }
+  function rateCell(p, key, max, cls) {
+    if (p.rate_unknown) return h("span", { class: "note", title: "Known after the next peers poll, within 30 s" }, "-");
+    return inlineBar(p[key] || 0, max, fmt(p[key] || 0, "B/s"), cls);
   }
 
   async function drawHistory() {
