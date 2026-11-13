@@ -66,6 +66,16 @@ func TestTemplates(t *testing.T) {
 		"wsStreamHandlerV22: error reading peer meta headers response from peer 12D3KooWBuS5F7v2sBgtLKWCshaSUEJzTR4NLK4Kzhfn2mEkmRrW (/ip4/203.0.113.5/tcp/48696): EOF":            "wsStreamHandlerV22: error reading peer meta headers response from peer <peer> (<maddr>): EOF",
 		"peer[203.0.113.9:4160] read err: timeout after 1.5s": "peer[<addr>] read err: timeout after <dur>",
 		"finished round 66602021":                             "finished round <n>",
+		// Relays by DNS name, one template for all of them.
+		"network performance monitor - peer 'r-ab.relays.example.net:4160' delay 81 first message portion 34%": "network performance monitor - peer '<addr>' delay <n> first message portion <n>%",
+		"TxSyncer.Sync: asking client r-cd.relays.example.net:4160 for missing transactions":                   "TxSyncer.Sync: asking client <addr> for missing transactions",
+		"Peer relay-7.example.org:4160 disconnected: LeastPerformingPeer":                                      "Peer <addr> disconnected: LeastPerformingPeer",
+		// A source position is not a host.
+		"unexpected state at ledger.go:412": "unexpected state at ledger.go:412",
+		// libp2p DHT refresh keys are mostly padding and can lack a digit.
+		"starting refreshing cpl 3 with key CIQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPQ (routing table size was 12)": "starting refreshing cpl <n> with key <id> (routing table size was <n>)",
+		// Upper-case words stay.
+		"BROADCAST_QUEUE_FULL dropped TX": "BROADCAST_QUEUE_FULL dropped TX",
 	}
 	for in, want := range cases {
 		if got := Template(in); got != want {
