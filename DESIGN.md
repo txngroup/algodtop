@@ -199,7 +199,7 @@ Today no algod series carries a per-peer label, but a future version could add o
 
 New series beyond either cap are dropped, the drop is counted, and both front ends show a warning naming the metric. Per-peer data goes into the peer-session store (below), not into series.
 
-Log-derived series have their own caps: templates per node (default 2000) and app IDs per flood counter (default 100, with the rest summed into `other`).
+Log-derived series have their own caps: templates per node (default 2000) and app IDs per flood counter (default 100, with the rest summed into `other`). The store never frees a series, while the tailer's counts start empty at each restart. So the tailer starts its caps from the templates and app IDs the store already holds. A value new to the store gets a series only while the cap has room. Otherwise its lines go to `other` or to `log_template_drops_total`, rather than to a series the store would drop.
 
 ### Metric renames
 
@@ -497,6 +497,7 @@ Each node has a health state of OK, Warn or Critical, and the reasons are always
   - a listed account is online but its installed key is not the vote key registered on chain
   - a listed online account has not voted for more than 10 times its expected vote interval
   - the clock offset is over 1 s
+  - algod.top paused writes at the disk floor
 - Warn:
   - catchup is running
   - no round has been read yet because `/v2/status` fails. It becomes Critical once the lag passes 30 s.
@@ -506,7 +507,8 @@ Each node has a health state of OK, Warn or Critical, and the reasons are always
   - the node has 0 outgoing peers
   - the error log rate is above its baseline
   - the version is behind the latest release seen on another node of the same network and release channel. Developer builds take no part, because their build numbers count hours rather than patches.
-  - algod.top missed scrapes, dropped series, paused writes, or deleted data at the disk floor
+  - algod.top missed scrapes, dropped series over a cap, or deleted data at the disk floor
+  - algod.top projects disk use beyond free space minus the floor, or its data shares a volume with the node at under 15% free
 
 ## 11. Alerting
 
