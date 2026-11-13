@@ -13,11 +13,11 @@ BANDWIDTH (KB/s)  wire bytes from nettop                    RESOURCES
  wire in/out     410/380                                     fds                   0                                    
  wire-app gap        790                                     disk free             -                                    
                                                                                                                         
-PEERS (p)  2 connected, per-peer usage on   e events  l log templates  < > sort                                         
+PEERS (p)  3 connected, per-peer usage on   e events  l log templates  < > sort                                         
 ADDR*                                 DIR NET  CONNECTED  RESETS 24h CLUSTER IN KB/s  OUT KB/s TOTAL       STREAMS      
+/ip4/198.51.100.7/tcp/4190            out p2p  20s        0          -       -        -        64K/32K                  
 /ip4/203.0.113.4/tcp/4190             in  p2p  3h 0m      0          -       20       10       0/0         /algorand-ws/
 relay.example.net:4160                out ws   1d 2h      0          -       -        -        -                        
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

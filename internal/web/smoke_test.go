@@ -364,10 +364,18 @@ func TestSmokePages(t *testing.T) {
 				"--virtual-time-budget=5000", "--dump-dom", url)
 			var stdout, stderr bytes.Buffer
 			cmd.Stdout, cmd.Stderr = &stdout, &stderr
-			if err := cmd.Run(); err != nil {
-				t.Fatalf("chrome: %v\n%s", err, stderr.String())
-			}
+			err := cmd.Run()
 			dom := stdout.String()
+			if err != nil {
+				// Headless Chrome on the macOS runners sometimes hangs while
+				// it shuts down, after it has printed the DOM, and its
+				// watchdog exits with status 2. The page itself loaded, so
+				// the checks below still judge it.
+				if !strings.Contains(stderr.String(), "Teardown watchdog expired") || !strings.Contains(dom, "</html>") {
+					t.Fatalf("chrome: %v\n%s", err, stderr.String())
+				}
+				t.Logf("chrome: %v during shutdown, after the DOM was printed", err)
+			}
 			if dir := os.Getenv("ALGODTOP_SMOKE_DUMP"); dir != "" {
 				// For debugging: keep each page's DOM and Chrome log.
 				file := strings.NewReplacer("/", "_", "?", "_", "&", "_", "=", "-", ",", "-").Replace(name)

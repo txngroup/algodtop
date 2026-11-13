@@ -242,7 +242,7 @@ algod.top detects support per peer entry by the presence of `active-streams`, no
 
 The field semantics shape how algod.top stores them:
 
-- The byte totals are cumulative and reset when the last connection to the peer closes. algod.top treats them as a counter per peer session. The rate is the delta divided by the poll interval, and a new session starts from zero. A total that drops within a session is treated as a reset, because a fast reconnect can keep or lose totals.
+- The byte totals are cumulative and reset when the last connection to the peer closes. algod.top treats them as a counter per peer session. The rate is the delta divided by the time since the last poll that answered, so a failed poll does not inflate it. A new session starts from zero, and its rate shows as unknown until the second poll. A total that drops within a session is treated as a reset, because a fast reconnect can keep or lose totals.
 - For p2p peers, the totals cover every connection to the peer ID, and each connection repeats the same totals. algod.top counts each peer ID once before summing. For ws peers, the totals are per connection.
 - The bytes are counted at the stream layer, so they exclude transport framing and encryption. ws totals count gossip payload only. The sum over all peers is therefore another app-level figure, not wire bytes.
 - Traffic between the last poll and a disconnect is lost, up to one poll interval. The peers poll stays at 30 s by default. Operators who want finer per-peer traffic can lower it.
@@ -473,7 +473,7 @@ The front ends compute these from stored data rather than storing them separatel
   - the process wire bytes, with the method named
   - the gap between the two, which shows libp2p overhead (DHT, gossipsub control, encryption)
   - traffic by peer, as the top N peers stacked plus "other", from per-peer usage
-- Top talkers are the peers with the highest receive or send rate over the selected range, from per-peer usage.
+- Top talkers are the peers with the highest receive or send rate over the selected range, from per-peer usage. A peer's rate is its bytes over the time it was connected in the range, so a peer seen for two minutes of an hour shows the rate it moved bytes at. Polls that missed a peer between two of its samples mean it reconnected, and only the gap since the poll before its return counts. A gap with no polls at all, while algod.top was stopped, keeps its full length. The traffic by peer view divides by the same time.
 - Idle peers are connected peers with no open gossip stream in `active-streams`. A peer that stays connected without gossip uses a slot and carries nothing.
 - Peers are counts by network (ws/p2p) and direction (in/out), plus gossip streams, pubsub peers and DHT peers.
 - Branch metrics are metrics that exist only on some algod builds, such as the setup timeouts and inbound evictions (busy/idle) on builds that add them. They show as rates and appear automatically when present.

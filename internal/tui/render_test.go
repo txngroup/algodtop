@@ -39,6 +39,8 @@ func fixture() *Model {
 	nodes[0].PeerList = []collector.PeerInfo{
 		{Addr: "/ip4/203.0.113.4/tcp/4190", IP: "203.0.113.4", Network: "p2p", Direction: "in", Since: now.Add(-3 * time.Hour).UnixNano(), HasUsage: true, RateIn: 20480, RateOut: 10240, Streams: []string{"/algorand-ws/2.2.0"}},
 		{Addr: "relay.example.net:4160", IP: "relay.example.net", Network: "ws", Direction: "out", Since: now.Add(-26 * time.Hour).UnixNano()},
+		// Connected since the last poll, so its rate is not known yet.
+		{Addr: "/ip4/198.51.100.7/tcp/4190", IP: "198.51.100.7", Network: "p2p", Direction: "out", Since: now.Add(-20 * time.Second).UnixNano(), HasUsage: true, BytesIn: 64 << 10, BytesOut: 32 << 10, RateUnknown: true},
 	}
 	nodes[0].PeerUsage = true
 	evs := []model.Event{

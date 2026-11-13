@@ -3,6 +3,7 @@ package api
 import (
 	"math"
 	"net/http"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -217,7 +218,19 @@ type PeerTrafficSeries struct {
 	Rate jsonFloats `json:"rate"`
 }
 
-// PeerTotal is one peer's bytes over the range.
+// pollTimes returns the sorted, distinct times of the polls in us. Every
+// peer in one poll carries the poll's time.
+func pollTimes(us []model.PeerUsage) []int64 {
+	ts := make([]int64, 0, len(us))
+	for _, u := range us {
+		ts = append(ts, u.Time)
+	}
+	slices.Sort(ts)
+	return slices.Compact(ts)
+}
+
+// PeerTotal is one peer's bytes over the range, and its average rates
+// over the part of the range it was connected.
 type PeerTotal struct {
 	Key     string  `json:"key"`
 	Addr    string  `json:"addr"`
@@ -243,13 +256,17 @@ func PeerTraffic(us []model.PeerUsage, from, to int64, points, top int, dir stri
 		addr[u.Key] = u.Addr
 		netw[u.Key] = u.Network
 	}
+	for _, ss := range byKey {
+		sort.Slice(ss, func(i, j int) bool { return ss[i].Time < ss[j].Time })
+	}
+	polls := pollTimes(us)
 	totals := map[string]*PeerTotal{}
 	rates := map[string][]float64{}
 	for k, ss := range byKey {
-		sort.Slice(ss, func(i, j int) bool { return ss[i].Time < ss[j].Time })
 		tot := &PeerTotal{Key: k, Addr: addr[k], Network: netw[k]}
 		rs := make([]float64, points)
 		cnt := make([]float64, points)
+		var secs float64 // time the polls cover inside the range
 		for i := 1; i < len(ss); i++ {
 			a, b := ss[i-1], ss[i]
 			if b.Time < from || b.Time >= to {
@@ -268,6 +285,14 @@ func PeerTraffic(us []model.PeerUsage, from, to int64, points, top int, dir stri
 			if dt <= 0 {
 				continue
 			}
+			// A connected peer is in every poll. When polls between a and b
+			// missed it, it left and came back, and the new session began
+			// after the poll just before b. A gap with no polls at all is
+			// time algod.top was not looking, and keeps its length.
+			if i := sort.Search(len(polls), func(i int) bool { return polls[i] >= b.Time }); i > 0 && polls[i-1] > a.Time {
+				dt = float64(b.Time-polls[i-1]) / 1e9
+			}
+			secs += dt
 			bi := min(int(float64(b.Time-from)/step), points-1)
 			v := float64(din)
 			switch dir {
@@ -286,8 +311,12 @@ func PeerTraffic(us []model.PeerUsage, from, to int64, points, top int, dir stri
 				rs[i] = math.NaN()
 			}
 		}
-		secs := float64(to-from) / 1e9
-		tot.RateIn, tot.RateOut = tot.In/secs, tot.Out/secs
+		// The rate is over the time the peer was seen. Dividing by the whole
+		// range would make a peer seen for 2 minutes of an hour look 30
+		// times slower than it was.
+		if secs > 0 {
+			tot.RateIn, tot.RateOut = tot.In/secs, tot.Out/secs
+		}
 		totals[k] = tot
 		rates[k] = rs
 	}
