@@ -113,7 +113,7 @@ export function mount(root, app, r) {
           h("div", { class: "spark-val" }, sp && isNum(maxVal(sp.rt[0].v)) ? "max " + fmt(maxVal(sp.rt[0].v), "s") : ""),
           sparkEl(n.name, "rt", "Round time, last " + sparkSpan(sp)))),
       h("div", { class: "small" }, h("span", { class: "muted" }, "participation: "), participation(n)),
-      ev ? h("div", { class: "lastev", title: ev.msg }, h("span", { class: "muted" }, fmtShortTime(ns(ev.time)) + " "), h("span", { class: "sev " + (ev.severity || "info") }, ev.kind), " ", ev.msg) : h("div", { class: "lastev muted" }, "no events yet"));
+      ev ? h("div", { class: "lastev", title: ev.msg }, h("span", { class: "muted" }, fmtShortTime(ns(ev.time)) + " "), h("span", { class: "sev " + (ev.severity || "info") }, ev.kind), " ", ev.msg) : h("div", { class: "lastev muted" }, "no notable events since algod.top started"));
   }
 
   const cols = [

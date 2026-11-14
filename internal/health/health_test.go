@@ -150,3 +150,36 @@ func TestRenewedKeyIsNotExpiring(t *testing.T) {
 		t.Fatal(st.Summary())
 	}
 }
+
+// algod retries block catchup every few rounds while it cannot reach the
+// network. Those attempts must not hide a stall. Only fast catchup, which
+// holds the round while it restores the ledger, excuses an old round.
+func TestCatchupDoesNotHideAStall(t *testing.T) {
+	now := time.Now()
+	has := func(st Status, rule string, l Level, text string) bool {
+		for _, r := range st.Reasons {
+			if r.Rule == rule && r.Level == l && strings.Contains(r.Text, text) {
+				return true
+			}
+		}
+		return false
+	}
+
+	s := base()
+	s.RoundAt, s.Catchup = now.Add(-45*time.Second).UnixNano(), true
+	st := Evaluate(&s, Context{Now: now})
+	if st.Level != Critical || !has(st, "stalled", Critical, "last round is 45s old, and catchup is not moving it") || !has(st, "catchup", Warn, "catchup is running") {
+		t.Errorf("block catchup with an old round: %+v", st)
+	}
+
+	s.RoundAt = now.Add(-2 * time.Second).UnixNano()
+	if st := Evaluate(&s, Context{Now: now}); st.Level != Warn || has(st, "stalled", Critical, "") {
+		t.Errorf("block catchup that moves the round: %+v", st)
+	}
+
+	s.RoundAt, s.Catchpoint = now.Add(-10*time.Minute).UnixNano(), "52180000#ABCDEF"
+	st = Evaluate(&s, Context{Now: now})
+	if st.Level != Warn || !has(st, "catchup", Warn, "fast catchup to catchpoint 52180000#ABCDEF is running") {
+		t.Errorf("fast catchup: %+v", st)
+	}
+}

@@ -107,6 +107,12 @@ type Fake struct {
 	Paths map[string]int
 	// AdminUsed records paths requested with the admin token.
 	AdminUsed map[string]int
+
+	// outage is when the node lost the network, zero when it has it.
+	// syncFrom is when the current catchup attempt started, and
+	// syncEnd when the last one gave up.
+	outage, syncFrom, syncEnd time.Time
+	catchpoint                string
 }
 
 type fakeKey struct {
@@ -381,7 +387,10 @@ func (f *Fake) loop() {
 		case <-rt.C:
 			f.mu.Lock()
 			rt.Reset(f.nextRound())
-			if !f.stalled && !f.down {
+			if !f.outage.IsZero() && !f.down {
+				f.retrySyncLocked()
+			}
+			if !f.stalled && !f.down && f.outage.IsZero() && f.catchpoint == "" {
 				f.round++
 				f.roundAt = time.Now()
 				f.txnCtr += uint64(f.rnd.Intn(80))
@@ -454,6 +463,55 @@ func (f *Fake) Stall(on bool) {
 	f.mu.Lock()
 	f.stalled = on
 	f.mu.Unlock()
+}
+
+// Outage cuts the node off from the network, or reconnects it. Rounds
+// stop, and algod's catchup service tries to sync every few rounds, gives
+// up after a couple of rounds and logs that it finished. /v2/status shows
+// a catchup time while an attempt runs. When the outage ends, the node
+// jumps to the round the network reached meanwhile.
+func (f *Fake) Outage(on bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	switch {
+	case on && f.outage.IsZero():
+		f.outage = time.Now()
+	case !on && !f.outage.IsZero():
+		missed := uint64(time.Since(f.outage) / f.o.RoundEvery)
+		f.outage, f.syncFrom, f.syncEnd = time.Time{}, time.Time{}, time.Time{}
+		f.round += missed
+		f.roundAt = time.Now()
+		f.cond.Broadcast()
+	}
+}
+
+// retrySyncLocked runs one round tick of the catchup service during an
+// outage.
+func (f *Fake) retrySyncLocked() {
+	now := time.Now()
+	switch {
+	case !f.syncFrom.IsZero() && now.Sub(f.syncFrom) >= 2*f.o.RoundEvery:
+		took := now.Sub(f.syncFrom)
+		f.syncFrom, f.syncEnd = time.Time{}, now
+		f.writeLogLocked(map[string]any{"file": "service.go", "level": "info",
+			"msg": fmt.Sprintf("Catchup Service: finished catching up, now at round %d (previously %d). Total time catching up %s.", f.round, f.round, took.Round(time.Millisecond))})
+	case f.syncFrom.IsZero() && now.Sub(f.outage) >= 3*f.o.RoundEvery && now.Sub(f.syncEnd) >= 3*f.o.RoundEvery:
+		f.syncFrom = now
+	}
+}
+
+// CatchpointCatchup starts fast catchup to a catchpoint label, or ends it
+// with "". The round holds while the ledger is restored.
+func (f *Fake) CatchpointCatchup(label string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if label != "" && f.catchpoint == "" {
+		f.syncFrom = time.Now()
+	} else if label == "" {
+		f.syncFrom = time.Time{}
+		f.roundAt = time.Now()
+	}
+	f.catchpoint = label
 }
 
 // SetDown makes every endpoint fail, as if algod were stopped.
@@ -649,8 +707,16 @@ func (f *Fake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (f *Fake) status() map[string]any {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return map[string]any{"last-round": f.round, "time-since-last-round": time.Since(f.roundAt).Nanoseconds(), "catchup-time": 0,
+	var catchup int64
+	if !f.syncFrom.IsZero() {
+		catchup = time.Since(f.syncFrom).Nanoseconds()
+	}
+	m := map[string]any{"last-round": f.round, "time-since-last-round": time.Since(f.roundAt).Nanoseconds(), "catchup-time": catchup,
 		"last-version": "v40", "next-version": "v40", "next-version-round": f.round + 1, "next-version-supported": true}
+	if f.catchpoint != "" {
+		m["catchpoint"] = f.catchpoint // algod omits it when empty
+	}
+	return m
 }
 
 func (f *Fake) json(w http.ResponseWriter, v any) {

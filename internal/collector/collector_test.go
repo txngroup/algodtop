@@ -370,3 +370,66 @@ func TestRejectedTokenIsNotOK(t *testing.T) {
 		})
 	}
 }
+
+// During an outage algod flips in and out of block catchup while the round
+// stands still. The node records each attempt, and it records the
+// catchpoint of a fast catchup so health can tell the two apart.
+func TestOutageAndFastCatchup(t *testing.T) {
+	dir := t.TempDir()
+	fake, err := fakealgod.Start(fakealgod.Options{DataDir: dir, RoundEvery: 150 * time.Millisecond, LogTraceRate: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer fake.Close()
+	sink := &recSink{}
+	n := NewNode(Options{Name: "fake", Source: &LocalSource{Dir: dir}, Sink: sink, Scrape: 100 * time.Millisecond, StateDir: t.TempDir()})
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { n.Run(ctx); close(done) }()
+	defer func() { cancel(); <-done }()
+	waitFor(t, "rounds", 5*time.Second, func() bool { return sink.count(model.GroupRound) >= 2 })
+
+	fake.Outage(true)
+	starts := func() int {
+		sink.mu.Lock()
+		defer sink.mu.Unlock()
+		c := 0
+		for _, e := range sink.events {
+			if e.Kind == model.EvCatchupStart {
+				c++
+			}
+		}
+		return c
+	}
+	waitFor(t, "repeated catchup attempts", 10*time.Second, func() bool { return starts() >= 2 })
+	if st := n.State(); st.Catchpoint != "" {
+		t.Fatalf("catchpoint %q in block catchup", st.Catchpoint)
+	}
+	fake.Outage(false)
+
+	fake.CatchpointCatchup("1000#ABC")
+	waitFor(t, "fast catchup", 5*time.Second, func() bool { st := n.State(); return st.Catchup && st.Catchpoint == "1000#ABC" })
+	fake.CatchpointCatchup("")
+	waitFor(t, "fast catchup done", 5*time.Second, func() bool { st := n.State(); return !st.Catchup && st.Catchpoint == "" })
+}
+
+// The fleet card's last event is the last notable one. A log rotation
+// does not replace it.
+func TestLogRotationIsNotTheLastEvent(t *testing.T) {
+	n := NewNode(Options{Name: "n", Source: &LocalSource{Dir: t.TempDir()}, Sink: &recSink{}})
+	n.event(model.EvRestart, model.SevWarn, "algod restarted (pid 24 -> 164)", nil)
+	n.event(model.EvLogRotation, model.SevInfo, "node.log rotated", nil)
+	if e := n.State().LastEvent; e == nil || e.Kind != model.EvRestart {
+		t.Fatalf("last event %+v", e)
+	}
+}
+
+// The hub reads an agent node's lag on its estimate of the agent's clock.
+// A round that seems to land a few milliseconds ahead is a lag of 0.
+func TestLagIsNeverNegative(t *testing.T) {
+	now := time.Now()
+	s := State{Round: 100, RoundAt: now.Add(7 * time.Millisecond).UnixNano()}
+	if lag := s.Lag(now); lag != 0 {
+		t.Fatalf("lag %v", lag)
+	}
+}
