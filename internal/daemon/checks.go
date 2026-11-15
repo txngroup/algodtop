@@ -79,27 +79,66 @@ func (d *Daemon) projectionOver() bool {
 	return need-have > room
 }
 
+// creepDays is how many whole days memoryCreep reads.
+const creepDays = 10
+
 // memoryCreep flags nodes whose daily minimum RSS rose three days running.
 // Plain RSS spikes are normal; a rising floor is a leak.
 func (d *Daemon) memoryCreep(ctx context.Context) map[string]bool {
 	out := map[string]bool{}
-	now := time.Now().Truncate(24 * time.Hour)
+	today := time.Now().Truncate(24 * time.Hour)
 	for _, s := range d.states() {
-		if s.Kind != "local" {
-			continue
+		if s.Kind == "local" {
+			out[s.Name] = floorRising(ctx, d.qe, s.Name, s.StartTime, today)
 		}
-		r, err := d.qe.Run(ctx, query.Request{Node: s.Name, Metric: "proc_resident_bytes", Fn: "min", From: now.Add(-4 * 24 * time.Hour).UnixNano(), To: now.UnixNano(), Points: 4})
-		if err != nil || len(r.Series) == 0 {
-			continue
-		}
-		mins := r.Series[0].Min
-		rising := len(mins) == 4
-		for i := 1; i < len(mins) && rising; i++ {
-			if math.IsNaN(mins[i]) || math.IsNaN(mins[i-1]) || mins[i] <= mins[i-1] {
-				rising = false
-			}
-		}
-		out[s.Name] = rising
 	}
 	return out
+}
+
+// floorRising reads a node's daily minimum RSS for the creepDays before
+// today, a UTC midnight, and applies risingFloor. start is the process
+// start, unix ns, or 0 when unknown.
+func floorRising(ctx context.Context, qe *query.Engine, node string, start int64, today time.Time) bool {
+	from := today.Add(-creepDays * 24 * time.Hour)
+	r, err := qe.Run(ctx, query.Request{Node: node, Metric: "proc_resident_bytes", Fn: "min", From: from.UnixNano(), To: today.UnixNano(), Points: creepDays})
+	if err != nil || len(r.Series) == 0 {
+		return false
+	}
+	return risingFloor(r.Series[0].Min, firstWholeDay(from, start))
+}
+
+// firstWholeDay is the index of the first day, counted from from, that
+// the process ran from start to end. Days before a restart belong to
+// another process, and the day of the start holds its warm-up.
+func firstWholeDay(from time.Time, start int64) int {
+	st := time.Unix(0, start)
+	if start == 0 || st.Before(from) {
+		return 0
+	}
+	return int(st.Sub(from)/(24*time.Hour)) + 1
+}
+
+// risingFloor reports whether each of the last three daily minimums is
+// higher than every earlier one from index first on. Comparing each day
+// with only the day before also flagged the recovery from one low day:
+// when the host runs short of memory, macOS compresses and pages out
+// every process at once, and their minimums drop together for a day.
+func risingFloor(mins []float64, first int) bool {
+	n := len(mins)
+	if first < 0 || n-first < 4 {
+		return false
+	}
+	for _, v := range mins[n-4:] {
+		if math.IsNaN(v) {
+			return false
+		}
+	}
+	for i := n - 3; i < n; i++ {
+		for _, v := range mins[first:i] {
+			if !math.IsNaN(v) && mins[i] <= v {
+				return false
+			}
+		}
+	}
+	return true
 }

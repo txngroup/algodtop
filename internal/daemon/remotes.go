@@ -5,13 +5,16 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -46,7 +49,8 @@ type remoteRun struct {
 	views   []api.NodeView
 	lastOK  time.Time
 	lastErr string
-	offset  float64 // agent clock minus hub clock, seconds
+	started time.Time // when this run began, for an agent never reached
+	offset  float64   // agent clock minus hub clock, seconds
 	client  *http.Client
 	base    string
 	sshConn *remote.Conn
@@ -64,7 +68,7 @@ func (rs *remoteSet) start(ctx context.Context, cfg *config.Config) {
 
 func (rs *remoteSet) startOne(ctx context.Context, r config.Remote) {
 	rctx, cancel := context.WithCancel(ctx)
-	run := &remoteRun{cfg: r, cancel: cancel}
+	run := &remoteRun{cfg: r, cancel: cancel, started: time.Now()}
 	rs.mu.Lock()
 	rs.runs[r.Name] = run
 	rs.mu.Unlock()
@@ -136,7 +140,7 @@ func (rs *remoteSet) views() []api.NodeView {
 				v.Lag = v.State.Lag(agentNow)
 			}
 			if !reachable {
-				v.Health.Reasons = append([]healthReason{{Rule: "agent_unreachable", Level: 2, Text: "agent " + r.cfg.Name + " unreachable: " + r.lastErr}}, v.Health.Reasons...)
+				v.Health.Reasons = append([]healthReason{{Rule: "agent_unreachable", Level: 2, Text: r.downReason(time.Now())}}, v.Health.Reasons...)
 				v.Health.Level = 2
 				v.Summary = v.Health.Summary()
 			}
@@ -159,7 +163,7 @@ func (rs *remoteSet) views() []api.NodeView {
 				v.Kind = "agent"
 				v.LastError = r.lastErr
 				v.Health.Level = 2
-				v.Health.Reasons = []healthReason{{Rule: "agent_unreachable", Level: 2, Text: "agent " + r.cfg.Name + " unreachable: " + r.lastErr}}
+				v.Health.Reasons = []healthReason{{Rule: "agent_unreachable", Level: 2, Text: r.downReason(time.Now())}}
 				v.Summary = v.Health.Summary()
 				out = append(out, v)
 			}
@@ -167,6 +171,40 @@ func (rs *remoteSet) views() []api.NodeView {
 		r.mu.Unlock()
 	}
 	return out
+}
+
+// downReason says how long the agent has been out of reach and why. The
+// caller holds r.mu.
+func (r *remoteRun) downReason(now time.Time) string {
+	since := r.lastOK
+	if since.IsZero() {
+		since = r.started
+	}
+	why := r.lastErr
+	if why == "" {
+		why = "no answer"
+	}
+	return fmt.Sprintf("agent %s unreachable for %s: %s", r.cfg.Name, now.Sub(since).Round(time.Second), why)
+}
+
+// remoteErr is one line saying why a connection to an agent ended. It
+// drops the request URL, which for an SSH agent names a stand-in host,
+// and joins what ssh printed, often two lines ending in CR LF.
+func remoteErr(err error, stderr string) string {
+	var ue *url.Error
+	if errors.As(err, &ue) {
+		err = ue.Err
+	}
+	var lines []string
+	for _, l := range strings.Split(stderr, "\n") {
+		if l = strings.TrimSpace(l); l != "" && !slices.Contains(lines, l) {
+			lines = append(lines, l)
+		}
+	}
+	if len(lines) == 0 {
+		return err.Error()
+	}
+	return err.Error() + ": " + strings.Join(lines, "; ")
 }
 
 func (rs *remoteSet) reachable(name string) bool {
@@ -321,26 +359,27 @@ func (d *Daemon) runRemote(ctx context.Context, run *remoteRun) {
 		if err == nil {
 			err = d.serveRemote(ctx, run, cursorPath)
 		}
+		stderr := ""
 		if run.sshConn != nil {
-			if s := run.sshConn.Stderr(); s != "" && err != nil {
-				err = fmt.Errorf("%v: %s", err, s)
-			}
+			stderr = run.sshConn.Stderr()
 			run.sshConn.Close()
 			run.sshConn = nil
 		}
 		if ctx.Err() != nil {
 			return
 		}
-		run.mu.Lock()
+		why := "connection closed"
 		if err != nil {
-			run.lastErr = err.Error()
+			why = remoteErr(err, stderr)
 		}
+		run.mu.Lock()
+		run.lastErr = why
 		healthy := time.Since(run.lastOK) < time.Minute
 		run.mu.Unlock()
 		if healthy {
 			backoff = time.Second
 		}
-		d.logf("remote %s: %v (retry in %v)", run.cfg.Name, err, backoff)
+		d.logf("remote %s: %s (retry in %v)", run.cfg.Name, why, backoff)
 		select {
 		case <-ctx.Done():
 			return

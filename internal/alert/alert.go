@@ -222,6 +222,12 @@ func (e *Expr) eval1(in Input) (bool, string) {
 	case "catchup":
 		return s.Catchup, "catchup is running"
 	case "agent_unreachable":
+		// The hub's reason says for how long and why.
+		for _, r := range in.Health.Reasons {
+			if r.Rule == "agent_unreachable" {
+				return in.AgentUnreachable, r.Text
+			}
+		}
 		return in.AgentUnreachable, "agent unreachable"
 	}
 	if strings.HasPrefix(e.Var, "rule:") {
