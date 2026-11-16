@@ -5,6 +5,7 @@ package health
 import (
 	"fmt"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -164,16 +165,23 @@ func Evaluate(s *collector.State, c Context) Status {
 			why = "not reachable"
 		}
 		add("down", Critical, 1, "algod is down (%s)", why)
-		return finish(st, s, c, add, disable)
+		return finish(&st, s, c, add, disable)
 	}
 	if !s.Healthy {
 		add("health", Critical, 1, "/health fails")
 	}
 	lag := s.Lag(c.Now)
+	// Fast catchup holds the round while it restores the ledger. Block
+	// catchup moves the round every few seconds, so a node whose round is
+	// old is stalled even while catchup runs. algod retries catchup every
+	// few rounds while it cannot reach the network, and each attempt
+	// would otherwise hide the stall.
 	switch {
-	case s.Catchup:
+	case s.Catchpoint != "":
 	case lag > c.LagCritical.Seconds() && s.StatusErr != "":
 		add("stalled", Critical, lag, "cannot read the round for %s: %s", fmtDur(lag), s.StatusErr)
+	case lag > c.LagCritical.Seconds() && s.Catchup:
+		add("stalled", Critical, lag, "last round is %s old, and catchup is not moving it", fmtDur(lag))
 	case lag > c.LagCritical.Seconds():
 		add("stalled", Critical, lag, "last round is %s old", fmtDur(lag))
 	case s.StatusErr != "" && s.RoundAt == 0:
@@ -182,7 +190,10 @@ func Evaluate(s *collector.State, c Context) Status {
 		// flaps its health.
 		add("stalled", Warn, lag, "cannot read the round: %s", s.StatusErr)
 	}
-	if s.Catchup {
+	switch {
+	case s.Catchpoint != "":
+		add("catchup", Warn, 1, "fast catchup to catchpoint %s is running", s.Catchpoint)
+	case s.Catchup:
 		add("catchup", Warn, 1, "catchup is running")
 	}
 	if s.DiskTotal > 0 {
@@ -252,10 +263,12 @@ func Evaluate(s *collector.State, c Context) Status {
 	if latest, from := latestVersion(s, c.Fleet); from != "" {
 		add("version_behind", Warn, 0, "version %s is behind %s on %s, another %s %s node", s.Version, latest, from, s.Network, releaseChannel(s))
 	}
-	return finish(st, s, c, add, disable)
+	return finish(&st, s, c, add, disable)
 }
 
-func finish(st Status, s *collector.State, c Context, add func(string, Level, float64, string, ...any), disable func(string, string)) Status {
+// finish adds algod.top's own problems. It takes st by pointer because
+// add and disable write to the caller's Status.
+func finish(st *Status, s *collector.State, c Context, add func(string, Level, float64, string, ...any), disable func(string, string)) Status {
 	d := c.Daemon
 	if d.Paused {
 		add("algodtop", Critical, 0, "algod.top paused writes at the disk floor")
@@ -265,6 +278,7 @@ func finish(st Status, s *collector.State, c Context, add func(string, Level, fl
 		for n := range drops {
 			names = append(names, n)
 		}
+		sort.Strings(names)
 		if len(names) > 3 {
 			names = append(names[:3], "...")
 		}
@@ -285,7 +299,7 @@ func finish(st Status, s *collector.State, c Context, add func(string, Level, fl
 	for _, u := range s.Unavailable {
 		disable(u, "not available on this platform")
 	}
-	return st
+	return *st
 }
 
 // latestVersion returns a newer release seen on another node of the same

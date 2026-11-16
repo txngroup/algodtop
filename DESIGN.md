@@ -199,7 +199,7 @@ Today no algod series carries a per-peer label, but a future version could add o
 
 New series beyond either cap are dropped, the drop is counted, and both front ends show a warning naming the metric. Per-peer data goes into the peer-session store (below), not into series.
 
-Log-derived series have their own caps: templates per node (default 2000) and app IDs per flood counter (default 100, with the rest summed into `other`).
+Log-derived series have their own caps: templates per node (default 2000) and app IDs per flood counter (default 100, with the rest summed into `other`). The store never frees a series, while the tailer's counts start empty at each restart. So the tailer starts its caps from the templates and app IDs the store already holds. A value new to the store gets a series only while the cap has room. Otherwise its lines go to `other` or to `log_template_drops_total`, rather than to a series the store would drop.
 
 ### Metric renames
 
@@ -490,15 +490,16 @@ Each node has a health state of OK, Warn or Critical, and the reasons are always
 
 - Critical:
   - algod is down, or `/health` fails. When a local algod stops answering while its process runs, the reason names the pid, because a hung algod needs a kill and a crashed one a start.
-  - the last round is older than 30 s and the node is not in catchup. A node whose `/v2/status` fails, for example because algod rejects the API token, has no round, so its lag counts from the first failure and the reason names the error. algod answers `/metrics` and `/health` without a token, so such a node would otherwise look up and well.
+  - the last round is older than 30 s and the node is not in fast catchup from a catchpoint, which holds the round while it restores the ledger. Block catchup does not excuse an old round, because it moves the round every few seconds. While algod cannot reach the network, it retries block catchup every few rounds, and each attempt would otherwise hide the stall: a node cut off for five minutes would flap between Warn and Critical, and a `stalled` alert with `for: 1m` would never fire. A node whose `/v2/status` fails, for example because algod rejects the API token, has no round, so its lag counts from the first failure and the reason names the error. algod answers `/metrics` and `/health` without a token, so such a node would otherwise look up and well.
   - disk is under 5%
   - an account's active participation key expires within 2 days. The active key is the on-chain vote key when the account is listed, else the valid key that voted last. A renewed account keeps its old key installed until someone deletes it, and that key does not count.
   - a listed account was online and is now offline or suspended (offline with its vote key still set)
   - a listed account is online but its installed key is not the vote key registered on chain
   - a listed online account has not voted for more than 10 times its expected vote interval
   - the clock offset is over 1 s
+  - algod.top paused writes at the disk floor
 - Warn:
-  - catchup is running
+  - catchup is running, naming the catchpoint for fast catchup
   - no round has been read yet because `/v2/status` fails. It becomes Critical once the lag passes 30 s.
   - an account's active key expires within 14 days
   - a listed account lost incentive eligibility
@@ -506,7 +507,8 @@ Each node has a health state of OK, Warn or Critical, and the reasons are always
   - the node has 0 outgoing peers
   - the error log rate is above its baseline
   - the version is behind the latest release seen on another node of the same network and release channel. Developer builds take no part, because their build numbers count hours rather than patches.
-  - algod.top missed scrapes, dropped series, paused writes, or deleted data at the disk floor
+  - algod.top missed scrapes, dropped series over a cap, or deleted data at the disk floor
+  - algod.top projects disk use beyond free space minus the floor, or its data shares a volume with the node at under 15% free
 
 ## 11. Alerting
 
@@ -794,7 +796,7 @@ The terminal UI talks to the daemon over the unix socket with the same API as th
    - peers as in/out for ws and p2p, or n/a when the node has no admin token. The counts come from `/v2/node/peers`, so without the token they would read 0.
    - a 24 h sparkline each for bandwidth and round time
    - participation status
-   - the last notable event
+   - the last notable event. Peer connects and disconnects, log warnings and log rotations do not count. algod rotates `node.log` each time it reaches its size limit, several times a day on a busy node, so a rotation would soon hide a restart or config change.
 
    A sortable table view shows the same data.
 2. Node. A header strip shows live round, lag, version, uptime and the last effective config change. Below it are the time-range controls: 1h, 6h, 24h, 7d, 30d, 1y, all, custom, "since last restart", and the full-resolution toggle. Collapsible sections of synchronized charts follow:

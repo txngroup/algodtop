@@ -62,6 +62,12 @@ type Options struct {
 	LastRound     func() uint64 // newest stored round, for header backfill
 	Logf          func(string, ...any)
 	Now           func() time.Time
+
+	// Stored returns the label sets the store already holds for one of
+	// this node's metrics. The log tailer uses it to start its caps from
+	// what the store has, so a restart does not emit values the store's
+	// own caps would drop.
+	Stored func(metric string) []model.Labels
 }
 
 // Node collects one algod.
@@ -262,7 +268,10 @@ func (n *Node) savePersisted() {
 func (n *Node) event(kind, sev, msg string, attrs map[string]any) {
 	e := model.Event{Time: n.o.Now().UnixNano(), Node: n.o.Name, Kind: kind, Severity: sev, Msg: msg, Attrs: attrs}
 	n.o.Sink.Event(e)
-	if kind != model.EvConnect && kind != model.EvDisconnect {
+	// The fleet card shows the last notable event. algod rotates node.log
+	// each time it reaches its size limit, several times a day on a busy
+	// node, so a rotation would soon hide every restart or config change.
+	if kind != model.EvConnect && kind != model.EvDisconnect && kind != model.EvLogRotation {
 		n.update(func(s *State) { s.LastEvent = &e })
 	}
 }
@@ -747,6 +756,7 @@ func (n *Node) scrape(ctx context.Context) {
 		s.Healthy, s.Ready = healthy, ready
 		if serr == nil {
 			s.StatusLag = float64(st.TimeSinceLastRound) / 1e9
+			s.Catchpoint = st.Catchpoint
 			if st.LastRound > s.Round {
 				s.Round = st.LastRound
 			}

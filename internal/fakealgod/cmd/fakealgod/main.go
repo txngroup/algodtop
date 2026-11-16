@@ -43,6 +43,8 @@ func main() {
 	wave := flag.Bool("wave", false, "let traffic and other rates rise and fall over minutes and hours")
 	wire := flag.Bool("wire", false, "move the reported traffic over loopback through a helper process, so wire measurements see it")
 	sink := flag.Bool("wire-sink", false, "run as the -wire helper: print a listen address and serve until stdin closes")
+	outAfter := flag.Duration("outage-after", 0, "cut the node off from the network this long after start, as with -outage-for")
+	outFor := flag.Duration("outage-for", 0, "how long the outage lasts: rounds stop and catchup retries, then the round jumps ahead")
 	var accounts []fakealgod.Account
 	flag.Func("account", "an online account with a participation key on this node, as SEED:ALGOS:KEYDAYS (repeatable)", func(s string) error {
 		p := strings.Split(s, ":")
@@ -113,6 +115,16 @@ func main() {
 	fmt.Println("fakealgod listening on", f.Addr())
 	for _, a := range accounts {
 		fmt.Println("account", a.Address)
+	}
+	if *outFor > 0 {
+		go func() {
+			time.Sleep(*outAfter)
+			fmt.Println("outage starts")
+			f.Outage(true)
+			time.Sleep(*outFor)
+			f.Outage(false)
+			fmt.Println("outage ends at round", f.Round())
+		}()
 	}
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)

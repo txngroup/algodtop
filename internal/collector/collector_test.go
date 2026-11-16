@@ -2,6 +2,7 @@ package collector
 
 import (
 	"context"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +12,7 @@ import (
 
 	"algod.top/internal/algod"
 	"algod.top/internal/fakealgod"
+	"algod.top/internal/logparse"
 	"algod.top/internal/model"
 )
 
@@ -368,5 +370,106 @@ func TestRejectedTokenIsNotOK(t *testing.T) {
 				return st.StatusErr == "" && st.StatusErrAt == 0 && st.Round != 0
 			})
 		})
+	}
+}
+
+// During an outage algod flips in and out of block catchup while the round
+// stands still. The node records each attempt, and it records the
+// catchpoint of a fast catchup so health can tell the two apart.
+func TestOutageAndFastCatchup(t *testing.T) {
+	dir := t.TempDir()
+	fake, err := fakealgod.Start(fakealgod.Options{DataDir: dir, RoundEvery: 150 * time.Millisecond, LogTraceRate: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer fake.Close()
+	sink := &recSink{}
+	n := NewNode(Options{Name: "fake", Source: &LocalSource{Dir: dir}, Sink: sink, Scrape: 100 * time.Millisecond, StateDir: t.TempDir()})
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { n.Run(ctx); close(done) }()
+	defer func() { cancel(); <-done }()
+	waitFor(t, "rounds", 5*time.Second, func() bool { return sink.count(model.GroupRound) >= 2 })
+
+	fake.Outage(true)
+	starts := func() int {
+		sink.mu.Lock()
+		defer sink.mu.Unlock()
+		c := 0
+		for _, e := range sink.events {
+			if e.Kind == model.EvCatchupStart {
+				c++
+			}
+		}
+		return c
+	}
+	waitFor(t, "repeated catchup attempts", 10*time.Second, func() bool { return starts() >= 2 })
+	if st := n.State(); st.Catchpoint != "" {
+		t.Fatalf("catchpoint %q in block catchup", st.Catchpoint)
+	}
+	fake.Outage(false)
+
+	fake.CatchpointCatchup("1000#ABC")
+	waitFor(t, "fast catchup", 5*time.Second, func() bool { st := n.State(); return st.Catchup && st.Catchpoint == "1000#ABC" })
+	fake.CatchpointCatchup("")
+	waitFor(t, "fast catchup done", 5*time.Second, func() bool { st := n.State(); return !st.Catchup && st.Catchpoint == "" })
+}
+
+// The fleet card's last event is the last notable one. A log rotation
+// does not replace it.
+func TestLogRotationIsNotTheLastEvent(t *testing.T) {
+	n := NewNode(Options{Name: "n", Source: &LocalSource{Dir: t.TempDir()}, Sink: &recSink{}})
+	n.event(model.EvRestart, model.SevWarn, "algod restarted (pid 24 -> 164)", nil)
+	n.event(model.EvLogRotation, model.SevInfo, "node.log rotated", nil)
+	if e := n.State().LastEvent; e == nil || e.Kind != model.EvRestart {
+		t.Fatalf("last event %+v", e)
+	}
+}
+
+// The hub reads an agent node's lag on its estimate of the agent's clock.
+// A round that seems to land a few milliseconds ahead is a lag of 0.
+func TestLagIsNeverNegative(t *testing.T) {
+	now := time.Now()
+	s := State{Round: 100, RoundAt: now.Add(7 * time.Millisecond).UnixNano()}
+	if lag := s.Lag(now); lag != 0 {
+		t.Fatalf("lag %v", lag)
+	}
+}
+
+// The log caps start from what the store holds. Before, the counts started
+// empty at each restart, so new app IDs took the free slots, the store's
+// own cap dropped them, and their lines were in no series at all.
+func TestLogCapsStartFromStore(t *testing.T) {
+	stored := func(metric string) []model.Labels {
+		switch metric {
+		case "log_txpool_invalid_total":
+			return []model.Labels{{{Name: "app", Value: "1"}}, {{Name: "app", Value: "2"}}, {{Name: "app", Value: "other"}}}
+		case "log_template_lines_total":
+			return []model.Labels{{{Name: "level", Value: "warn"}, {Name: "template", Value: "a"}}}
+		}
+		return nil
+	}
+	c := newLogCounts(2, 3)
+	c.seed(stored)
+	for _, app := range []string{"3", "4", "1", "4"} {
+		c.add(&logparse.Line{Kind: logparse.KindFlood, Level: "info", AppID: app})
+	}
+	for _, tm := range []string{"b", "c", "a"} {
+		c.add(&logparse.Line{Kind: logparse.KindTemplate, Level: "warn", Template: tm})
+	}
+	got := map[string]float64{}
+	for _, s := range c.samples() {
+		switch s.Name {
+		case "log_txpool_invalid_total":
+			got["app="+s.Labels.Get("app")] = s.Value
+		case "log_template_lines_total":
+			got["template="+s.Labels.Get("template")] = s.Value
+		case "log_template_drops_total":
+			got["drops"] = s.Value
+		}
+	}
+	want := map[string]float64{"app=1": 1, "app=3": 1, "app=other": 2, "template=a": 1, "template=b": 1, "drops": 1}
+	if !maps.Equal(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
 	}
 }
