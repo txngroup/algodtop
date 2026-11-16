@@ -71,6 +71,50 @@ func TestRules(t *testing.T) {
 	}
 }
 
+// algod.top's own problems reach every node's health. finish used to take
+// the Status by value while add wrote to Evaluate's copy, so all of these
+// were lost and a paused store showed as OK.
+func TestDaemonProblems(t *testing.T) {
+	cases := []struct {
+		name  string
+		d     Daemon
+		mod   func(*collector.State)
+		level Level
+		text  string
+	}{
+		{"paused", Daemon{Paused: true}, nil, Critical, "paused writes at the disk floor"},
+		{"dropped", Daemon{DroppedSeries: map[string]map[string]int64{"n": {"m_d": 1, "m_c": 1, "m_b": 1, "m_a": 1}}}, nil, Warn,
+			"dropped series over the cap: m_a, m_b, m_c, ..."},
+		{"floor", Daemon{FloorDeleted: map[string]string{"n": "raw history is 12 days instead of 30"}}, nil, Warn, "raw history is 12 days"},
+		{"shared", Daemon{SharedVolume: map[string]float64{"n": 0.1}}, nil, Warn, "shares a volume with this node at 10% free"},
+		{"projected", Daemon{ProjectedOver: true}, nil, Warn, "projected algod.top disk use"},
+		{"missed", Daemon{}, func(s *collector.State) { s.MissedScrapes, s.Reachable = 3, false }, Warn, "missed scrapes"},
+		{"down", Daemon{Paused: true}, func(s *collector.State) { s.Up = false }, Critical, "paused writes"},
+	}
+	for _, c := range cases {
+		s := base()
+		s.Reachable = true
+		if c.mod != nil {
+			c.mod(&s)
+		}
+		st := Evaluate(&s, Context{Daemon: c.d})
+		found := false
+		for _, r := range st.Reasons {
+			if r.Rule == "algodtop" && r.Level == c.level && strings.Contains(r.Text, c.text) {
+				found = true
+			}
+		}
+		if !found || st.Level < c.level {
+			t.Errorf("%s: level %v, reasons %+v", c.name, st.Level, st.Reasons)
+		}
+	}
+	s := base()
+	s.Unavailable = []string{"disk_io"}
+	if st := Evaluate(&s, Context{}); len(st.Disabled) != 1 || st.Disabled[0].Rule != "disk_io" {
+		t.Errorf("disabled %+v", st.Disabled)
+	}
+}
+
 // A node whose /v2/status fails has no round. It used to read as a lag of
 // 0 and stay OK. It is now Warn at once and stalled after 30 s, since its
 // lag runs from the first failure.

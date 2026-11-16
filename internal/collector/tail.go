@@ -64,6 +64,9 @@ func newTailer(n *Node, saved *tailState) *tailer {
 		capF = 100
 	}
 	t.counts = newLogCounts(capT, capF)
+	if n.o.Stored != nil {
+		t.counts.seed(n.o.Stored)
+	}
 	return t
 }
 
@@ -499,6 +502,10 @@ type logCounts struct {
 	templDrops float64
 	warn       map[string]*warnAgg
 	errMinute  int
+	// slotsT and slotsF hold the templates and app IDs that have a series
+	// of their own: those the store already has, then new ones while the
+	// cap has room.
+	slotsT, slotsF map[string]bool
 }
 
 type warnAgg struct {
@@ -509,7 +516,36 @@ type warnAgg struct {
 
 func newLogCounts(capT, capF int) *logCounts {
 	return &logCounts{capT: capT, capF: capF, templates: map[string]float64{}, trace: map[string]float64{}, flood: map[string]float64{},
-		http: map[string]float64{}, extracts: map[string]float64{}, levels: map[string]float64{}, warn: map[string]*warnAgg{}}
+		http: map[string]float64{}, extracts: map[string]float64{}, levels: map[string]float64{}, warn: map[string]*warnAgg{},
+		slotsT: map[string]bool{}, slotsF: map[string]bool{}}
+}
+
+// seed fills the slots from the store. The store's caps never free a
+// series, and the counts start empty at each restart. Without the seed, the
+// first new app IDs after a restart took the free slots here and the store
+// then dropped them, so their lines were in neither their own series nor
+// "other". New templates were lost the same way.
+func (c *logCounts) seed(stored func(string) []model.Labels) {
+	for _, ls := range stored("log_txpool_invalid_total") {
+		if app := ls.Get("app"); app != "other" {
+			c.slotsF[app] = true
+		}
+	}
+	for _, ls := range stored("log_template_lines_total") {
+		c.slotsT[ls.Get("level")+"|"+ls.Get("template")] = true
+	}
+}
+
+// admit reports whether key k has, or can take, one of the slots.
+func admit(slots map[string]bool, k string, limit int) bool {
+	if slots[k] {
+		return true
+	}
+	if len(slots) >= limit {
+		return false
+	}
+	slots[k] = true
+	return true
 }
 
 func (c *logCounts) add(l *logparse.Line) {
@@ -535,7 +571,7 @@ func (c *logCounts) add(l *logparse.Line) {
 		if app == "" {
 			app = "none"
 		}
-		if _, ok := c.flood[app]; ok || len(c.flood) < c.capF {
+		if admit(c.slotsF, app, c.capF) {
 			c.flood[app]++
 		} else {
 			c.flood["other"]++
@@ -547,7 +583,7 @@ func (c *logCounts) add(l *logparse.Line) {
 		}
 	case logparse.KindTemplate:
 		k := l.Level + "|" + l.Template
-		if _, ok := c.templates[k]; ok || len(c.templates) < c.capT {
+		if admit(c.slotsT, k, c.capT) {
 			c.templates[k]++
 		} else {
 			c.templDrops++
