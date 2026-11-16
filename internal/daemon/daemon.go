@@ -520,6 +520,17 @@ func (d *Daemon) startNode(ctx context.Context, cfg *config.Config, n config.Nod
 			return d.host.ProcStart(pid)
 		},
 		LastRound: func() uint64 { return d.lastStoredRound(name) },
+		Stored: func(metric string) []model.Labels {
+			id, ok := d.db.NodeID(name)
+			if !ok {
+				return nil
+			}
+			var out []model.Labels
+			for _, m := range d.db.Find(id, metric) {
+				out = append(out, m.Labels)
+			}
+			return out
+		},
 	})
 	nctx, cancel := context.WithCancel(ctx)
 	nr := &nodeRun{cfg: n, node: cn, cancel: cancel, done: make(chan struct{})}

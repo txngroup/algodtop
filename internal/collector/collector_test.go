@@ -2,6 +2,7 @@ package collector
 
 import (
 	"context"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +12,7 @@ import (
 
 	"algod.top/internal/algod"
 	"algod.top/internal/fakealgod"
+	"algod.top/internal/logparse"
 	"algod.top/internal/model"
 )
 
@@ -368,5 +370,43 @@ func TestRejectedTokenIsNotOK(t *testing.T) {
 				return st.StatusErr == "" && st.StatusErrAt == 0 && st.Round != 0
 			})
 		})
+	}
+}
+
+// The log caps start from what the store holds. Before, the counts started
+// empty at each restart, so new app IDs took the free slots, the store's
+// own cap dropped them, and their lines were in no series at all.
+func TestLogCapsStartFromStore(t *testing.T) {
+	stored := func(metric string) []model.Labels {
+		switch metric {
+		case "log_txpool_invalid_total":
+			return []model.Labels{{{Name: "app", Value: "1"}}, {{Name: "app", Value: "2"}}, {{Name: "app", Value: "other"}}}
+		case "log_template_lines_total":
+			return []model.Labels{{{Name: "level", Value: "warn"}, {Name: "template", Value: "a"}}}
+		}
+		return nil
+	}
+	c := newLogCounts(2, 3)
+	c.seed(stored)
+	for _, app := range []string{"3", "4", "1", "4"} {
+		c.add(&logparse.Line{Kind: logparse.KindFlood, Level: "info", AppID: app})
+	}
+	for _, tm := range []string{"b", "c", "a"} {
+		c.add(&logparse.Line{Kind: logparse.KindTemplate, Level: "warn", Template: tm})
+	}
+	got := map[string]float64{}
+	for _, s := range c.samples() {
+		switch s.Name {
+		case "log_txpool_invalid_total":
+			got["app="+s.Labels.Get("app")] = s.Value
+		case "log_template_lines_total":
+			got["template="+s.Labels.Get("template")] = s.Value
+		case "log_template_drops_total":
+			got["drops"] = s.Value
+		}
+	}
+	want := map[string]float64{"app=1": 1, "app=3": 1, "app=other": 2, "template=a": 1, "template=b": 1, "drops": 1}
+	if !maps.Equal(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
 	}
 }
