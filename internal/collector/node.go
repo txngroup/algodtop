@@ -268,7 +268,10 @@ func (n *Node) savePersisted() {
 func (n *Node) event(kind, sev, msg string, attrs map[string]any) {
 	e := model.Event{Time: n.o.Now().UnixNano(), Node: n.o.Name, Kind: kind, Severity: sev, Msg: msg, Attrs: attrs}
 	n.o.Sink.Event(e)
-	if kind != model.EvConnect && kind != model.EvDisconnect {
+	// The fleet card shows the last notable event. algod rotates node.log
+	// each time it reaches its size limit, several times a day on a busy
+	// node, so a rotation would soon hide every restart or config change.
+	if kind != model.EvConnect && kind != model.EvDisconnect && kind != model.EvLogRotation {
 		n.update(func(s *State) { s.LastEvent = &e })
 	}
 }
@@ -753,6 +756,7 @@ func (n *Node) scrape(ctx context.Context) {
 		s.Healthy, s.Ready = healthy, ready
 		if serr == nil {
 			s.StatusLag = float64(st.TimeSinceLastRound) / 1e9
+			s.Catchpoint = st.Catchpoint
 			if st.LastRound > s.Round {
 				s.Round = st.LastRound
 			}

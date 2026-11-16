@@ -205,3 +205,19 @@ func TestCommandChannel(t *testing.T) {
 		t.Fatalf("command got %q", b)
 	}
 }
+
+// A node that keeps retrying catchup while its round stands still is
+// stalled. Fast catchup holds the round on purpose and is not.
+func TestStalledDuringCatchup(t *testing.T) {
+	e, _ := ParseExpr("stalled")
+	now := time.Now()
+	s := &collector.State{Up: true, Healthy: true, Round: 100, RoundAt: now.Add(-45 * time.Second).UnixNano(), Catchup: true}
+	ok, why := e.Eval(Input{State: s, Now: now})
+	if !ok || why != "last round is 45s old, and catchup is not moving it" {
+		t.Fatalf("block catchup: %v %q", ok, why)
+	}
+	s.Catchpoint = "52180000#ABCDEF"
+	if ok, why := e.Eval(Input{State: s, Now: now}); ok {
+		t.Fatalf("fast catchup fired: %q", why)
+	}
+}

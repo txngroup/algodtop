@@ -2,6 +2,9 @@ package fakealgod
 
 import (
 	"net"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -120,5 +123,56 @@ func TestChurnKeepsDirections(t *testing.T) {
 				break
 			}
 		}
+	}
+}
+
+// During an outage the round holds, catchup attempts come and go in
+// /v2/status, and each ends with algod's log line. Afterwards the round
+// jumps to where the network got to.
+func TestOutage(t *testing.T) {
+	dir := t.TempDir()
+	f, err := Start(Options{DataDir: dir, RoundEvery: 20 * time.Millisecond, Seed: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	f.Outage(true)
+	r0 := f.Round()
+	attempts, inAttempt := 0, false
+	for deadline := time.Now().Add(time.Second); time.Now().Before(deadline); time.Sleep(2 * time.Millisecond) {
+		on := f.status()["catchup-time"].(int64) > 0
+		if on && !inAttempt {
+			attempts++
+		}
+		inAttempt = on
+	}
+	if attempts < 3 {
+		t.Errorf("%d catchup attempts in 1 s, want several", attempts)
+	}
+	if f.Round() != r0 {
+		t.Errorf("round moved from %d to %d during the outage", r0, f.Round())
+	}
+	b, _ := os.ReadFile(filepath.Join(dir, "node.log"))
+	if n := strings.Count(string(b), "Catchup Service: finished catching up"); n < 3 {
+		t.Errorf("%d catchup log lines", n)
+	}
+	f.Outage(false)
+	if f.Round() < r0+40 {
+		t.Errorf("round %d after a 1 s outage at 20 ms rounds, from %d", f.Round(), r0)
+	}
+	if c := f.status()["catchup-time"].(int64); c != 0 {
+		t.Errorf("catchup time %d after the outage", c)
+	}
+
+	f.CatchpointCatchup("1000#ABC")
+	r1 := f.Round()
+	time.Sleep(100 * time.Millisecond)
+	st := f.status()
+	if st["catchpoint"] != "1000#ABC" || st["catchup-time"].(int64) == 0 || f.Round() != r1 {
+		t.Errorf("fast catchup: status %v, round %d from %d", st, f.Round(), r1)
+	}
+	f.CatchpointCatchup("")
+	if _, ok := f.status()["catchpoint"]; ok {
+		t.Error("catchpoint still set")
 	}
 }

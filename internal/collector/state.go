@@ -46,6 +46,7 @@ type State struct {
 	RoundTime   float64 `json:"round_time"`                   // mean of recent gaps, s
 	RoundP99    float64 `json:"round_p99"`
 	Catchup     bool    `json:"catchup"`
+	Catchpoint  string  `json:"catchpoint,omitempty"` // the label fast catchup restores, "" otherwise
 	TxnsPerBlk  float64 `json:"tpb"`
 	PoolSize    float64 `json:"pool"`
 	OnlineMoney float64 `json:"online_money,omitempty"`
@@ -89,7 +90,9 @@ type State struct {
 // Lag returns seconds since the last round, from local arrival when known.
 // A node whose status never answered has no round at all, so its lag runs
 // from the first failure. Otherwise a rejected token would read as a lag
-// of 0 and the node would never count as stalled.
+// of 0 and the node would never count as stalled. Lag is never negative:
+// the hub reads an agent node's lag on its estimate of the agent's clock,
+// which can be a few milliseconds off.
 func (s *State) Lag(now time.Time) float64 {
 	if s.RoundAt == 0 {
 		if s.StatusErrAt != 0 {
@@ -97,7 +100,7 @@ func (s *State) Lag(now time.Time) float64 {
 		}
 		return s.StatusLag
 	}
-	return now.Sub(time.Unix(0, s.RoundAt)).Seconds()
+	return max(0, now.Sub(time.Unix(0, s.RoundAt)).Seconds())
 }
 
 // PeerCounts counts peers by network and direction.
