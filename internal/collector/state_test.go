@@ -215,3 +215,37 @@ func TestPeerRateUsesThePollGap(t *testing.T) {
 		t.Fatalf("a total that went down: %+v", got)
 	}
 }
+
+// A node that stays down across a restart of algod.top keeps the time it
+// went down. It used to count from the restart, so a node down for hours
+// read as down for seconds.
+func TestDownSinceSurvivesARestart(t *testing.T) {
+	dir, stateDir := t.TempDir(), t.TempDir()
+	open := func(sink *recSink) *Node {
+		return NewNode(Options{Name: "n", Source: &LocalSource{Dir: dir}, Sink: sink, StateDir: stateDir})
+	}
+	went := time.Now().Add(-3 * time.Hour)
+	first := open(&recSink{})
+	first.update(func(s *State) { s.Up = true })
+	first.markDown(went, "process not running, no live algod.pid")
+	first.savePersisted()
+
+	sink := &recSink{}
+	second := open(sink)
+	second.checkPID(0, 0, time.Now(), true)
+	if st := second.State(); st.Up || st.DownSince != went.UnixNano() {
+		t.Fatalf("after a restart: up %v, down since %v, want %v", st.Up, time.Unix(0, st.DownSince), went)
+	}
+	if len(sink.events) != 0 {
+		t.Fatalf("a node still down logged %+v", sink.events)
+	}
+	// Coming back records the whole stretch, and the state file forgets it.
+	second.markUp(time.Now())
+	if len(sink.events) != 1 || sink.events[0].Kind != model.EvNodeUp || sink.events[0].Attrs["down_since"] != went.UnixNano() {
+		t.Fatalf("events %+v", sink.events)
+	}
+	second.savePersisted()
+	if st := open(&recSink{}).State(); st.DownSince != 0 {
+		t.Fatalf("down since %v after algod came back", time.Unix(0, st.DownSince))
+	}
+}
