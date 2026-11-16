@@ -106,7 +106,8 @@ export function mount(root, app, r) {
         ? stat("peers", String(total), "WS " + (p.ws_in || 0) + "/" + (p.ws_out || 0) + "  P2P " + (p.p2p_in || 0) + "/" + (p.p2p_out || 0) + (isNum(ago.peers) ? ", " + fmtDelta(total - ago.peers, "") + " vs 24 h" : ""))
         : stat("peers", "n/a", "needs the admin token"),
       hasProc(n) ? stat("CPU", isNum(n.cpu) && n.up ? n.cpu.toFixed(1) + "%" : "-", delta(n.cpu, ago.cpu, "%")) : null,
-      hasProc(n) ? stat("RSS", n.rss && n.up ? fmt(n.rss, "bytes") : "-", delta(n.rss, ago.rss, "bytes")) : null,
+      hasProc(n) ? stat("RSS", n.rss && n.up ? fmt(n.rss, "bytes") : "-",
+        n.memory_creep ? h("span", { class: "sev warn", title: "Each of the last 3 days had a higher RSS minimum than any earlier day since algod started. Spikes are normal; a rising floor is a leak." }, "minimum rising 3 days") : delta(n.rss, ago.rss, "bytes")) : null,
       stat("version", n.version || "-", n.branch || n.network || ""),
       stat("uptime", n.up ? uptime(n) : "down", n.start_time ? "since " + fmtShortTime(ns(n.start_time)) : ""),
       stat("last effective config change", n.config_changed ? fmtShortTime(ns(n.config_changed.time)) : "none seen", n.config_changed ? n.config_changed.msg : "", "wide")].filter(Boolean));

@@ -484,7 +484,7 @@ The front ends compute these from stored data rather than storing them separatel
 - Expected vote interval for an account comes from its share of online stake (`/v2/ledger/supply`). A small account is selected less often, so "rounds since last vote" is judged against this interval rather than a fixed number. The last vote comes from the local key (`/v2/participation`). The on-chain view comes from the account's last proposed and last heartbeat rounds, which are what the network uses to judge absence.
 - Suspension shows in the account as status Offline with its vote key still set. algod.top names that state "suspended" rather than "offline", because recovery differs: a suspended account comes back with a heartbeat or a new keyreg.
 - Disk shows days until full, from a linear fit of the last 7 days' use, and the data dir size by subdirectory.
-- Memory shows RSS with a flag if the 24 h minimum has risen for 3 days running. Plain RSS spikes are normal.
+- Memory shows RSS with a flag if the 24 h minimum has risen for 3 days running. Plain RSS spikes are normal. Each of the 3 days must set a new high over every earlier day the process ran in the last 10, so the climb back from one low day does not count. On macOS, memory pressure on the host compresses and pages out every process at once, and their minimums drop together for a day. Days before the last restart and the day of the restart do not count either.
 
 Each node has a health state of OK, Warn or Critical, and the reasons are always listed in words, for example "Warn: participation key for ABC... expires in 6 days". The defaults are:
 
@@ -598,7 +598,7 @@ The pull protocol is the same over SSH and TLS:
 - The agent deletes pulled data once it is older than the buffer window (7 days by default). It keeps unpulled data past that window, up to a size cap (default 1 GB) or its own disk floor. Beyond either limit it deletes the oldest unpulled data first and records a retention deletion event, as the disk floor does (section 18).
 - The protocol is versioned in the path. A hub supports the current and the previous agent protocol version, so hosts can be upgraded one at a time.
 
-Alerts for an agent's nodes run on the agent, so a hub on a sleeping laptop does not silence them. The hub shows the agent's alert events, and fires only one alert of its own for those nodes: "agent unreachable". Hub-local, REST and no-install nodes alert from the hub. Each alert therefore fires from exactly one place.
+Alerts for an agent's nodes run on the agent, so a hub on a sleeping laptop does not silence them. The hub shows the agent's alert events, and fires only one alert of its own for those nodes: "agent unreachable". Its reason says how long the hub has gone without an answer and why the last connection ended, with what ssh printed on one line. Hub-local, REST and no-install nodes alert from the hub. Each alert therefore fires from exactly one place.
 
 ### TLS agent
 

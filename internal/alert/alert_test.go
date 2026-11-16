@@ -51,6 +51,18 @@ func TestRuleAlertListsEveryReason(t *testing.T) {
 	}
 }
 
+// The hub's agent_unreachable alert says for how long and why, in the
+// words of the reason the hub put on the node.
+func TestAgentUnreachableSaysWhy(t *testing.T) {
+	e, _ := ParseExpr("agent_unreachable")
+	text := "agent edge unreachable for 2m10s: dial tcp 192.0.2.7:8443: connect: connection refused"
+	h := health.Status{Level: health.Critical, Reasons: []health.Reason{{Rule: "agent_unreachable", Level: health.Critical, Text: text}}}
+	ok, why := e.Eval(Input{State: &collector.State{Up: true}, Health: h, Now: time.Now(), AgentUnreachable: true})
+	if !ok || why != text {
+		t.Fatalf("%v %q", ok, why)
+	}
+}
+
 // A node whose token algod rejects has never had a round. "down or
 // stalled" fires for it after 30 s and says why.
 func TestStalledNamesTheStatusError(t *testing.T) {
