@@ -3,7 +3,6 @@
 package sysstat
 
 import (
-	"bufio"
 	"context"
 	"os"
 	"os/exec"
@@ -34,6 +33,7 @@ func Methods() map[string]string {
 type platformState struct {
 	lsof   cache[map[int]int]
 	lsofOf string
+	nettop nettopTracker
 }
 
 func (p *platformState) init() {}
@@ -158,15 +158,16 @@ func parseCPUTime(s string) float64 {
 }
 
 // netBytes runs one nettop for every algod PID. A single sample (-L 1)
-// prints cumulative bytes per process at once, so the call costs about
+// prints cumulative bytes per socket at once, so the call costs about
 // 0.1 s. A long-lived nettop in logging mode would avoid the exec, but its
 // output sits in a stdio buffer when stdout is a pipe and arrives late.
+// -n keeps addresses numeric: nettop resolves names on some runs and not
+// on others, and a socket whose name changes would be counted twice.
 func (p *platformState) netBytes(pids []int) map[int]NetIO {
-	out := map[int]NetIO{}
 	if len(pids) == 0 {
-		return out
+		return map[int]NetIO{}
 	}
-	args := []string{"-P", "-L", "1", "-J", "bytes_in,bytes_out", "-x"}
+	args := []string{"-n", "-L", "1", "-J", "bytes_in,bytes_out", "-x"}
 	for _, pid := range pids {
 		args = append(args, "-p", strconv.Itoa(pid))
 	}
@@ -176,27 +177,9 @@ func (p *platformState) netBytes(pids []int) map[int]NetIO {
 	c.Env = append(os.Environ(), "LC_ALL=C")
 	b, err := c.Output()
 	if err != nil && len(b) == 0 {
-		return out
+		return map[int]NetIO{}
 	}
-	sc := bufio.NewScanner(strings.NewReader(string(b)))
-	for sc.Scan() {
-		f := strings.Split(sc.Text(), ",")
-		if len(f) < 3 || f[0] == "" {
-			continue
-		}
-		i := strings.LastIndexByte(f[0], '.')
-		if i < 0 {
-			continue
-		}
-		pid, err := strconv.Atoi(f[0][i+1:])
-		if err != nil {
-			continue
-		}
-		in, _ := strconv.ParseFloat(f[1], 64)
-		ob, _ := strconv.ParseFloat(f[2], 64)
-		out[pid] = NetIO{In: in, Out: ob, Method: "nettop"}
-	}
-	return out
+	return p.nettop.update(parseNettop(string(b), pids), pids)
 }
 
 func interfaces() (float64, float64, error) {
