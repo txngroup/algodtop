@@ -170,6 +170,8 @@ func newHub(t *testing.T) *testHub {
 				g("libp2p_io_dht_kad_network_size", 100),
 				g("libp2p_rcmgr_streams", 85, "dir", "inbound", "protocol", "/meshsub/1.3.0", "scope", "protocol"),
 				g("libp2p_rcmgr_streams", 84, "dir", "outbound", "protocol", "/meshsub/1.3.0", "scope", "protocol"),
+				// A gauge in libp2p that counts up: 3 blocks per sample, 18/min.
+				g("libp2p_rcmgr_blocked_resources", 9000+f*3, "resource", "fd", "scope", "system", "dir", ""),
 			}
 			for j, le := range les {
 				ms = append(ms, model.Sample{Name: "libp2p_swarm_dial_latency_seconds_bucket", Labels: lbl("le", le), Kind: model.KindHistPart, Value: f * float64(j+1)})
@@ -395,6 +397,11 @@ func TestSmokePages(t *testing.T) {
 			if !strings.Contains(dom, `id="`+pg.id+`"`) {
 				t.Errorf("%s: DOM lacks the main element #%s:\n%.2000s\nchrome log:\n%s", pg.path, pg.id, dom, tail(stderr.String(), 3000))
 			}
+			// libp2p_rcmgr_blocked_resources counts up, though typed gauge.
+			// Its chart shows the rate, rather than the count of about 9000.
+			if pg.path == "/node/alpha?r=6h&raw=1&closed=consensus" && !strings.Contains(dom, `<span class="name">fd system</span><span class="val">18/min</span>`) {
+				t.Errorf("%s: the resource manager chart does not show 18 blocks per minute:\n%.600s", pg.path, after(dom, "Resource manager blocks"))
+			}
 			if strings.Contains(dom, "This page failed to load") {
 				t.Errorf("%s: the page reported a load failure", pg.path)
 			}
@@ -403,6 +410,14 @@ func TestSmokePages(t *testing.T) {
 			}
 		})
 	}
+}
+
+// after returns s from the first occurrence of sep, or "" without one.
+func after(s, sep string) string {
+	if i := strings.Index(s, sep); i >= 0 {
+		return s[i:]
+	}
+	return ""
 }
 
 func tail(s string, n int) string {

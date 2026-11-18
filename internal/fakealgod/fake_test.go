@@ -1,9 +1,12 @@
 package fakealgod
 
 import (
+	"io"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -174,5 +177,42 @@ func TestOutage(t *testing.T) {
 	f.CatchpointCatchup("")
 	if _, ok := f.status()["catchpoint"]; ok {
 		t.Error("catchpoint still set")
+	}
+}
+
+// libp2p's blocked resources is typed gauge but counts up from the process
+// start, so the fake grows it with uptime as it does a counter.
+func TestBlockedResourcesGrow(t *testing.T) {
+	read := func(uptime time.Duration) (string, float64) {
+		t.Helper()
+		f, err := Start(Options{Uptime: uptime, Seed: 1})
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer f.Close()
+		res, err := http.Get(f.URL() + "/metrics")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		body, _ := io.ReadAll(res.Body)
+		typ, val := "", -1.0
+		for _, l := range strings.Split(string(body), "\n") {
+			if strings.HasPrefix(l, "# TYPE libp2p_rcmgr_blocked_resources ") {
+				typ = strings.Fields(l)[3]
+			}
+			if strings.HasPrefix(l, `libp2p_rcmgr_blocked_resources{resource="fd"`) {
+				val, _ = strconv.ParseFloat(l[strings.LastIndexByte(l, ' ')+1:], 64)
+			}
+		}
+		return typ, val
+	}
+	typ, day := read(24 * time.Hour)
+	_, two := read(48 * time.Hour)
+	if typ != "gauge" {
+		t.Errorf("TYPE %q, want gauge as libp2p sends it", typ)
+	}
+	if day <= 0 || two < 1.9*day || two > 2.1*day {
+		t.Errorf("blocked fd resources %v after a day and %v after two, want twice as many", day, two)
 	}
 }

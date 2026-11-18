@@ -185,7 +185,7 @@ A series is (node, metric name, sorted label set). algod.top stores a kind with 
 algod does not emit a `histogram` TYPE. Each `_bucket`, `_sum` and `_count` is its own family typed `counter`, for example `# TYPE libp2p_swarm_dial_latency_seconds_bucket counter`. algodtop groups a family as a histogram when it finds `<base>_bucket` series with an `le` label plus matching `<base>_sum` and `<base>_count`. The 407 family names on Mainnet count those suffix families separately.
 
 - Counter. algod.top stores the raw cumulative value, and the query layer computes rates. A restart resets every counter at once, so algod.top marks a reset on every counter of a node when its PID changes. A REST-only node has no PID, so a drop in most of its counters in one scrape marks the restart. A value that goes down without a restart is also treated as a reset of that series. The rate across a reset is the new value divided by the interval. Each reset is stored as an event, so a dip in a rate chart is visibly a restart.
-- Gauge. algod.top stores the value as reported.
+- Gauge. algod.top stores the value as reported. A query with `fn=rate` or `fn=increase` reads a gauge as a counter, with a fall or a restart as a reset. In the rollups it uses each bucket's last value. libp2p types `libp2p_rcmgr_blocked_resources` as a gauge, but it counts blocks since algod started. On a Mainnet node with about 85 P2P peers it climbed from about 3,000 to 9,200 over 14 days, so the node page charts its rate per minute.
 - Histogram. algod.top stores each bucket, `_sum` and `_count` as a counter. Queries derive heatmaps and percentiles (p50, p90, p99) from bucket deltas.
 
 Series come and go. The bucket count on Mainnet changes between scrapes as new label values (dial outcomes, protocols) appear. The chunk format records presence per sample (section 8), and a series absent from a scrape is a gap, not a zero.
@@ -423,7 +423,7 @@ The API is plain JSON over HTTP, served by stdlib `net/http` with the pattern ro
 | Endpoint | Returns |
 |---|---|
 | `GET /api/nodes` | Nodes with live status and health summary |
-| `GET /api/series?node=&metric=&match=label:value&from=&to=&points=&tier=&fn=rate\|avg\|min\|max\|p99&by=label` | Time series |
+| `GET /api/series?node=&metric=&match=label:value&from=&to=&points=&tier=&fn=rate\|increase\|avg\|min\|max\|last\|p99&by=label` | Time series |
 | `GET /api/metrics?node=&q=` | Metric names and label values, for the explorer |
 | `GET /api/events?node=&kind=&from=&to=` | Events |
 | `GET /api/sessions?node=&addr=&from=&to=` | Peer sessions |
