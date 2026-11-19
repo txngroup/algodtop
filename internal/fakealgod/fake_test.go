@@ -126,6 +126,30 @@ func TestChurnKeepsDirections(t *testing.T) {
 	}
 }
 
+// A closed account keeps its key installed. The key stops voting, the
+// account reads empty and offline, and the log names it each round.
+func TestClosedAccount(t *testing.T) {
+	dir := t.TempDir()
+	closed, open := Address("closed"), Address("open")
+	f, err := Start(Options{DataDir: dir, RoundEvery: 20 * time.Millisecond, Seed: 1,
+		Accounts: []Account{{Address: closed, Amount: 5e9, KeyDays: 30, Closed: true}, {Address: open, Amount: 5e9, KeyDays: 30}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	time.Sleep(100 * time.Millisecond)
+	b, _ := os.ReadFile(filepath.Join(dir, "node.log"))
+	if !strings.Contains(string(b), "node.VotingKeys: Address: "+closed+" - Account was closed") || strings.Contains(string(b), "Address: "+open) {
+		t.Errorf("node.log does not name only the closed account")
+	}
+	for _, k := range f.partKeys() {
+		behind := f.Round() - k["last-vote"].(uint64)
+		if (k["address"] == closed) != (behind > 1000) {
+			t.Errorf("%s last voted %d rounds ago", k["address"], behind)
+		}
+	}
+}
+
 // During an outage the round holds, catchup attempts come and go in
 // /v2/status, and each ends with algod's log line. Afterwards the round
 // jumps to where the network got to.

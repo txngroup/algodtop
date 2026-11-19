@@ -32,10 +32,12 @@ export function healthReason(n) {
 
 // expiryKeys returns one key per account: the key it votes with, or else
 // the one that lasts longest. A renewed account keeps its old key
-// installed, and that key's expiry does not matter.
+// installed, and that key's expiry does not matter. Nor does the expiry
+// of a key whose account was closed.
 export function expiryKeys(keys) {
   const by = new Map();
   for (const k of keys || []) {
+    if (k.closed) continue;
     const o = by.get(k.address);
     if (!o || k.active || (!o.active && k.last > o.last)) by.set(k.address, k);
   }
@@ -44,6 +46,7 @@ export function expiryKeys(keys) {
 
 // keyStatus describes one installed key in a word or two.
 export function keyStatus(k, round) {
+  if (k.closed) return "account closed";
   if (k.active) return "active";
   if (k.superseded) return "superseded";
   if (round && k.last < round) return "expired";
@@ -77,15 +80,19 @@ export function participation(n) {
     if (st === "Offline" && a.vote_key) st = "suspended";
     parts.push(shortAddr(a.address) + " " + st.toLowerCase() + (a.incentive_eligible ? ", eligible" : ""));
   }
-  if (keys.length) {
-    const exp = expiryKeys(keys);
+  const exp = expiryKeys(keys);
+  if (exp.length) {
     const min = Math.min(...exp.map((k) => (Number.isFinite(k.days_left) ? k.days_left : Infinity)));
     const n = exp.length;
+    const live = keys.filter((k) => !k.closed).length;
     let s = n + (n === 1 ? " account" : " accounts");
-    if (keys.length !== n) s += ", " + keys.length + " keys";
+    if (live !== n) s += ", " + live + " keys";
     if (Number.isFinite(min)) s += min <= 0 ? ", a key has expired" : ", next expiry in " + fmtDays(min);
     parts.push(s);
   }
+  // algod reports these accounts as closed. Their keys can never vote.
+  const closed = new Set(keys.filter((k) => k.closed).map((k) => k.address)).size;
+  if (closed) parts.push(closed + (closed === 1 ? " closed account still has a key" : " closed accounts still have keys"));
   return parts.join("; ");
 }
 

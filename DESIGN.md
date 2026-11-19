@@ -289,6 +289,7 @@ Specific extractors turn known lines into events with attributes. Each extractor
 - `using protocol /algorand-ws/2.2.0 with peer`, which marks gossip stream setup.
 - `wsStreamHandlerV22: error reading peer meta headers`, the handshake EOFs.
 - Catchup start and end, ledger errors, panic, and fatal.
+- `node.VotingKeys: Address: ... - Account was closed but still has a participation key active.` algod logs this at info level for each installed key of a closed account, several times a round. It marks that account's keys as closed (section 10).
 
 Warning and error lines are kept raw for 90 days for drill-down. Info lines are not kept raw by default. A per-node setting can keep all raw lines for N days for an investigation.
 
@@ -482,6 +483,7 @@ The front ends compute these from stored data rather than storing them separatel
 - Peer clusters are groups of at least N inbound sessions that ended within W seconds, listed with the IPs involved. The view also flags IPs that appear in more than one cluster. This finds peers that reset together without anyone grouping disconnects by hand. With per-peer usage, each cluster also shows member traffic in the minutes before the disconnect. It groups members by their `supported-protocols` set, which works as a rough software fingerprint.
 - Participation shows each key's validity remaining in rounds and estimated days, its last vote round and last proposal round, whether the account is online, and whether it is incentive-eligible.
 - Expected vote interval for an account comes from its share of online stake (`/v2/ledger/supply`). A small account is selected less often, so "rounds since last vote" is judged against this interval rather than a fixed number. The last vote comes from the local key (`/v2/participation`). The on-chain view comes from the account's last proposed and last heartbeat rounds, which are what the network uses to judge absence.
+- A key whose account was closed can never vote again. algod.top learns of a closed account from algod's log (section 7), which works whether or not the account is listed. Such a key is never the active key, its expiry does not count, and the web UI marks it "account closed" so the operator can delete it. Without that log line, the key would stay active by the voted-last rule below, and the fleet card would report its expiry as the account's next expiry. When algod has not repeated the line for 10 minutes, the account counts as open again.
 - Suspension shows in the account as status Offline with its vote key still set. algod.top names that state "suspended" rather than "offline", because recovery differs: a suspended account comes back with a heartbeat or a new keyreg.
 - Disk shows days until full, from a linear fit of the last 7 days' use, and the data dir size by subdirectory.
 - Memory shows RSS with a flag if the 24 h minimum has risen for 3 days running. Plain RSS spikes are normal. Each of the 3 days must set a new high over every earlier day the process ran in the last 10, so the climb back from one low day does not count. On macOS, memory pressure on the host compresses and pages out every process at once, and their minimums drop together for a day. Days before the last restart and the day of the restart do not count either.
@@ -492,7 +494,7 @@ Each node has a health state of OK, Warn or Critical, and the reasons are always
   - algod is down, or `/health` fails. When a local algod stops answering while its process runs, the reason names the pid, because a hung algod needs a kill and a crashed one a start.
   - the last round is older than 30 s and the node is not in fast catchup from a catchpoint, which holds the round while it restores the ledger. Block catchup does not excuse an old round, because it moves the round every few seconds. While algod cannot reach the network, it retries block catchup every few rounds, and each attempt would otherwise hide the stall: a node cut off for five minutes would flap between Warn and Critical, and a `stalled` alert with `for: 1m` would never fire. A node whose `/v2/status` fails, for example because algod rejects the API token, has no round, so its lag counts from the first failure and the reason names the error. algod answers `/metrics` and `/health` without a token, so such a node would otherwise look up and well.
   - disk is under 5%
-  - an account's active participation key expires within 2 days. The active key is the on-chain vote key when the account is listed, else the valid key that voted last. A renewed account keeps its old key installed until someone deletes it, and that key does not count.
+  - an account's active participation key expires within 2 days. The active key is the on-chain vote key when the account is listed, else the valid key that voted last. A renewed account keeps its old key installed until someone deletes it, and that key does not count. Nor does a key whose account was closed.
   - a listed account was online and is now offline or suspended (offline with its vote key still set)
   - a listed account is online but its installed key is not the vote key registered on chain
   - a listed online account has not voted for more than 10 times its expected vote interval
@@ -550,6 +552,8 @@ The hub is the daemon that stores everything and serves the front ends. It reach
 | TLS agent | `algod.top agent` | HTTPS pull with a token or mutual TLS | everything | no gap, 7 day buffer |
 
 SSH no-install is the quick path: a remote node can be added in one line with nothing to set up on the host. The SSH agent is the recommended mode for any node worth keeping full history for. The TLS agent is for hosts the hub cannot reach over SSH.
+
+The hub lists its own nodes in config order, then the agents' nodes sorted by agent name, each agent's nodes in the agent's own order. The node pickers in the web UI follow this order, so it stays the same from one status push to the next.
 
 ### SSH transport
 

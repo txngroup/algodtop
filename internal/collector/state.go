@@ -154,9 +154,11 @@ type PartKeyState struct {
 	DaysLeft     float64 `json:"days_left"`
 	// Active is the key the account votes with. Superseded is a key that
 	// ends before the active key of the same account, so its expiry does
-	// not matter.
+	// not matter. Closed is a key whose account algod reports as closed:
+	// the key can never vote again and can be deleted.
 	Active     bool `json:"active,omitempty"`
 	Superseded bool `json:"superseded,omitempty"`
+	Closed     bool `json:"closed,omitempty"`
 }
 
 // AccountState is one listed account's on-chain view.
@@ -213,8 +215,8 @@ func (r *ring) quantile(q float64) float64 {
 // markKeys finds the key each account votes with. When the account is
 // listed, its on-chain vote key decides. Otherwise the valid key that
 // voted last decides, or, before any key has voted, the valid key that
-// lasts longest.
-func markKeys(keys []PartKeyState, accts []AccountState, round uint64) {
+// lasts longest. A key for an account in closed is never active.
+func markKeys(keys []PartKeyState, accts []AccountState, closed map[string]bool, round uint64) {
 	onChain := map[string]string{}
 	for _, a := range accts {
 		if a.VoteKey != "" {
@@ -225,6 +227,10 @@ func markKeys(keys []PartKeyState, accts []AccountState, round uint64) {
 	for i := range keys {
 		k := &keys[i]
 		k.Active, k.Superseded = false, false
+		k.Closed = closed[k.Address]
+		if k.Closed {
+			continue
+		}
 		if vk, ok := onChain[k.Address]; ok {
 			if k.VoteKey == vk {
 				active[k.Address] = i
@@ -250,11 +256,15 @@ func markKeys(keys []PartKeyState, accts []AccountState, round uint64) {
 }
 
 // ExpiryKeys returns one key per account, the one whose expiry matters:
-// the active key, or else the key that lasts longest.
+// the active key, or else the key that lasts longest. A closed account
+// has none.
 func ExpiryKeys(keys []PartKeyState) []PartKeyState {
 	at := map[string]int{}
 	var out []PartKeyState
 	for _, k := range keys {
+		if k.Closed {
+			continue
+		}
 		i, ok := at[k.Address]
 		switch {
 		case !ok:
@@ -271,7 +281,7 @@ func ExpiryKeys(keys []PartKeyState) []PartKeyState {
 // is not active: installed, perhaps not yet registered on chain.
 func LaterKey(keys []PartKeyState, k PartKeyState) bool {
 	for _, o := range keys {
-		if o.Address == k.Address && o.Last > k.Last && !o.Active {
+		if o.Address == k.Address && o.Last > k.Last && !o.Active && !o.Closed {
 			return true
 		}
 	}

@@ -105,6 +105,19 @@ func TestWSDisconnectUsesEndpoint(t *testing.T) {
 	}
 }
 
+// algod names a closed account that still has a key installed each time
+// agreement asks for voting keys, several times a round.
+func TestClosedAccount(t *testing.T) {
+	const addr = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ"
+	l := Parse([]byte(`{"file":"node.go","function":"github.com/algorand/go-algorand/node.(*AlgorandFullNode).VotingKeys","level":"info","msg":"node.VotingKeys: Address: ` + addr + ` - Account was closed but still has a participation key active.","time":"2026-11-03T14:33:12.027Z"}`))
+	if l.Extract == nil || l.Extract.Type != "closed-account" || l.Extract.Addr != addr {
+		t.Fatalf("extract %+v", l.Extract)
+	}
+	if l.Template != "node.VotingKeys: Address: <account> - Account was closed but still has a participation key active." {
+		t.Errorf("template %q", l.Template)
+	}
+}
+
 func TestFastTime(t *testing.T) {
 	for _, s := range []string{"2026-11-03T12:37:00.706691Z", "2026-11-03T12:37:00Z", "2026-11-03T12:37:00.7Z", "2026-11-03T23:59:59.123456789Z"} {
 		want, _ := time.Parse(time.RFC3339Nano, s)

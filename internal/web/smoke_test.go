@@ -249,6 +249,12 @@ func newHub(t *testing.T) *testHub {
 			WSIn: 4e3, WSOut: 3e3, P2PIn: 3e4, P2POut: 7e4, DiskFree: 3e11, DiskTotal: 1e12,
 			StartTime: real.Add(-2 * time.Hour).UnixNano(), UpSince: real.Add(-2 * time.Hour).UnixNano()}
 	}
+	// algod reports this key's account as closed, so its expiry is no
+	// one's concern.
+	closedKey := func(s collector.State) collector.State {
+		s.Keys = []collector.PartKeyState{{ID: "kc", Address: "CLOSEDACCOUNTCLOSEDACCOUNTCLOSED", First: 1, Last: 1200, RoundsLeft: 180, DaysLeft: 0.5, LastVote: 700, Closed: true}}
+		return s
+	}
 	alpha := st("alpha", true)
 	alpha.PeerUsage = true
 	alpha.Keys = []collector.PartKeyState{{ID: "k1", Address: "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567", First: 1, Last: 2000000, RoundsLeft: 1500000, DaysLeft: 6.2, LastVote: 990, Active: true},
@@ -259,7 +265,7 @@ func newHub(t *testing.T) *testHub {
 	nodes := []api.NodeView{
 		{State: alpha, Health: health.Status{Level: health.Warn, Reasons: []health.Reason{{Rule: "key-expiry", Level: health.Warn, Text: "participation key for ABCDEF... expires in 6 days"}}}, Summary: "Warn: participation key for ABCDEF... expires in 6 days", Lag: 0.4, History: true},
 		// Several reasons at mixed levels, which the UI lists one per line.
-		{State: beta, Health: health.Status{Level: health.Critical, Reasons: []health.Reason{
+		{State: closedKey(beta), Health: health.Status{Level: health.Critical, Reasons: []health.Reason{
 			{Rule: "key_expiry", Level: health.Critical, Text: "participation key for AAAAAA... expires in 20 hours"},
 			{Rule: "key_expiry", Level: health.Critical, Text: "participation key for BBBBBB... expires in 22 hours"},
 			{Rule: "version_behind", Level: health.Warn, Text: "version 5.1.0 is behind 5.1.2 on alpha, another testnet stable node"},
@@ -391,6 +397,12 @@ func TestSmokePages(t *testing.T) {
 			}
 			if errs := consoleErrors(stderr.String()); len(errs) > 0 {
 				t.Errorf("console errors on %s:\n%s", pg.path, strings.Join(errs, "\n"))
+			}
+			if pg.path == "/" && (!strings.Contains(dom, "1 closed account still has a key") || strings.Contains(dom, "next expiry in 12 h")) {
+				t.Errorf("%s: the card counts the closed account's key", pg.path)
+			}
+			if strings.HasPrefix(pg.path, "/node/beta") && !strings.Contains(dom, "account closed") {
+				t.Errorf("%s: the key table does not mark the closed account's key", pg.path)
 			}
 			if !strings.Contains(dom, `id="`+pg.id+`"`) {
 				t.Errorf("%s: DOM lacks the main element #%s:\n%.2000s\nchrome log:\n%s", pg.path, pg.id, dom, tail(stderr.String(), 3000))

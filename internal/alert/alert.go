@@ -176,11 +176,13 @@ func (in Input) value(v string) (float64, bool) {
 	case "clock_offset":
 		return math.Abs(s.ClockOff), s.ClockKnown
 	case "key_days":
-		if len(s.Keys) == 0 {
+		// A key for a closed account never lapses: it cannot vote.
+		exp := collector.ExpiryKeys(s.Keys)
+		if len(exp) == 0 {
 			return 0, false
 		}
 		m := math.Inf(1)
-		for _, k := range collector.ExpiryKeys(s.Keys) {
+		for _, k := range exp {
 			m = math.Min(m, k.DaysLeft)
 		}
 		return m, true
