@@ -22,6 +22,16 @@ func TestOK(t *testing.T) {
 	}
 }
 
+// A key whose account was closed can never vote, so its expiry is not a
+// problem.
+func TestClosedAccountKeyDoesNotExpire(t *testing.T) {
+	s := base()
+	s.Keys = []collector.PartKeyState{{Address: "ABCDEFGHIJ", RoundsLeft: 10, DaysLeft: 1, Closed: true}}
+	if st := Evaluate(&s, Context{}); st.Level != OK {
+		t.Fatalf("%+v", st.Reasons)
+	}
+}
+
 func TestRules(t *testing.T) {
 	now := time.Now()
 	cases := []struct {

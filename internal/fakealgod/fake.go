@@ -76,10 +76,14 @@ type Options struct {
 }
 
 // Account is an online account whose participation key the fake holds.
+// A Closed account was closed after its key was installed: the key stays,
+// its last vote stops, the account reads 0 Algos and offline, and the log
+// says so each round, as algod's does.
 type Account struct {
 	Address string
 	Amount  uint64  // microAlgos
 	KeyDays float64 // days from start until the key's last valid round
+	Closed  bool
 }
 
 // Fake is a running fake algod.
@@ -122,6 +126,7 @@ type Fake struct {
 type fakeKey struct {
 	acct          Account
 	first, last   uint64
+	closedAt      uint64 // the last round a closed account voted
 	id, vote, sel string
 }
 
@@ -197,6 +202,9 @@ func Start(o Options) (*Fake, error) {
 		k := fakeKey{acct: a, first: 1, last: o.Round + uint64(a.KeyDays*float64(perDay))}
 		if o.Round > 30*perDay {
 			k.first = o.Round - 30*perDay // the key was made a month ago
+		}
+		if a.Closed {
+			k.closedAt = max(k.first, o.Round-min(o.Round, perDay)) // a day ago
 		}
 		k.id = fmt.Sprintf("%016x%016x", f.rnd.Uint64(), f.rnd.Uint64())
 		k.vote, k.sel = randKey(f.rnd), randKey(f.rnd)
@@ -406,6 +414,12 @@ func (f *Fake) loop() {
 					"msg": fmt.Sprintf("committed round %d with pre-validated block", f.round)})
 				for i := 0; i < f.o.LogTraceRate; i++ {
 					f.writeLogLocked(map[string]any{"Context": "Agreement", "Round": f.round, "Type": "VoteAccepted", "file": "trace.go", "level": "info", "msg": "vote accepted"})
+				}
+				for _, k := range f.keys {
+					if k.acct.Closed {
+						f.writeLogLocked(map[string]any{"file": "node.go", "function": "github.com/algorand/go-algorand/node.(*AlgorandFullNode).VotingKeys", "level": "info",
+							"msg": "node.VotingKeys: Address: " + k.acct.Address + " - Account was closed but still has a participation key active."})
+					}
 				}
 				f.cond.Broadcast()
 			}
@@ -697,6 +711,10 @@ func (f *Fake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				f.mu.Lock()
 				rnd := f.round
 				f.mu.Unlock()
+				if k.acct.Closed {
+					f.json(w, map[string]any{"address": addr, "amount": 0, "status": "Offline", "round": rnd})
+					return
+				}
 				f.json(w, map[string]any{"address": addr, "amount": k.acct.Amount, "status": "Online", "round": rnd, "incentive-eligible": true,
 					"last-proposed": rnd - 1200, "participation": map[string]any{"vote-first-valid": k.first, "vote-last-valid": k.last, "vote-participation-key": k.vote}})
 				return
@@ -801,8 +819,12 @@ func (f *Fake) partKeys() []map[string]any {
 	defer f.mu.Unlock()
 	var out []map[string]any
 	for _, k := range f.keys {
+		vote, prop := f.round-uint64(1+f.rnd.Intn(3)), f.round-1200
+		if k.acct.Closed {
+			vote, prop = k.closedAt, k.closedAt-min(k.closedAt, 1200)
+		}
 		out = append(out, map[string]any{"id": k.id, "address": k.acct.Address,
-			"last-vote": f.round - uint64(1+f.rnd.Intn(3)), "last-block-proposal": f.round - 1200,
+			"last-vote": vote, "last-block-proposal": prop,
 			"effective-first-valid": k.first, "effective-last-valid": k.last,
 			"key": map[string]any{"vote-first-valid": k.first, "vote-last-valid": k.last, "vote-key-dilution": 10000,
 				"vote-participation-key": k.vote, "selection-participation-key": k.sel}})

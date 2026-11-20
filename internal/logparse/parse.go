@@ -27,8 +27,8 @@ const (
 
 // Extract is a structured event pulled from a known line.
 type Extract struct {
-	Type     string // connect, disconnect, conn-reset, handshake-eof, gossip-stream, outgoing, incoming, catchup-start, catchup-end, panic, fatal, ledger-error
-	Addr     string
+	Type     string // connect, disconnect, conn-reset, handshake-eof, gossip-stream, outgoing, incoming, catchup-start, catchup-end, closed-account, panic, fatal, ledger-error
+	Addr     string // the peer, or for closed-account the account
 	Incoming bool
 	Reason   string
 	Delay    int64 // MessageDelay, ns
@@ -263,6 +263,11 @@ type netDetails struct {
 	Endpoint     string `json:"Endpoint"`
 }
 
+const (
+	votingKeysPrefix = "node.VotingKeys: Address: "
+	closedSuffix     = " - Account was closed but still has a participation key active."
+)
+
 // extract recognises the known lines. Each extractor has a fixture from a
 // real log in the tests.
 func extract(r *rawLine) *Extract {
@@ -322,6 +327,10 @@ func extract(r *rawLine) *Extract {
 		return e
 	case strings.Contains(m, "connection reset by peer"):
 		return &Extract{Type: "conn-reset", Message: m}
+	case strings.HasPrefix(m, votingKeysPrefix) && strings.HasSuffix(m, closedSuffix):
+		// algod logs this for every installed key whose account no longer
+		// exists, each time agreement asks for voting keys.
+		return &Extract{Type: "closed-account", Addr: strings.TrimSuffix(strings.TrimPrefix(m, votingKeysPrefix), closedSuffix)}
 	case strings.HasPrefix(m, "Catchup Service: ") && strings.Contains(strings.ToLower(m), "start"):
 		return &Extract{Type: "catchup-start", Message: m}
 	case strings.HasPrefix(m, "Catchup Service: ") && (strings.Contains(m, "done") || strings.Contains(m, "finished") || strings.Contains(m, "stopped")):

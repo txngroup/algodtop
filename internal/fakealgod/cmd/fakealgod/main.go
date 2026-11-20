@@ -47,10 +47,14 @@ func main() {
 	outAfter := flag.Duration("outage-after", 0, "cut the node off from the network this long after start, as with -outage-for")
 	outFor := flag.Duration("outage-for", 0, "how long the outage lasts: rounds stop and catchup retries, then the round jumps ahead")
 	var accounts []fakealgod.Account
-	flag.Func("account", "an online account with a participation key on this node, as SEED:ALGOS:KEYDAYS (repeatable)", func(s string) error {
+	flag.Func("account", "an online account with a participation key on this node, as SEED:ALGOS:KEYDAYS, or SEED:ALGOS:KEYDAYS:closed for one closed since its key was installed (repeatable)", func(s string) error {
 		p := strings.Split(s, ":")
+		closed := len(p) == 4 && p[3] == "closed"
+		if closed {
+			p = p[:3]
+		}
 		if len(p) != 3 {
-			return fmt.Errorf("want SEED:ALGOS:KEYDAYS")
+			return fmt.Errorf("want SEED:ALGOS:KEYDAYS or SEED:ALGOS:KEYDAYS:closed")
 		}
 		algos, err := strconv.ParseUint(p[1], 10, 64)
 		if err != nil {
@@ -60,7 +64,7 @@ func main() {
 		if err != nil {
 			return err
 		}
-		accounts = append(accounts, fakealgod.Account{Address: fakealgod.Address(p[0]), Amount: algos * 1e6, KeyDays: days})
+		accounts = append(accounts, fakealgod.Account{Address: fakealgod.Address(p[0]), Amount: algos * 1e6, KeyDays: days, Closed: closed})
 		return nil
 	})
 	flag.Parse()

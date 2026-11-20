@@ -237,14 +237,14 @@ export function mount(root, app, r) {
     if (keys.length) {
       partSlot.appendChild(h("div", { class: "table-wrap" }, sortableTable([
         { key: "address", label: "account", render: (k) => h("span", { class: "mono", title: k.address }, shortAddr(k.address)) },
-        { key: "status", label: "status", get: (k) => keyStatus(k, n.round), title: "active is the key the account votes with; superseded keys end before it and can be deleted" },
+        { key: "status", label: "status", get: (k) => keyStatus(k, n.round), title: "active is the key the account votes with; superseded keys end before it and can be deleted, and so can the keys of an account that algod reports as closed" },
         { key: "first", label: "first round", num: true, render: (k) => fmtInt(k.first) },
         { key: "last", label: "last round", num: true, render: (k) => fmtInt(k.last) },
         { key: "rounds_left", label: "rounds left", num: true, render: (k) => fmtInt(k.rounds_left) },
         { key: "days_left", label: "days left", num: true, render: (k) => (isNum(k.days_left) ? k.days_left.toFixed(1) : "-") },
         { key: "last_vote", label: "last vote", num: true, render: (k) => (k.last_vote ? fmtInt(k.last_vote) : "never") },
         { key: "last_proposal", label: "last proposal", num: true, render: (k) => (k.last_proposal ? fmtInt(k.last_proposal) : "never") },
-      ], keys, { sort: "days_left", desc: false, rowClass: (k) => (k.superseded || (n.round && k.last < n.round) ? "muted" : null) })));
+      ], keys, { sort: "days_left", desc: false, rowClass: (k) => (k.superseded || k.closed || (n.round && k.last < n.round) ? "muted" : null) })));
     }
     if (accts.length) {
       partSlot.appendChild(h("div", { class: "table-wrap", style: { marginTop: "8px" } }, sortableTable([

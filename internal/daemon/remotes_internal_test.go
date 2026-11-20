@@ -2,11 +2,14 @@ package daemon
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net/url"
+	"slices"
 	"testing"
 	"time"
 
+	"algod.top/internal/api"
 	"algod.top/internal/config"
 )
 
@@ -34,5 +37,35 @@ func TestDownReason(t *testing.T) {
 	r.lastOK, r.lastErr = now.Add(-48*time.Minute-400*time.Millisecond), ""
 	if got := r.downReason(now); got != "agent edge unreachable for 48m0s: no answer" {
 		t.Errorf("after a success: %q", got)
+	}
+}
+
+// The hub keeps its agents in a map. The node pickers in the web UI list
+// nodes in the order views returns, so it must not change between calls.
+// Each agent's own nodes keep the agent's order.
+func TestViewsKeepAgentOrder(t *testing.T) {
+	rs := &remoteSet{runs: map[string]*remoteRun{}}
+	for i := 1; i <= 8; i++ {
+		name := fmt.Sprintf("agent%d", i)
+		r := &remoteRun{cfg: config.Remote{Name: name}, lastOK: time.Now()}
+		for _, n := range []string{"z", "a"} {
+			v := api.NodeView{}
+			v.Name = name + "/" + n
+			r.views = append(r.views, v)
+		}
+		rs.runs[name] = r
+	}
+	var want []string
+	for i := 1; i <= 8; i++ {
+		want = append(want, fmt.Sprintf("agent%d/z", i), fmt.Sprintf("agent%d/a", i))
+	}
+	for range 20 {
+		var got []string
+		for _, v := range rs.views() {
+			got = append(got, v.Name)
+		}
+		if !slices.Equal(got, want) {
+			t.Fatalf("got %v\nwant %v", got, want)
+		}
 	}
 }
