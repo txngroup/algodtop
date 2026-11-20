@@ -95,6 +95,46 @@ func TestWireSink(t *testing.T) {
 	}
 }
 
+// With WireRedial the sink sees the connections come and go, one at a
+// time, and still gets the traffic.
+func TestWireRedial(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	var rd, wr, conns atomic.Int64
+	go ServeWireSink(acceptCount{countLn{ln, &rd, &wr}, &conns})
+	f, err := Start(Options{WireTo: ln.Addr().String(), Uptime: time.Minute, WireRedial: time.Second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	time.Sleep(3500 * time.Millisecond)
+	// Four at the first tick, then one more at each later tick that is a
+	// second after the last redial.
+	if got := conns.Load(); got < wireConns+1 || got > wireConns+3 {
+		t.Errorf("sink accepted %d connections, want %d to %d", got, wireConns+1, wireConns+3)
+	}
+	out := f.appOut / 86400 * 3 * wireOverhead
+	if got := float64(rd.Load()); got < out*0.9 || got > out*1.1 {
+		t.Errorf("sink read %.0f bytes, want about %.0f", got, out)
+	}
+}
+
+type acceptCount struct {
+	net.Listener
+	n *atomic.Int64
+}
+
+func (l acceptCount) Accept() (net.Conn, error) {
+	c, err := l.Listener.Accept()
+	if err == nil {
+		l.n.Add(1)
+	}
+	return c, err
+}
+
 // Churn replaces a peer with one of the same direction and network, so a
 // node keeps its outgoing count, and a node always has an outgoing peer.
 func TestChurnKeepsDirections(t *testing.T) {

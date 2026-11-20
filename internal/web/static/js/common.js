@@ -73,7 +73,7 @@ export function healthReasons(n) {
 export function participation(n) {
   const keys = n.keys || [];
   const accts = n.accounts || [];
-  if (!keys.length && !accts.length) return "not participating";
+  if (!keys.length && !accts.length) return n.up ? "not participating" : "unknown while algod is down";
   const parts = [];
   for (const a of accts) {
     let st = a.status || "?";
@@ -117,6 +117,12 @@ export function hasPeers(n) {
 export function uptime(n) {
   const st = ns(n.start_time) || ns(n.up_since);
   return st ? fmtDur((Date.now() - st) / 1000) : "-";
+}
+
+// downFor is how long a down node has been down, or "" when not known.
+export function downFor(n) {
+  const t = !n.up && ns(n.down_since);
+  return t ? fmtDur(Math.max(0, Date.now() - t) / 1000) : "";
 }
 
 // Events that do not draw as markers. Connects, disconnects and log

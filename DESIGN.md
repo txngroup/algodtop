@@ -156,7 +156,8 @@ macOS notes:
 
 - The stdlib has no process-info API. algod.top runs one `ps -o pid=,rss=,time=,... -p PID1,PID2,...` for all nodes at once. It computes CPU from the cumulative `time=` field, because `%cpu` on macOS is a decaying average.
 - Disk I/O per process needs `proc_pid_rusage` in libproc, which needs cgo.
-- For network, algod.top runs one `nettop -L 1` for all algod PIDs every 60 s. A single sample prints cumulative bytes per process at once, in about 0.1 s. A long-lived `nettop` in logging mode was tried first, but through a pipe its output sits in a stdio buffer and arrives late.
+- For network, algod.top runs one `nettop -L 1` for all algod PIDs every 60 s. A single sample prints cumulative bytes per socket at once, in about 0.1 s. A long-lived `nettop` in logging mode was tried first, but through a pipe its output sits in a stdio buffer and arrives late.
+- nettop's per-process line sums only the sockets that are open now, so it falls each time a peer disconnects. The store would read each fall as a counter reset and count the whole sum again, which charted a node's steady 50 kB/s as spikes of 2 MB/s. algod.top therefore reads the per-socket lines, with `-n` so that a socket keeps the same name from one poll to the next, and adds each socket's growth since the last poll, as sock_diag does on Linux. It misses the bytes a socket moved between the last poll and its close.
 
 Windows notes:
 
@@ -491,7 +492,7 @@ The front ends compute these from stored data rather than storing them separatel
 Each node has a health state of OK, Warn or Critical, and the reasons are always listed in words, for example "Warn: participation key for ABC... expires in 6 days". The defaults are:
 
 - Critical:
-  - algod is down, or `/health` fails. When a local algod stops answering while its process runs, the reason names the pid, because a hung algod needs a kill and a crashed one a start.
+  - algod is down, or `/health` fails. When a local algod stops answering while its process runs, the reason names the pid, because a hung algod needs a kill and a crashed one a start. The reason says how long algod has been down. The time it went down is kept in the node's state file, so a restart of algod.top does not reset it. A node that went down while algod.top was stopped counts from the first check after the start.
   - the last round is older than 30 s and the node is not in fast catchup from a catchpoint, which holds the round while it restores the ledger. Block catchup does not excuse an old round, because it moves the round every few seconds. While algod cannot reach the network, it retries block catchup every few rounds, and each attempt would otherwise hide the stall: a node cut off for five minutes would flap between Warn and Critical, and a `stalled` alert with `for: 1m` would never fire. A node whose `/v2/status` fails, for example because algod rejects the API token, has no round, so its lag counts from the first failure and the reason names the error. algod answers `/metrics` and `/health` without a token, so such a node would otherwise look up and well.
   - disk is under 5%
   - an account's active participation key expires within 2 days. The active key is the on-chain vote key when the account is listed, else the valid key that voted last. A renewed account keeps its old key installed until someone deletes it, and that key does not count. Nor does a key whose account was closed.
@@ -690,7 +691,7 @@ The first two lines summarize the host and the selected node, like the load and 
 
 Enter on a node opens its detail screen:
 
-- A header with round, lag, version, uptime and the last effective config change.
+- A header with round, lag, version, uptime and the last effective config change. A down node shows how long it has been down in place of its uptime.
 - Panes for consensus, network, bandwidth and resources. Each line shows a metric's current value and a sparkline over the selected range, one bucket per terminal column.
 - Below them, a pane selected by key: peers, events or log templates. A list longer than the screen scrolls, and a footer such as `rows 21-40 of 120` says which rows show.
 
@@ -803,7 +804,7 @@ The terminal UI talks to the daemon over the unix socket with the same API as th
    - the last notable event. Peer connects and disconnects, log warnings and log rotations do not count. algod rotates `node.log` each time it reaches its size limit, several times a day on a busy node, so a rotation would soon hide a restart or config change.
 
    A sortable table view shows the same data.
-2. Node. A header strip shows live round, lag, version, uptime and the last effective config change. Below it are the time-range controls: 1h, 6h, 24h, 7d, 30d, 1y, all, custom, "since last restart", and the full-resolution toggle. Collapsible sections of synchronized charts follow:
+2. Node. A header strip shows live round, lag, version, uptime and the last effective config change. For a down node, the strip shows how long it has been down in place of its uptime, and no change vs 24 h ago, because its live values read 0. Peers and participation say that algod is down, rather than that the admin token is missing or that no keys are installed. Below it are the time-range controls: 1h, 6h, 24h, 7d, 30d, 1y, all, custom, "since last restart", and the full-resolution toggle. Collapsible sections of synchronized charts follow:
    - Consensus: round time, votes and proposals, transactions per block, pool size
    - Network WS: peers, bytes by direction, disconnect reasons as stacked bars
    - Network P2P: connections, gossip streams, pubsub peers, DHT, evictions, setup timeouts, resource manager blocks
@@ -818,7 +819,7 @@ The terminal UI talks to the daemon over the unix socket with the same API as th
    - bytes received and sent per session, with per-peer usage
 
    With per-peer usage, the current peers table adds peer ID, rates, open streams and supported protocols. The clusters list shows each cluster's timeline.
-4. Events. This is a filterable table of events, annotations and silences, with a timeline strip. The user can add an annotation from here, or by selecting a range on any chart. A CSV link downloads every event of the range, node and kinds shown, which the table caps at the newest 2000.
+4. Events. This is a filterable table of events, annotations and silences, with a timeline strip. The user can add an annotation from here, or by selecting a range on any chart. A CSV link downloads every event of the range, node and kinds shown. The table draws 500 rows, and buttons draw more or all of them. A busy fleet logs thousands of connect, disconnect and log warning events a day. Building 2000 rows took about 0.7 s in Chrome, and 500 rows about 0.2 s, and a live page pays that again for each new event. The table keeps its sort and length while new events arrive.
 5. Compare. It overlays two time ranges for one node, aligned to their start, such as run 2 vs run 3. It can also overlay two nodes over the same range. For each metric it shows a summary table of mean, p50, p99, and the difference.
 6. Explorer. The user picks any stored metric and label filter and gets a chart. It covers questions nobody anticipated, without code changes.
 7. Settings. Nodes, retention and auth, read-only by default. Edits require login and write the config file atomically. Alert channels are never editable here (section 11).

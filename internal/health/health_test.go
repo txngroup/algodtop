@@ -41,7 +41,10 @@ func TestRules(t *testing.T) {
 		level Level
 		text  string
 	}{
-		{"down", func(s *collector.State) { s.Up = false; s.LastError = "connection refused" }, "down", Critical, "algod is down"},
+		{"down", func(s *collector.State) { s.Up = false; s.LastError = "connection refused" }, "down", Critical, "algod is down (connection refused)"},
+		{"downfor", func(s *collector.State) {
+			s.Up, s.LastError, s.DownSince = false, "connection refused", now.Add(-(7*time.Hour + 20*time.Minute)).UnixNano()
+		}, "down", Critical, "algod is down for 7h20m0s (connection refused)"},
 		{"stalled", func(s *collector.State) { s.RoundAt = now.Add(-45 * time.Second).UnixNano() }, "stalled", Critical, "last round is"},
 		{"catchup", func(s *collector.State) { s.RoundAt = now.Add(-45 * time.Second).UnixNano(); s.Catchup = true }, "catchup", Warn, "catchup"},
 		{"token", func(s *collector.State) {

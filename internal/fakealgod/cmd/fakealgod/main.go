@@ -42,6 +42,7 @@ func main() {
 	uptime := flag.Duration("uptime", 24*time.Hour, "how long the process seems to have run at start, which sets its counters")
 	wave := flag.Bool("wave", false, "let traffic and other rates rise and fall over minutes and hours")
 	wire := flag.Bool("wire", false, "move the reported traffic over loopback through a helper process, so wire measurements see it")
+	redial := flag.Duration("wire-redial", 0, "with -wire, spread the traffic over four connections and replace one this often, as sockets come and go with peers")
 	sink := flag.Bool("wire-sink", false, "run as the -wire helper: print a listen address and serve until stdin closes")
 	outAfter := flag.Duration("outage-after", 0, "cut the node off from the network this long after start, as with -outage-for")
 	outFor := flag.Duration("outage-for", 0, "how long the outage lasts: rounds stop and catchup retries, then the round jumps ahead")
@@ -111,7 +112,7 @@ func main() {
 	f, err := fakealgod.Start(fakealgod.Options{DataDir: *dir, Addr: *addr, Network: *network, PeerUsage: *usage,
 		Token: *token, AdminToken: *admin, DisableAuth: *noauth, RoundEvery: *round, ChurnEvery: *churn, LogTraceRate: *trace,
 		Peers: *peers, Round: *first, GenesisHash: *genesis, Version: v, Branch: *branch, Channel: *channel, DocIPs: *docIPs, Accounts: accounts, Load: *load, Jitter: *jitter, Uptime: *uptime,
-		Wave: *wave, WireTo: wireTo})
+		Wave: *wave, WireTo: wireTo, WireRedial: *redial})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

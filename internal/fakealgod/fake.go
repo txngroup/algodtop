@@ -69,6 +69,10 @@ type Options struct {
 	// back the bytes it received, so the OS sees that traffic on sockets
 	// the fake owns.
 	WireTo string
+	// WireRedial spreads the wire traffic over four connections and
+	// replaces one of them this often, as a real node's sockets come and
+	// go with its peers. Zero keeps one connection.
+	WireRedial time.Duration
 }
 
 // Account is an online account whose participation key the fake holds.

@@ -1,0 +1,6 @@
+algod.top  host algod-host  10:52:14  daemon up 3d 4h  store 2.1GB  nodes 5: 3 OK, 1 Warn, 1 Critical                   
+betanet  round -  lag 0.0s  ver   down 2h 5m     range 1h  live                                                         
+  DOWN                                                                                                                  
+    crit  algod is down for 2h5m0s (no live algod.pid)                                                                  
+CONSENSUS                                                   NETWORK                                                     
+ round time        0.00s                                     ws in/out           0/0                                    
