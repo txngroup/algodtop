@@ -302,9 +302,9 @@ func (m *Model) summaryLine(n *api.NodeView) string {
 	return strings.Join(parts, "  ") + "     " + m.rangeLabel()
 }
 
-func healthCell(s Style, n api.NodeView) string {
+func healthCell(s Style, n api.NodeView, now time.Time) string {
 	if !n.Up {
-		return s.c(cRed, "DOWN")
+		return s.c(cRed, "DOWN"+downFor(n, now))
 	}
 	switch n.Health.Level {
 	case health.Critical:
@@ -316,6 +316,15 @@ func healthCell(s Style, n api.NodeView) string {
 		return s.c(cGreen, "OK") + " (silenced)"
 	}
 	return s.c(cGreen, "OK")
+}
+
+// downFor says how long a down node has been down, as " 2h 5m", or ""
+// when that is not known.
+func downFor(n api.NodeView, now time.Time) string {
+	if n.Up || n.DownSince == 0 {
+		return ""
+	}
+	return " " + Dur(max(0, now.Sub(time.Unix(0, n.DownSince))))
 }
 
 // moreReasons counts the reasons a table cell leaves out. It goes next to
@@ -372,7 +381,7 @@ func (m *Model) row(n api.NodeView, selected bool) string {
 		for i := 2; i < len(cells)-1; i++ {
 			cells[i] = "-"
 		}
-		cells[len(cells)-1] = healthCell(m.Style, n)
+		cells[len(cells)-1] = healthCell(m.Style, n, m.Now)
 	} else {
 		round, lag, rt := float64(n.Round), n.Lag, n.RoundTime
 		peers, cpu, rss, nin, nout := n.Peers, n.CPU, n.RSS, n.NetIn, n.NetOut
@@ -413,7 +422,7 @@ func (m *Model) row(n api.NodeView, selected bool) string {
 				cells[11] = m.Style.c(cRed, "DOWN")
 			}
 		} else {
-			cells[11] = healthCell(m.Style, n)
+			cells[11] = healthCell(m.Style, n, m.Now)
 		}
 	}
 	var b strings.Builder
@@ -580,16 +589,19 @@ func renderNode(m *Model) []string {
 		return append(lines, "node "+m.Node+" not found (Esc to go back)")
 	}
 	// algod's process start when known, as the web UI shows; else the first
-	// good scrape.
-	up := "-"
-	if st := cmp.Or(n.StartTime, n.UpSince); st != 0 {
-		up = Dur(m.Now.Sub(time.Unix(0, st)))
+	// good scrape. A down node keeps the start of its last process, which
+	// says nothing about now.
+	up := "up -"
+	if !n.Up {
+		up = "down" + downFor(*n, m.Now)
+	} else if st := cmp.Or(n.StartTime, n.UpSince); st != 0 {
+		up = "up " + Dur(m.Now.Sub(time.Unix(0, st)))
 	}
 	cfgChange := ""
 	if n.ConfigChanged != nil {
 		cfgChange = "  config: " + truncate(n.ConfigChanged.Msg, 40) + " (" + Dur(m.Now.Sub(time.Unix(0, n.ConfigChanged.Time))) + " ago)"
 	}
-	head := fmt.Sprintf("%s  round %s  lag %s  ver %s  up %s%s", m.Style.c(cBold, n.Name), roundText(float64(n.Round)), Secs(n.Lag), n.Version, up, cfgChange)
+	head := fmt.Sprintf("%s  round %s  lag %s  ver %s  %s%s", m.Style.c(cBold, n.Name), roundText(float64(n.Round)), Secs(n.Lag), n.Version, up, cfgChange)
 	lines = append(lines, head+"     "+m.rangeLabel())
 	if m.Err != "" {
 		lines = append(lines, m.Style.c(cRed, m.Err))

@@ -115,6 +115,10 @@ type persisted struct {
 	Sessions        []model.Session `json:"open_sessions,omitempty"`
 	Tail            *tailState      `json:"tail,omitempty"`
 	LastRound       uint64          `json:"last_round,omitempty"`
+	// DownSince is when algod.top last saw algod go down, 0 while it is up.
+	// A restart of algod.top keeps it, so a node that stayed down says
+	// how long rather than counting from the restart.
+	DownSince int64 `json:"down_since,omitempty"`
 }
 
 // NewNode returns a collector. Run starts it.
@@ -225,6 +229,7 @@ func (n *Node) loadPersisted() {
 	n.versionKey = n.persist.Version
 	n.lastRound = n.persist.LastRound
 	n.st.GenesisHash = n.persist.GenesisHash
+	n.st.DownSince = n.persist.DownSince
 }
 
 func (n *Node) savePersisted() {
@@ -254,6 +259,7 @@ func (n *Node) savePersisted() {
 	n.persist.Version = n.versionKey
 	n.persist.GenesisHash = n.st.GenesisHash
 	n.persist.LastRound = n.lastRound
+	n.persist.DownSince = n.st.DownSince
 	n.persist.Sessions = sessions
 	if tail != nil {
 		n.persist.Tail = tail

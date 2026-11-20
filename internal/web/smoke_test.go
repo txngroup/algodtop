@@ -116,6 +116,22 @@ func newHub(t *testing.T) *testHub {
 
 	gapFrom, gapTo := start.Add(150*time.Minute), start.Add(160*time.Minute)
 	les := []string{"0.01", "0.1", "1", "+Inf"}
+	// gamma, which is down now, ran 24 h ago. The node page compares its
+	// live values with these.
+	for cur = real.Add(-24*time.Hour - 3*time.Minute); cur.Before(real.Add(-24*time.Hour + 3*time.Minute)); cur = cur.Add(10 * time.Second) {
+		f := float64(cur.Unix())
+		for g, ss := range map[model.Group][]model.Sample{
+			model.GroupREST:  {{Name: "algodtop_sync_lag_seconds", Kind: model.KindGauge, Value: 1.5}},
+			model.GroupRound: {{Name: "algodtop_round_time_seconds", Kind: model.KindGauge, Value: 2.8}},
+			model.GroupProc: {{Name: "proc_cpu_seconds_total", Labels: model.Labels{{Name: "method", Value: "test"}}, Kind: model.KindCounter, Value: f * 0.3},
+				{Name: "proc_resident_bytes", Labels: model.Labels{{Name: "method", Value: "test"}}, Kind: model.KindGauge, Value: 1e9}},
+		} {
+			if err := db.Append(&model.Batch{Node: "gamma", Group: g, Time: cur.UnixNano(), Samples: ss}); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	db.Tick()
 	i := 0
 	for cur = start; cur.Before(real); cur = cur.Add(10 * time.Second) {
 		i++
@@ -262,6 +278,12 @@ func newHub(t *testing.T) *testHub {
 	alpha.Accounts = []collector.AccountState{{Address: "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567", Status: "Online", KeyMatches: true, IncentiveEligible: true, ExpectedInterval: 400, RoundsSinceVote: 10}}
 	alpha.PeerList = []collector.PeerInfo{{Addr: "/ip4/10.0.0.1/tcp/4190", IP: "10.0.0.1", Network: "p2p", Direction: "in", Since: real.Add(-time.Hour).UnixNano(), PeerID: "12D3KooWtest", RateIn: 2000, RateOut: 900, HasUsage: true, Streams: []string{"/meshsub/1.3.0"}}}
 	beta := st("beta", true)
+	// gamma went down 3 hours ago. Its live values read 0, and it never
+	// answered since algod.top started, so it has no keys and no admin
+	// token.
+	gamma := st("gamma", false)
+	gamma.HasAdmin, gamma.Peers, gamma.CPU, gamma.RSS, gamma.UpSince = false, collector.PeerCounts{}, 0, 0, 0
+	gamma.LastError, gamma.DownSince = "process not running, no live algod.pid", real.Add(-3*time.Hour).UnixNano()
 	nodes := []api.NodeView{
 		{State: alpha, Health: health.Status{Level: health.Warn, Reasons: []health.Reason{{Rule: "key-expiry", Level: health.Warn, Text: "participation key for ABCDEF... expires in 6 days"}}}, Summary: "Warn: participation key for ABCDEF... expires in 6 days", Lag: 0.4, History: true},
 		// Several reasons at mixed levels, which the UI lists one per line.
@@ -270,6 +292,9 @@ func newHub(t *testing.T) *testHub {
 			{Rule: "key_expiry", Level: health.Critical, Text: "participation key for BBBBBB... expires in 22 hours"},
 			{Rule: "version_behind", Level: health.Warn, Text: "version 5.1.0 is behind 5.1.2 on alpha, another testnet stable node"},
 		}}, Summary: "Critical: participation key for AAAAAA... expires in 20 hours; participation key for BBBBBB... expires in 22 hours", Lag: 1.1, History: true},
+		{State: gamma, Health: health.Status{Level: health.Critical, Reasons: []health.Reason{
+			{Rule: "down", Level: health.Critical, Text: "algod is down for 3h0m0s (process not running, no live algod.pid)"},
+		}}, Summary: "Critical: algod is down for 3h0m0s (process not running, no live algod.pid)"},
 	}
 	return &testHub{db: db, q: query.NewEngine(db, 2, 10*time.Second), nodes: nodes, start: start}
 }
@@ -334,20 +359,29 @@ func TestSmokePages(t *testing.T) {
 	authSrv := httptest.NewServer(api.New(api.Options{Hub: hub, Auth: api.NewAuth(api.AuthConfig{PasswordHash: hash}), Static: web.FS}))
 	t.Cleanup(authSrv.Close)
 
-	pages := []struct{ path, id string }{
-		{authSrv.URL + "/node/alpha", "login"},
-		{"/", "fleet"},
-		{"/?view=table", "fleet"},
-		{"/node/alpha", "node"},
-		{"/node/alpha?r=6h&raw=1&closed=consensus", "node"},
-		{"/node/beta?r=24h&closed=consensus,ws,p2p", "node"},
-		{"/peers/alpha?cl=1", "peers"},
-		{"/events?kind=disconnect", "events"},
-		{"/compare", "compare"},
-		{"/compare?mode=nodes&node=alpha&node2=beta&r=6h", "compare"},
-		{"/explorer?node=alpha&metric=algodtop_peers", "explorer"},
-		{"/explorer?node=alpha&metric=libp2p_swarm_dial_latency_seconds_bucket&fn=heatmap", "explorer"},
-		{"/settings", "settings"},
+	// want lists text the page must show, and not text it must not.
+	pages := []struct {
+		path, id  string
+		want, not []string
+	}{
+		{authSrv.URL + "/node/alpha", "login", nil, nil},
+		{"/", "fleet", []string{"unknown while algod is down"}, nil},
+		{"/?view=table", "fleet", nil, nil},
+		{"/node/alpha", "node", nil, nil},
+		{"/node/alpha?r=6h&raw=1&closed=consensus", "node", nil, nil},
+		{"/node/beta?r=24h&closed=consensus,ws,p2p", "node", nil, nil},
+		// A down node: no peers or uptime from its last run, and no change
+		// against 24 h ago computed from its zeros.
+		{"/node/gamma", "node", []string{"algod is down</div>", "for 3h 0m, since", "algod.top reads them from algod, which is down"},
+			[]string{"needs the admin token", "vs 24 h ago", "No participation keys are installed"}},
+		{"/peers/gamma", "peers", []string{"algod is down, so this node has no current peers"}, []string{"needs the admin token"}},
+		{"/peers/alpha?cl=1", "peers", nil, nil},
+		{"/events?kind=disconnect", "events", nil, nil},
+		{"/compare", "compare", nil, nil},
+		{"/compare?mode=nodes&node=alpha&node2=beta&r=6h", "compare", nil, nil},
+		{"/explorer?node=alpha&metric=algodtop_peers", "explorer", nil, nil},
+		{"/explorer?node=alpha&metric=libp2p_swarm_dial_latency_seconds_bucket&fn=heatmap", "explorer", nil, nil},
+		{"/settings", "settings", nil, nil},
 	}
 	sem := make(chan struct{}, 4)
 	for _, pg := range pages {
@@ -403,6 +437,16 @@ func TestSmokePages(t *testing.T) {
 			}
 			if strings.Contains(dom, "This page failed to load") {
 				t.Errorf("%s: the page reported a load failure", pg.path)
+			}
+			for _, w := range pg.want {
+				if !strings.Contains(dom, w) {
+					t.Errorf("%s: page lacks %q", pg.path, w)
+				}
+			}
+			for _, w := range pg.not {
+				if strings.Contains(dom, w) {
+					t.Errorf("%s: page shows %q", pg.path, w)
+				}
 			}
 			if pg.id == "fleet" && strings.Count(dom, `<li class="critical">`) < 2 {
 				t.Errorf("%s: health reasons are not listed one per line", pg.path)
