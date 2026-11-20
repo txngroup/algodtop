@@ -164,7 +164,12 @@ func Evaluate(s *collector.State, c Context) Status {
 		if why == "" {
 			why = "not reachable"
 		}
-		add("down", Critical, 1, "algod is down (%s)", why)
+		if s.DownSince != 0 {
+			d := c.Now.Sub(time.Unix(0, s.DownSince)).Seconds()
+			add("down", Critical, 1, "algod is down for %s (%s)", fmtDur(max(0, d)), why)
+		} else {
+			add("down", Critical, 1, "algod is down (%s)", why)
+		}
 		return finish(&st, s, c, add, disable)
 	}
 	if !s.Healthy {

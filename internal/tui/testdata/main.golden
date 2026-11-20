@@ -6,7 +6,7 @@ mainnet  round 52184330  rtime 2.79s  tpb 41  pool 312     range 1h  live
  testnet     testnet  4.4.1        61022817  0.4s 2.80s     8/4    11/4   2.3  1.3G     95/90 OK                        
  localnet    localnet 5.1.0         9330871  0.5s 2.01s     2/4     6/4   1.9  1.0G     40/38 OK                        
  mainnet-2   mainnet  4.4.0        52184329  0.8s 2.79s     4/4     0/0   1.2  858M     30/28 WARN (+1) key ABCDEF... ex
- betanet     betanet  -                   -     -     -       -       -     -     -         - DOWN                      
+ betanet     betanet  -                   -     -     -       -       -     -     -         - DOWN 2h 5m                
                                                                                                                         
 EVENTS                                                                                                                  
 10:47:14  mainnet    disconnect        in  p2p  1.2.3.4          reason=reset                                           

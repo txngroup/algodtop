@@ -22,7 +22,7 @@ func fixture() *Model {
 	ok := health.Status{Level: health.OK}
 	warn := health.Status{Level: health.Warn, Reasons: []health.Reason{{Rule: "key_expiry_warn", Level: health.Warn, Text: "participation key for ABCDEF... expires in 6 days"},
 		{Rule: "version_behind", Level: health.Warn, Text: "version 4.4.0 is behind 4.4.1 on mainnet, another mainnet stable node"}}}
-	down := health.Status{Level: health.Critical, Reasons: []health.Reason{{Rule: "down", Level: health.Critical, Text: "algod is down (no live algod.pid)"}}}
+	down := health.Status{Level: health.Critical, Reasons: []health.Reason{{Rule: "down", Level: health.Critical, Text: "algod is down for 2h5m0s (no live algod.pid)"}}}
 	mk := func(name, netw, ver string, round uint64, lag, rt float64, p collector.PeerCounts, cpu, rss, in, out float64, h health.Status, up bool) api.NodeView {
 		st := collector.State{Name: name, Network: netw, Version: ver, Round: round, RoundTime: rt, Peers: p, CPU: cpu, RSS: rss,
 			NetIn: in, NetOut: out, NetMethod: "nettop", Up: up, Healthy: up, HasAdmin: true, Kind: "local", TxnsPerBlk: 41, PoolSize: 312,
@@ -36,6 +36,7 @@ func fixture() *Model {
 		mk("mainnet-2", "mainnet", "4.4.0", 52184329, 0.8, 2.79, collector.PeerCounts{WSIn: 4, WSOut: 4}, 1.2, 0.9e9, 30*1024, 28*1024, warn, true),
 		mk("betanet", "betanet", "", 0, 0, 0, collector.PeerCounts{}, 0, 0, 0, 0, down, false),
 	}
+	nodes[4].DownSince = now.Add(-(2*time.Hour + 5*time.Minute)).UnixNano()
 	nodes[0].PeerList = []collector.PeerInfo{
 		{Addr: "/ip4/203.0.113.4/tcp/4190", IP: "203.0.113.4", Network: "p2p", Direction: "in", Since: now.Add(-3 * time.Hour).UnixNano(), HasUsage: true, RateIn: 20480, RateOut: 10240, Streams: []string{"/algorand-ws/2.2.0"}},
 		{Addr: "relay.example.net:4160", IP: "relay.example.net", Network: "ws", Direction: "out", Since: now.Add(-26 * time.Hour).UnixNano()},
@@ -89,6 +90,15 @@ func TestNodeScreen(t *testing.T) {
 	m := fixture()
 	m.Screen, m.Node, m.H = ScreenNode, "mainnet", 30
 	golden(t, "node", Render(m))
+}
+
+// A down node says how long it has been down, not how long its last
+// process ran.
+func TestNodeScreenDown(t *testing.T) {
+	m := fixture()
+	m.Nodes[4].StartTime = m.Now.Add(-30 * 24 * time.Hour).UnixNano()
+	m.Screen, m.Node, m.H = ScreenNode, "betanet", 6
+	golden(t, "node-down", Render(m))
 }
 
 func TestTimeCursor(t *testing.T) {
