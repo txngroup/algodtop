@@ -13,6 +13,10 @@ const SEV_RANK = { info: 0, warn: 1, error: 2, critical: 3 };
 // The lane shades down stretches whatever the kind filter, so these kinds
 // are always fetched.
 const REGION_KINDS = ["node-down", "node-up", "monitor-gap"];
+// Rows drawn at first and per "show more". A busy fleet has thousands of
+// events a day. Building 2000 rows took about 0.7 s, and 500 about 0.2 s,
+// which a live page pays again for each new event.
+const PAGE = 500;
 
 export function mount(root, app, r) {
   let q = r.q;
@@ -26,6 +30,10 @@ export function mount(root, app, r) {
   const tableEl = h("div");
   root.appendChild(h("div", { id: "events" }, head, rangeEl, filters, lane.el, forms, tableEl));
   let data = { events: [], counts: {}, annotations: [], silences: [] };
+  let loaded = false;
+  // The table's sort and length outlive the redraws that new events cause.
+  let sort = { key: "t", desc: true };
+  let shown = PAGE;
   let destroyed = false;
   let pending = 0;
 
@@ -150,6 +158,11 @@ export function mount(root, app, r) {
         }
       }
     }
+    // Draw far enough down to reach the highlighted row.
+    if (hl && sort.key === "t") {
+      const idx = list.filter((x) => (sort.desc ? x.t > hl.t : x.t < hl.t)).length;
+      if (idx >= shown) shown = Math.ceil((idx + 1) / PAGE) * PAGE;
+    }
     const del = async (row) => {
       if (!confirm("Delete this " + row.type + "?")) return;
       try {
@@ -168,15 +181,23 @@ export function mount(root, app, r) {
       { key: "msg", label: "message", cls: "wrap" },
     ];
     if (canWrite()) cols.push({ key: "act", label: "", sort: false, render: (x) => (x.type === "event" ? "" : h("button", { type: "button", class: "small danger", on: { click: (e) => { e.stopPropagation(); del(x); } } }, "delete")) });
-    const tbl = sortableTable(cols, list, { sort: "t", desc: true, limit: 2000, empty: "No events match.", rowClass: (x) => (x === hl ? "hl" : "") });
+    const tbl = sortableTable(cols, list, { sort: sort.key, desc: sort.desc, limit: shown, empty: "No events match.", rowClass: (x) => (x === hl ? "hl" : ""),
+      onSort: (key, desc) => { sort = { key, desc }; } });
     // The server keeps the newest 5000 events of the kinds asked; say how
     // many older ones that left out.
     const kinds = listParam(q, "kind");
     const want = (k) => k !== "annotation" && (!kinds.length || kinds.includes(k));
     const held = Object.keys(data.counts).filter(want).reduce((a, k) => a + data.counts[k], 0);
     const have = data.events.filter((e) => want(e.kind)).length;
-    tableEl.append(h("p", { class: "note" }, list.length + " rows" + (list.length > 2000 ? ", showing the newest 2000" : "") + (have < held ? ". " + (held - have) + " older events are left out; narrow the range or filter by kind." : "")),
+    tableEl.append(h("p", { class: "note" }, list.length + " rows" + (list.length > shown ? ", showing " + shown : "") + (have < held ? ". " + (held - have) + " older events are left out; narrow the range or filter by kind." : "")),
       h("div", { class: "table-wrap" }, tbl));
+    if (list.length > shown) {
+      const more = Math.min(PAGE, list.length - shown);
+      tableEl.append(h("p", null,
+        h("button", { type: "button", class: "small", on: { click: () => { shown += PAGE; drawTable(); } } }, "show " + more + " more"),
+        " ",
+        h("button", { type: "button", class: "small", on: { click: () => { shown = Infinity; drawTable(); } } }, "show all " + list.length)));
+    }
     if (hl) {
       const tr = tbl.querySelector("tr.hl");
       if (tr) setTimeout(() => tr.scrollIntoView({ block: "center" }), 0);
@@ -204,12 +225,18 @@ export function mount(root, app, r) {
     head.append(h("h1", null, "Events"), onlyNotes ? null : h("a", { class: "btn small", href: csv, download: "events.csv", title: "Download every event of this range, node and kinds as CSV" }, "CSV"));
     clear(rangeEl);
     rangeEl.appendChild(rangeBar(q, { def: "24h", raw: false, restart: false }));
+    // A refresh keeps the table it has until the new one is ready.
+    if (!loaded) {
+      clear(tableEl);
+      tableEl.appendChild(h("p", { class: "note" }, "loading events"));
+    }
     try {
       const kinds = listParam(q, "kind");
       const ask = kinds.length ? [...new Set(kinds.concat(REGION_KINDS))] : null;
       const res = await fetchEvents(q.get("node") || "", rg.from, rg.to, ask);
       if (destroyed) return;
       data = { events: res.events, counts: res.counts, annotations: res.annotations, silences: res.silences };
+      loaded = true;
     } catch (e) {
       clear(tableEl);
       tableEl.appendChild(h("p", { class: "error" }, e.message));
@@ -228,6 +255,7 @@ export function mount(root, app, r) {
     update(r2) {
       const prev = q;
       q = r2.q;
+      if (["r", "from", "to", "node", "kind", "sev", "q"].some((k) => prev.get(k) !== q.get(k))) shown = PAGE;
       if (["r", "from", "to", "node", "kind"].some((k) => prev.get(k) !== q.get(k))) load();
       else {
         drawFilters();

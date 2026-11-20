@@ -69,13 +69,21 @@ type Options struct {
 	// back the bytes it received, so the OS sees that traffic on sockets
 	// the fake owns.
 	WireTo string
+	// WireRedial spreads the wire traffic over four connections and
+	// replaces one of them this often, as a real node's sockets come and
+	// go with its peers. Zero keeps one connection.
+	WireRedial time.Duration
 }
 
 // Account is an online account whose participation key the fake holds.
+// A Closed account was closed after its key was installed: the key stays,
+// its last vote stops, the account reads 0 Algos and offline, and the log
+// says so each round, as algod's does.
 type Account struct {
 	Address string
 	Amount  uint64  // microAlgos
 	KeyDays float64 // days from start until the key's last valid round
+	Closed  bool
 }
 
 // Fake is a running fake algod.
@@ -107,11 +115,18 @@ type Fake struct {
 	Paths map[string]int
 	// AdminUsed records paths requested with the admin token.
 	AdminUsed map[string]int
+
+	// outage is when the node lost the network, zero when it has it.
+	// syncFrom is when the current catchup attempt started, and
+	// syncEnd when the last one gave up.
+	outage, syncFrom, syncEnd time.Time
+	catchpoint                string
 }
 
 type fakeKey struct {
 	acct          Account
 	first, last   uint64
+	closedAt      uint64 // the last round a closed account voted
 	id, vote, sel string
 }
 
@@ -187,6 +202,9 @@ func Start(o Options) (*Fake, error) {
 		k := fakeKey{acct: a, first: 1, last: o.Round + uint64(a.KeyDays*float64(perDay))}
 		if o.Round > 30*perDay {
 			k.first = o.Round - 30*perDay // the key was made a month ago
+		}
+		if a.Closed {
+			k.closedAt = max(k.first, o.Round-min(o.Round, perDay)) // a day ago
 		}
 		k.id = fmt.Sprintf("%016x%016x", f.rnd.Uint64(), f.rnd.Uint64())
 		k.vote, k.sel = randKey(f.rnd), randKey(f.rnd)
@@ -381,7 +399,10 @@ func (f *Fake) loop() {
 		case <-rt.C:
 			f.mu.Lock()
 			rt.Reset(f.nextRound())
-			if !f.stalled && !f.down {
+			if !f.outage.IsZero() && !f.down {
+				f.retrySyncLocked()
+			}
+			if !f.stalled && !f.down && f.outage.IsZero() && f.catchpoint == "" {
 				f.round++
 				f.roundAt = time.Now()
 				f.txnCtr += uint64(f.rnd.Intn(80))
@@ -393,6 +414,12 @@ func (f *Fake) loop() {
 					"msg": fmt.Sprintf("committed round %d with pre-validated block", f.round)})
 				for i := 0; i < f.o.LogTraceRate; i++ {
 					f.writeLogLocked(map[string]any{"Context": "Agreement", "Round": f.round, "Type": "VoteAccepted", "file": "trace.go", "level": "info", "msg": "vote accepted"})
+				}
+				for _, k := range f.keys {
+					if k.acct.Closed {
+						f.writeLogLocked(map[string]any{"file": "node.go", "function": "github.com/algorand/go-algorand/node.(*AlgorandFullNode).VotingKeys", "level": "info",
+							"msg": "node.VotingKeys: Address: " + k.acct.Address + " - Account was closed but still has a participation key active."})
+					}
 				}
 				f.cond.Broadcast()
 			}
@@ -454,6 +481,55 @@ func (f *Fake) Stall(on bool) {
 	f.mu.Lock()
 	f.stalled = on
 	f.mu.Unlock()
+}
+
+// Outage cuts the node off from the network, or reconnects it. Rounds
+// stop, and algod's catchup service tries to sync every few rounds, gives
+// up after a couple of rounds and logs that it finished. /v2/status shows
+// a catchup time while an attempt runs. When the outage ends, the node
+// jumps to the round the network reached meanwhile.
+func (f *Fake) Outage(on bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	switch {
+	case on && f.outage.IsZero():
+		f.outage = time.Now()
+	case !on && !f.outage.IsZero():
+		missed := uint64(time.Since(f.outage) / f.o.RoundEvery)
+		f.outage, f.syncFrom, f.syncEnd = time.Time{}, time.Time{}, time.Time{}
+		f.round += missed
+		f.roundAt = time.Now()
+		f.cond.Broadcast()
+	}
+}
+
+// retrySyncLocked runs one round tick of the catchup service during an
+// outage.
+func (f *Fake) retrySyncLocked() {
+	now := time.Now()
+	switch {
+	case !f.syncFrom.IsZero() && now.Sub(f.syncFrom) >= 2*f.o.RoundEvery:
+		took := now.Sub(f.syncFrom)
+		f.syncFrom, f.syncEnd = time.Time{}, now
+		f.writeLogLocked(map[string]any{"file": "service.go", "level": "info",
+			"msg": fmt.Sprintf("Catchup Service: finished catching up, now at round %d (previously %d). Total time catching up %s.", f.round, f.round, took.Round(time.Millisecond))})
+	case f.syncFrom.IsZero() && now.Sub(f.outage) >= 3*f.o.RoundEvery && now.Sub(f.syncEnd) >= 3*f.o.RoundEvery:
+		f.syncFrom = now
+	}
+}
+
+// CatchpointCatchup starts fast catchup to a catchpoint label, or ends it
+// with "". The round holds while the ledger is restored.
+func (f *Fake) CatchpointCatchup(label string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if label != "" && f.catchpoint == "" {
+		f.syncFrom = time.Now()
+	} else if label == "" {
+		f.syncFrom = time.Time{}
+		f.roundAt = time.Now()
+	}
+	f.catchpoint = label
 }
 
 // SetDown makes every endpoint fail, as if algod were stopped.
@@ -635,6 +711,10 @@ func (f *Fake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				f.mu.Lock()
 				rnd := f.round
 				f.mu.Unlock()
+				if k.acct.Closed {
+					f.json(w, map[string]any{"address": addr, "amount": 0, "status": "Offline", "round": rnd})
+					return
+				}
 				f.json(w, map[string]any{"address": addr, "amount": k.acct.Amount, "status": "Online", "round": rnd, "incentive-eligible": true,
 					"last-proposed": rnd - 1200, "participation": map[string]any{"vote-first-valid": k.first, "vote-last-valid": k.last, "vote-participation-key": k.vote}})
 				return
@@ -649,8 +729,16 @@ func (f *Fake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (f *Fake) status() map[string]any {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return map[string]any{"last-round": f.round, "time-since-last-round": time.Since(f.roundAt).Nanoseconds(), "catchup-time": 0,
+	var catchup int64
+	if !f.syncFrom.IsZero() {
+		catchup = time.Since(f.syncFrom).Nanoseconds()
+	}
+	m := map[string]any{"last-round": f.round, "time-since-last-round": time.Since(f.roundAt).Nanoseconds(), "catchup-time": catchup,
 		"last-version": "v40", "next-version": "v40", "next-version-round": f.round + 1, "next-version-supported": true}
+	if f.catchpoint != "" {
+		m["catchpoint"] = f.catchpoint // algod omits it when empty
+	}
+	return m
 }
 
 func (f *Fake) json(w http.ResponseWriter, v any) {
@@ -731,8 +819,12 @@ func (f *Fake) partKeys() []map[string]any {
 	defer f.mu.Unlock()
 	var out []map[string]any
 	for _, k := range f.keys {
+		vote, prop := f.round-uint64(1+f.rnd.Intn(3)), f.round-1200
+		if k.acct.Closed {
+			vote, prop = k.closedAt, k.closedAt-min(k.closedAt, 1200)
+		}
 		out = append(out, map[string]any{"id": k.id, "address": k.acct.Address,
-			"last-vote": f.round - uint64(1+f.rnd.Intn(3)), "last-block-proposal": f.round - 1200,
+			"last-vote": vote, "last-block-proposal": prop,
 			"effective-first-valid": k.first, "effective-last-valid": k.last,
 			"key": map[string]any{"vote-first-valid": k.first, "vote-last-valid": k.last, "vote-key-dilution": 10000,
 				"vote-participation-key": k.vote, "selection-participation-key": k.sel}})

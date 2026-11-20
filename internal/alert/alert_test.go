@@ -51,6 +51,18 @@ func TestRuleAlertListsEveryReason(t *testing.T) {
 	}
 }
 
+// The hub's agent_unreachable alert says for how long and why, in the
+// words of the reason the hub put on the node.
+func TestAgentUnreachableSaysWhy(t *testing.T) {
+	e, _ := ParseExpr("agent_unreachable")
+	text := "agent edge unreachable for 2m10s: dial tcp 192.0.2.7:8443: connect: connection refused"
+	h := health.Status{Level: health.Critical, Reasons: []health.Reason{{Rule: "agent_unreachable", Level: health.Critical, Text: text}}}
+	ok, why := e.Eval(Input{State: &collector.State{Up: true}, Health: h, Now: time.Now(), AgentUnreachable: true})
+	if !ok || why != text {
+		t.Fatalf("%v %q", ok, why)
+	}
+}
+
 // A node whose token algod rejects has never had a round. "down or
 // stalled" fires for it after 30 s and says why.
 func TestStalledNamesTheStatusError(t *testing.T) {
@@ -203,5 +215,21 @@ func TestCommandChannel(t *testing.T) {
 	var n Notification
 	if json.Unmarshal(b, &n) != nil || n.Alert != "a" {
 		t.Fatalf("command got %q", b)
+	}
+}
+
+// A node that keeps retrying catchup while its round stands still is
+// stalled. Fast catchup holds the round on purpose and is not.
+func TestStalledDuringCatchup(t *testing.T) {
+	e, _ := ParseExpr("stalled")
+	now := time.Now()
+	s := &collector.State{Up: true, Healthy: true, Round: 100, RoundAt: now.Add(-45 * time.Second).UnixNano(), Catchup: true}
+	ok, why := e.Eval(Input{State: s, Now: now})
+	if !ok || why != "last round is 45s old, and catchup is not moving it" {
+		t.Fatalf("block catchup: %v %q", ok, why)
+	}
+	s.Catchpoint = "52180000#ABCDEF"
+	if ok, why := e.Eval(Input{State: s, Now: now}); ok {
+		t.Fatalf("fast catchup fired: %q", why)
 	}
 }

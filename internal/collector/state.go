@@ -46,6 +46,7 @@ type State struct {
 	RoundTime   float64 `json:"round_time"`                   // mean of recent gaps, s
 	RoundP99    float64 `json:"round_p99"`
 	Catchup     bool    `json:"catchup"`
+	Catchpoint  string  `json:"catchpoint,omitempty"` // the label fast catchup restores, "" otherwise
 	TxnsPerBlk  float64 `json:"tpb"`
 	PoolSize    float64 `json:"pool"`
 	OnlineMoney float64 `json:"online_money,omitempty"`
@@ -89,7 +90,9 @@ type State struct {
 // Lag returns seconds since the last round, from local arrival when known.
 // A node whose status never answered has no round at all, so its lag runs
 // from the first failure. Otherwise a rejected token would read as a lag
-// of 0 and the node would never count as stalled.
+// of 0 and the node would never count as stalled. Lag is never negative:
+// the hub reads an agent node's lag on its estimate of the agent's clock,
+// which can be a few milliseconds off.
 func (s *State) Lag(now time.Time) float64 {
 	if s.RoundAt == 0 {
 		if s.StatusErrAt != 0 {
@@ -97,7 +100,7 @@ func (s *State) Lag(now time.Time) float64 {
 		}
 		return s.StatusLag
 	}
-	return now.Sub(time.Unix(0, s.RoundAt)).Seconds()
+	return max(0, now.Sub(time.Unix(0, s.RoundAt)).Seconds())
 }
 
 // PeerCounts counts peers by network and direction.
@@ -151,9 +154,11 @@ type PartKeyState struct {
 	DaysLeft     float64 `json:"days_left"`
 	// Active is the key the account votes with. Superseded is a key that
 	// ends before the active key of the same account, so its expiry does
-	// not matter.
+	// not matter. Closed is a key whose account algod reports as closed:
+	// the key can never vote again and can be deleted.
 	Active     bool `json:"active,omitempty"`
 	Superseded bool `json:"superseded,omitempty"`
+	Closed     bool `json:"closed,omitempty"`
 }
 
 // AccountState is one listed account's on-chain view.
@@ -210,8 +215,8 @@ func (r *ring) quantile(q float64) float64 {
 // markKeys finds the key each account votes with. When the account is
 // listed, its on-chain vote key decides. Otherwise the valid key that
 // voted last decides, or, before any key has voted, the valid key that
-// lasts longest.
-func markKeys(keys []PartKeyState, accts []AccountState, round uint64) {
+// lasts longest. A key for an account in closed is never active.
+func markKeys(keys []PartKeyState, accts []AccountState, closed map[string]bool, round uint64) {
 	onChain := map[string]string{}
 	for _, a := range accts {
 		if a.VoteKey != "" {
@@ -222,6 +227,10 @@ func markKeys(keys []PartKeyState, accts []AccountState, round uint64) {
 	for i := range keys {
 		k := &keys[i]
 		k.Active, k.Superseded = false, false
+		k.Closed = closed[k.Address]
+		if k.Closed {
+			continue
+		}
 		if vk, ok := onChain[k.Address]; ok {
 			if k.VoteKey == vk {
 				active[k.Address] = i
@@ -247,11 +256,15 @@ func markKeys(keys []PartKeyState, accts []AccountState, round uint64) {
 }
 
 // ExpiryKeys returns one key per account, the one whose expiry matters:
-// the active key, or else the key that lasts longest.
+// the active key, or else the key that lasts longest. A closed account
+// has none.
 func ExpiryKeys(keys []PartKeyState) []PartKeyState {
 	at := map[string]int{}
 	var out []PartKeyState
 	for _, k := range keys {
+		if k.Closed {
+			continue
+		}
 		i, ok := at[k.Address]
 		switch {
 		case !ok:
@@ -268,7 +281,7 @@ func ExpiryKeys(keys []PartKeyState) []PartKeyState {
 // is not active: installed, perhaps not yet registered on chain.
 func LaterKey(keys []PartKeyState, k PartKeyState) bool {
 	for _, o := range keys {
-		if o.Address == k.Address && o.Last > k.Last && !o.Active {
+		if o.Address == k.Address && o.Last > k.Last && !o.Active && !o.Closed {
 			return true
 		}
 	}

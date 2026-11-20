@@ -73,6 +73,11 @@ export function mount(root, app, r) {
     }
     const fi = h("input", { type: "search", placeholder: "filter", value: q.get("f") || "", on: { change: (e) => setParams({ f: e.target.value || null }, { replace: true }) } });
     clear(cur);
+    const nd = app.byName(name);
+    if (nd && !nd.up) {
+      cur.append(h("p", { class: "note" }, "algod is down, so this node has no current peers. Its past sessions are below."));
+      return;
+    }
     if (!res.has_admin) {
       cur.append(h("p", { class: "note" }, "The peer list needs the admin token, and this node has none. Set admin_token or admin_token_file for a URL node, or make algod.admin.token in the data directory readable."));
       return;

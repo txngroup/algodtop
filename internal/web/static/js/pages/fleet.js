@@ -103,17 +103,17 @@ export function mount(root, app, r) {
       h("div", { class: "kv" },
         kv("network", n.network || "-"), kv("version", n.version || "-"),
         kv("round", n.round ? fmtInt(n.round) : "-"), kv("lag", n.up && isNum(n.lag) ? fmtSeconds(n.lag) : "-"),
-        kv("WS in/out", !hasPeers(n) ? "n/a" : (peers.ws_in || 0) + " / " + (peers.ws_out || 0)), kv("P2P in/out", !hasPeers(n) ? "n/a" : (peers.p2p_in || 0) + " / " + (peers.p2p_out || 0)),
+        kv("WS in/out", !n.up ? "-" : !hasPeers(n) ? "n/a" : (peers.ws_in || 0) + " / " + (peers.ws_out || 0)), kv("P2P in/out", !n.up ? "-" : !hasPeers(n) ? "n/a" : (peers.p2p_in || 0) + " / " + (peers.p2p_out || 0)),
         kv("round time", n.round_time ? fmtSeconds(n.round_time) : "-"), kv("CPU", !hasProc(n) ? "n/a" : n.up && isNum(n.cpu) ? n.cpu.toFixed(1) + "%" : "-")),
       h("div", { class: "sparks" },
         h("div", { class: "spark-box" }, h("div", { class: "label" }, "bandwidth " + sparkSpan(sp)),
-          h("div", { class: "spark-val" }, h("span", { class: "dir-in" }, fmt(appIn(n), "B/s")), " / ", h("span", { class: "dir-out" }, fmt(appOut(n), "B/s"))),
+          h("div", { class: "spark-val" }, n.up ? [h("span", { class: "dir-in" }, fmt(appIn(n), "B/s")), " / ", h("span", { class: "dir-out" }, fmt(appOut(n), "B/s"))] : "-"),
           sparkEl(n.name, "bw", "Received (cyan) and sent (orange) app-level bytes per second, last " + sparkSpan(sp))),
         h("div", { class: "spark-box" }, h("div", { class: "label" }, "round time " + sparkSpan(sp)),
           h("div", { class: "spark-val" }, sp && isNum(maxVal(sp.rt[0].v)) ? "max " + fmt(maxVal(sp.rt[0].v), "s") : ""),
           sparkEl(n.name, "rt", "Round time, last " + sparkSpan(sp)))),
       h("div", { class: "small" }, h("span", { class: "muted" }, "participation: "), participation(n)),
-      ev ? h("div", { class: "lastev", title: ev.msg }, h("span", { class: "muted" }, fmtShortTime(ns(ev.time)) + " "), h("span", { class: "sev " + (ev.severity || "info") }, ev.kind), " ", ev.msg) : h("div", { class: "lastev muted" }, "no events yet"));
+      ev ? h("div", { class: "lastev", title: ev.msg }, h("span", { class: "muted" }, fmtShortTime(ns(ev.time)) + " "), h("span", { class: "sev " + (ev.severity || "info") }, ev.kind), " ", ev.msg) : h("div", { class: "lastev muted" }, "no notable events since algod.top started"));
   }
 
   const cols = [
@@ -123,8 +123,8 @@ export function mount(root, app, r) {
     { key: "round", label: "ROUND", num: true, render: (n) => (n.round ? fmtInt(n.round) : "-") },
     { key: "lag", label: "LAG", num: true, get: (n) => (n.up ? n.lag : null), render: (n) => (n.up && isNum(n.lag) ? fmtSeconds(n.lag) : "-") },
     { key: "round_time", label: "RTIME", num: true, render: (n) => (n.round_time ? n.round_time.toFixed(2) + "s" : "-") },
-    { key: "ws", label: "WS i/o", num: true, get: (n) => (hasPeers(n) && n.peers ? n.peers.ws_in + n.peers.ws_out : null), render: (n) => (!hasPeers(n) ? "n/a" : n.peers ? n.peers.ws_in + "/" + n.peers.ws_out : "-") },
-    { key: "p2p", label: "P2P i/o", num: true, get: (n) => (hasPeers(n) && n.peers ? n.peers.p2p_in + n.peers.p2p_out : null), render: (n) => (!hasPeers(n) ? "n/a" : n.peers ? n.peers.p2p_in + "/" + n.peers.p2p_out : "-") },
+    { key: "ws", label: "WS i/o", num: true, get: (n) => (n.up && hasPeers(n) && n.peers ? n.peers.ws_in + n.peers.ws_out : null), render: (n) => (!n.up ? "-" : !hasPeers(n) ? "n/a" : n.peers ? n.peers.ws_in + "/" + n.peers.ws_out : "-") },
+    { key: "p2p", label: "P2P i/o", num: true, get: (n) => (n.up && hasPeers(n) && n.peers ? n.peers.p2p_in + n.peers.p2p_out : null), render: (n) => (!n.up ? "-" : !hasPeers(n) ? "n/a" : n.peers ? n.peers.p2p_in + "/" + n.peers.p2p_out : "-") },
     { key: "cpu", label: "CPU%", num: true, get: (n) => (hasProc(n) && n.up ? n.cpu : null), render: (n) => (!hasProc(n) ? "n/a" : isNum(n.cpu) && n.up ? n.cpu.toFixed(1) : "-") },
     { key: "rss", label: "RSS", num: true, render: (n) => (!hasProc(n) ? "n/a" : n.rss && n.up ? fmt(n.rss, "bytes") : "-") },
     { key: "net", label: "NET KB/s", num: true, title: "App-level received / sent", get: (n) => appIn(n) + appOut(n), render: (n) => (n.up ? (appIn(n) / 1e3).toFixed(0) + "/" + (appOut(n) / 1e3).toFixed(0) : "-") },

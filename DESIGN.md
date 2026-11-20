@@ -156,7 +156,8 @@ macOS notes:
 
 - The stdlib has no process-info API. algod.top runs one `ps -o pid=,rss=,time=,... -p PID1,PID2,...` for all nodes at once. It computes CPU from the cumulative `time=` field, because `%cpu` on macOS is a decaying average.
 - Disk I/O per process needs `proc_pid_rusage` in libproc, which needs cgo.
-- For network, algod.top runs one `nettop -L 1` for all algod PIDs every 60 s. A single sample prints cumulative bytes per process at once, in about 0.1 s. A long-lived `nettop` in logging mode was tried first, but through a pipe its output sits in a stdio buffer and arrives late.
+- For network, algod.top runs one `nettop -L 1` for all algod PIDs every 60 s. A single sample prints cumulative bytes per socket at once, in about 0.1 s. A long-lived `nettop` in logging mode was tried first, but through a pipe its output sits in a stdio buffer and arrives late.
+- nettop's per-process line sums only the sockets that are open now, so it falls each time a peer disconnects. The store would read each fall as a counter reset and count the whole sum again, which charted a node's steady 50 kB/s as spikes of 2 MB/s. algod.top therefore reads the per-socket lines, with `-n` so that a socket keeps the same name from one poll to the next, and adds each socket's growth since the last poll, as sock_diag does on Linux. It misses the bytes a socket moved between the last poll and its close.
 
 Windows notes:
 
@@ -199,7 +200,7 @@ Today no algod series carries a per-peer label, but a future version could add o
 
 New series beyond either cap are dropped, the drop is counted, and both front ends show a warning naming the metric. Per-peer data goes into the peer-session store (below), not into series.
 
-Log-derived series have their own caps: templates per node (default 2000) and app IDs per flood counter (default 100, with the rest summed into `other`).
+Log-derived series have their own caps: templates per node (default 2000) and app IDs per flood counter (default 100, with the rest summed into `other`). The store never frees a series, while the tailer's counts start empty at each restart. So the tailer starts its caps from the templates and app IDs the store already holds. A value new to the store gets a series only while the cap has room. Otherwise its lines go to `other` or to `log_template_drops_total`, rather than to a series the store would drop.
 
 ### Metric renames
 
@@ -289,6 +290,7 @@ Specific extractors turn known lines into events with attributes. Each extractor
 - `using protocol /algorand-ws/2.2.0 with peer`, which marks gossip stream setup.
 - `wsStreamHandlerV22: error reading peer meta headers`, the handshake EOFs.
 - Catchup start and end, ledger errors, panic, and fatal.
+- `node.VotingKeys: Address: ... - Account was closed but still has a participation key active.` algod logs this at info level for each installed key of a closed account, several times a round. It marks that account's keys as closed (section 10).
 
 Warning and error lines are kept raw for 90 days for drill-down. Info lines are not kept raw by default. A per-node setting can keep all raw lines for N days for an investigation.
 
@@ -482,23 +484,25 @@ The front ends compute these from stored data rather than storing them separatel
 - Peer clusters are groups of at least N inbound sessions that ended within W seconds, listed with the IPs involved. The view also flags IPs that appear in more than one cluster. This finds peers that reset together without anyone grouping disconnects by hand. With per-peer usage, each cluster also shows member traffic in the minutes before the disconnect. It groups members by their `supported-protocols` set, which works as a rough software fingerprint.
 - Participation shows each key's validity remaining in rounds and estimated days, its last vote round and last proposal round, whether the account is online, and whether it is incentive-eligible.
 - Expected vote interval for an account comes from its share of online stake (`/v2/ledger/supply`). A small account is selected less often, so "rounds since last vote" is judged against this interval rather than a fixed number. The last vote comes from the local key (`/v2/participation`). The on-chain view comes from the account's last proposed and last heartbeat rounds, which are what the network uses to judge absence.
+- A key whose account was closed can never vote again. algod.top learns of a closed account from algod's log (section 7), which works whether or not the account is listed. Such a key is never the active key, its expiry does not count, and the web UI marks it "account closed" so the operator can delete it. Without that log line, the key would stay active by the voted-last rule below, and the fleet card would report its expiry as the account's next expiry. When algod has not repeated the line for 10 minutes, the account counts as open again.
 - Suspension shows in the account as status Offline with its vote key still set. algod.top names that state "suspended" rather than "offline", because recovery differs: a suspended account comes back with a heartbeat or a new keyreg.
 - Disk shows days until full, from a linear fit of the last 7 days' use, and the data dir size by subdirectory.
-- Memory shows RSS with a flag if the 24 h minimum has risen for 3 days running. Plain RSS spikes are normal.
+- Memory shows RSS with a flag if the 24 h minimum has risen for 3 days running. Plain RSS spikes are normal. Each of the 3 days must set a new high over every earlier day the process ran in the last 10, so the climb back from one low day does not count. On macOS, memory pressure on the host compresses and pages out every process at once, and their minimums drop together for a day. Days before the last restart and the day of the restart do not count either.
 
 Each node has a health state of OK, Warn or Critical, and the reasons are always listed in words, for example "Warn: participation key for ABC... expires in 6 days". The defaults are:
 
 - Critical:
-  - algod is down, or `/health` fails. When a local algod stops answering while its process runs, the reason names the pid, because a hung algod needs a kill and a crashed one a start.
-  - the last round is older than 30 s and the node is not in catchup. A node whose `/v2/status` fails, for example because algod rejects the API token, has no round, so its lag counts from the first failure and the reason names the error. algod answers `/metrics` and `/health` without a token, so such a node would otherwise look up and well.
+  - algod is down, or `/health` fails. When a local algod stops answering while its process runs, the reason names the pid, because a hung algod needs a kill and a crashed one a start. The reason says how long algod has been down. The time it went down is kept in the node's state file, so a restart of algod.top does not reset it. A node that went down while algod.top was stopped counts from the first check after the start.
+  - the last round is older than 30 s and the node is not in fast catchup from a catchpoint, which holds the round while it restores the ledger. Block catchup does not excuse an old round, because it moves the round every few seconds. While algod cannot reach the network, it retries block catchup every few rounds, and each attempt would otherwise hide the stall: a node cut off for five minutes would flap between Warn and Critical, and a `stalled` alert with `for: 1m` would never fire. A node whose `/v2/status` fails, for example because algod rejects the API token, has no round, so its lag counts from the first failure and the reason names the error. algod answers `/metrics` and `/health` without a token, so such a node would otherwise look up and well.
   - disk is under 5%
-  - an account's active participation key expires within 2 days. The active key is the on-chain vote key when the account is listed, else the valid key that voted last. A renewed account keeps its old key installed until someone deletes it, and that key does not count.
+  - an account's active participation key expires within 2 days. The active key is the on-chain vote key when the account is listed, else the valid key that voted last. A renewed account keeps its old key installed until someone deletes it, and that key does not count. Nor does a key whose account was closed.
   - a listed account was online and is now offline or suspended (offline with its vote key still set)
   - a listed account is online but its installed key is not the vote key registered on chain
   - a listed online account has not voted for more than 10 times its expected vote interval
   - the clock offset is over 1 s
+  - algod.top paused writes at the disk floor
 - Warn:
-  - catchup is running
+  - catchup is running, naming the catchpoint for fast catchup
   - no round has been read yet because `/v2/status` fails. It becomes Critical once the lag passes 30 s.
   - an account's active key expires within 14 days
   - a listed account lost incentive eligibility
@@ -506,7 +510,8 @@ Each node has a health state of OK, Warn or Critical, and the reasons are always
   - the node has 0 outgoing peers
   - the error log rate is above its baseline
   - the version is behind the latest release seen on another node of the same network and release channel. Developer builds take no part, because their build numbers count hours rather than patches.
-  - algod.top missed scrapes, dropped series, paused writes, or deleted data at the disk floor
+  - algod.top missed scrapes, dropped series over a cap, or deleted data at the disk floor
+  - algod.top projects disk use beyond free space minus the floor, or its data shares a volume with the node at under 15% free
 
 ## 11. Alerting
 
@@ -548,6 +553,8 @@ The hub is the daemon that stores everything and serves the front ends. It reach
 | TLS agent | `algod.top agent` | HTTPS pull with a token or mutual TLS | everything | no gap, 7 day buffer |
 
 SSH no-install is the quick path: a remote node can be added in one line with nothing to set up on the host. The SSH agent is the recommended mode for any node worth keeping full history for. The TLS agent is for hosts the hub cannot reach over SSH.
+
+The hub lists its own nodes in config order, then the agents' nodes sorted by agent name, each agent's nodes in the agent's own order. The node pickers in the web UI follow this order, so it stays the same from one status push to the next.
 
 ### SSH transport
 
@@ -596,7 +603,7 @@ The pull protocol is the same over SSH and TLS:
 - The agent deletes pulled data once it is older than the buffer window (7 days by default). It keeps unpulled data past that window, up to a size cap (default 1 GB) or its own disk floor. Beyond either limit it deletes the oldest unpulled data first and records a retention deletion event, as the disk floor does (section 18).
 - The protocol is versioned in the path. A hub supports the current and the previous agent protocol version, so hosts can be upgraded one at a time.
 
-Alerts for an agent's nodes run on the agent, so a hub on a sleeping laptop does not silence them. The hub shows the agent's alert events, and fires only one alert of its own for those nodes: "agent unreachable". Hub-local, REST and no-install nodes alert from the hub. Each alert therefore fires from exactly one place.
+Alerts for an agent's nodes run on the agent, so a hub on a sleeping laptop does not silence them. The hub shows the agent's alert events, and fires only one alert of its own for those nodes: "agent unreachable". Its reason says how long the hub has gone without an answer and why the last connection ended, with what ssh printed on one line. Hub-local, REST and no-install nodes alert from the hub. Each alert therefore fires from exactly one place.
 
 ### TLS agent
 
@@ -684,7 +691,7 @@ The first two lines summarize the host and the selected node, like the load and 
 
 Enter on a node opens its detail screen:
 
-- A header with round, lag, version, uptime and the last effective config change.
+- A header with round, lag, version, uptime and the last effective config change. A down node shows how long it has been down in place of its uptime.
 - Panes for consensus, network, bandwidth and resources. Each line shows a metric's current value and a sparkline over the selected range, one bucket per terminal column.
 - Below them, a pane selected by key: peers, events or log templates. A list longer than the screen scrolls, and a footer such as `rows 21-40 of 120` says which rows show.
 
@@ -794,10 +801,10 @@ The terminal UI talks to the daemon over the unix socket with the same API as th
    - peers as in/out for ws and p2p, or n/a when the node has no admin token. The counts come from `/v2/node/peers`, so without the token they would read 0.
    - a 24 h sparkline each for bandwidth and round time
    - participation status
-   - the last notable event
+   - the last notable event. Peer connects and disconnects, log warnings and log rotations do not count. algod rotates `node.log` each time it reaches its size limit, several times a day on a busy node, so a rotation would soon hide a restart or config change.
 
    A sortable table view shows the same data.
-2. Node. A header strip shows live round, lag, version, uptime and the last effective config change. Below it are the time-range controls: 1h, 6h, 24h, 7d, 30d, 1y, all, custom, "since last restart", and the full-resolution toggle. Collapsible sections of synchronized charts follow:
+2. Node. A header strip shows live round, lag, version, uptime and the last effective config change. For a down node, the strip shows how long it has been down in place of its uptime, and no change vs 24 h ago, because its live values read 0. Peers and participation say that algod is down, rather than that the admin token is missing or that no keys are installed. Below it are the time-range controls: 1h, 6h, 24h, 7d, 30d, 1y, all, custom, "since last restart", and the full-resolution toggle. Collapsible sections of synchronized charts follow:
    - Consensus: round time, votes and proposals, transactions per block, pool size
    - Network WS: peers, bytes by direction, disconnect reasons as stacked bars
    - Network P2P: connections, gossip streams, pubsub peers, DHT, evictions, setup timeouts, resource manager blocks
@@ -812,7 +819,7 @@ The terminal UI talks to the daemon over the unix socket with the same API as th
    - bytes received and sent per session, with per-peer usage
 
    With per-peer usage, the current peers table adds peer ID, rates, open streams and supported protocols. The clusters list shows each cluster's timeline.
-4. Events. This is a filterable table of events, annotations and silences, with a timeline strip. The user can add an annotation from here, or by selecting a range on any chart. A CSV link downloads every event of the range, node and kinds shown, which the table caps at the newest 2000.
+4. Events. This is a filterable table of events, annotations and silences, with a timeline strip. The user can add an annotation from here, or by selecting a range on any chart. A CSV link downloads every event of the range, node and kinds shown. The table draws 500 rows, and buttons draw more or all of them. A busy fleet logs thousands of connect, disconnect and log warning events a day. Building 2000 rows took about 0.7 s in Chrome, and 500 rows about 0.2 s, and a live page pays that again for each new event. The table keeps its sort and length while new events arrive.
 5. Compare. It overlays two time ranges for one node, aligned to their start, such as run 2 vs run 3. It can also overlay two nodes over the same range. For each metric it shows a summary table of mean, p50, p99, and the difference.
 6. Explorer. The user picks any stored metric and label filter and gets a chart. It covers questions nobody anticipated, without code changes.
 7. Settings. Nodes, retention and auth, read-only by default. Edits require login and write the config file atomically. Alert channels are never editable here (section 11).

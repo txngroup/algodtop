@@ -7,7 +7,7 @@ import { h, clear, sortableTable, inlineBar } from "../dom.js";
 import { get, canWrite } from "../api.js";
 import { rangeOf, setParams, encodeTime, decodeTime, listParam, nodeURL, navigate } from "../state.js";
 import { fmt, fmtInt, fmtSeconds, fmtDelta, fmtShortTime, fmtDateTime, ns, isNum, shortAddr } from "../format.js";
-import { healthBadge, healthReasons, hasPeers, hasProc, keyStatus, uptime, loadMarkers, toEv, notable, regionsFrom, rangeBar, nodePicker, annotateForm } from "../common.js";
+import { healthBadge, healthReasons, hasPeers, hasProc, keyStatus, uptime, downFor, loadMarkers, toEv, notable, regionsFrom, rangeBar, nodePicker, annotateForm } from "../common.js";
 import { Bus } from "../chart/crosshair.js";
 import { Lane } from "../chart/lane.js";
 import { Panel } from "../panel.js";
@@ -82,9 +82,11 @@ export function mount(root, app, r) {
   }
 
   // delta compares with 24 h ago. A node with less history than that gets
-  // an empty line, which keeps the cards one height.
+  // an empty line, which keeps the cards one height. A down node reads 0
+  // for every live value, so it gets no change either.
   function delta(cur, old, unit, label) {
-    if (!isNum(cur) || old === null || old === undefined) return label || "";
+    const n = node();
+    if (!n || !n.up || !isNum(cur) || old === null || old === undefined) return label || "";
     return fmtDelta(cur - old, unit) + " vs 24 h ago";
   }
 
@@ -102,13 +104,20 @@ export function mount(root, app, r) {
       stat("round", n.round ? fmtInt(n.round) : "-", isNum(ago.round) && n.round ? "+" + fmtInt(n.round - ago.round) + " rounds in 24 h" : ""),
       stat("lag", n.up && isNum(n.lag) ? fmtSeconds(n.lag) : "-", delta(n.lag, ago.lag, "s")),
       stat("round time", n.round_time ? fmtSeconds(n.round_time) : "-", delta(n.round_time, ago.rtime, "s")),
-      hasPeers(n)
+      !n.up
+        ? stat("peers", "-", "algod is down")
+        : hasPeers(n)
         ? stat("peers", String(total), "WS " + (p.ws_in || 0) + "/" + (p.ws_out || 0) + "  P2P " + (p.p2p_in || 0) + "/" + (p.p2p_out || 0) + (isNum(ago.peers) ? ", " + fmtDelta(total - ago.peers, "") + " vs 24 h" : ""))
         : stat("peers", "n/a", "needs the admin token"),
       hasProc(n) ? stat("CPU", isNum(n.cpu) && n.up ? n.cpu.toFixed(1) + "%" : "-", delta(n.cpu, ago.cpu, "%")) : null,
-      hasProc(n) ? stat("RSS", n.rss && n.up ? fmt(n.rss, "bytes") : "-", delta(n.rss, ago.rss, "bytes")) : null,
+      hasProc(n) ? stat("RSS", n.rss && n.up ? fmt(n.rss, "bytes") : "-",
+        n.memory_creep ? h("span", { class: "sev warn", title: "Each of the last 3 days had a higher RSS minimum than any earlier day since algod started. Spikes are normal; a rising floor is a leak." }, "minimum rising 3 days") : delta(n.rss, ago.rss, "bytes")) : null,
       stat("version", n.version || "-", n.branch || n.network || ""),
-      stat("uptime", n.up ? uptime(n) : "down", n.start_time ? "since " + fmtShortTime(ns(n.start_time)) : ""),
+      // A down node keeps the start time of its last process, which says
+      // nothing about now.
+      n.up
+        ? stat("uptime", uptime(n), n.start_time ? "since " + fmtShortTime(ns(n.start_time)) : "")
+        : stat("uptime", "down", n.down_since ? "for " + downFor(n) + ", since " + fmtShortTime(ns(n.down_since)) : ""),
       stat("last effective config change", n.config_changed ? fmtShortTime(ns(n.config_changed.time)) : "none seen", n.config_changed ? n.config_changed.msg : "", "wide")].filter(Boolean));
     if (n.catchup) stripEl.appendChild(stat("catchup", "running", "the node is catching up"));
   }
@@ -220,20 +229,22 @@ export function mount(root, app, r) {
     if (!n) return;
     const keys = n.keys || [], accts = n.accounts || [];
     if (!keys.length && !accts.length) {
-      partSlot.appendChild(h("p", { class: "muted" }, "No participation keys are installed and no accounts are listed for this node."));
+      partSlot.appendChild(h("p", { class: "muted" }, n.up
+        ? "No participation keys are installed and no accounts are listed for this node."
+        : "No participation keys or accounts are known. algod.top reads them from algod, which is down."));
       return;
     }
     if (keys.length) {
       partSlot.appendChild(h("div", { class: "table-wrap" }, sortableTable([
         { key: "address", label: "account", render: (k) => h("span", { class: "mono", title: k.address }, shortAddr(k.address)) },
-        { key: "status", label: "status", get: (k) => keyStatus(k, n.round), title: "active is the key the account votes with; superseded keys end before it and can be deleted" },
+        { key: "status", label: "status", get: (k) => keyStatus(k, n.round), title: "active is the key the account votes with; superseded keys end before it and can be deleted, and so can the keys of an account that algod reports as closed" },
         { key: "first", label: "first round", num: true, render: (k) => fmtInt(k.first) },
         { key: "last", label: "last round", num: true, render: (k) => fmtInt(k.last) },
         { key: "rounds_left", label: "rounds left", num: true, render: (k) => fmtInt(k.rounds_left) },
         { key: "days_left", label: "days left", num: true, render: (k) => (isNum(k.days_left) ? k.days_left.toFixed(1) : "-") },
         { key: "last_vote", label: "last vote", num: true, render: (k) => (k.last_vote ? fmtInt(k.last_vote) : "never") },
         { key: "last_proposal", label: "last proposal", num: true, render: (k) => (k.last_proposal ? fmtInt(k.last_proposal) : "never") },
-      ], keys, { sort: "days_left", desc: false, rowClass: (k) => (k.superseded || (n.round && k.last < n.round) ? "muted" : null) })));
+      ], keys, { sort: "days_left", desc: false, rowClass: (k) => (k.superseded || k.closed || (n.round && k.last < n.round) ? "muted" : null) })));
     }
     if (accts.length) {
       partSlot.appendChild(h("div", { class: "table-wrap", style: { marginTop: "8px" } }, sortableTable([

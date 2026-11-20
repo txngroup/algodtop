@@ -22,6 +22,16 @@ func TestOK(t *testing.T) {
 	}
 }
 
+// A key whose account was closed can never vote, so its expiry is not a
+// problem.
+func TestClosedAccountKeyDoesNotExpire(t *testing.T) {
+	s := base()
+	s.Keys = []collector.PartKeyState{{Address: "ABCDEFGHIJ", RoundsLeft: 10, DaysLeft: 1, Closed: true}}
+	if st := Evaluate(&s, Context{}); st.Level != OK {
+		t.Fatalf("%+v", st.Reasons)
+	}
+}
+
 func TestRules(t *testing.T) {
 	now := time.Now()
 	cases := []struct {
@@ -31,7 +41,10 @@ func TestRules(t *testing.T) {
 		level Level
 		text  string
 	}{
-		{"down", func(s *collector.State) { s.Up = false; s.LastError = "connection refused" }, "down", Critical, "algod is down"},
+		{"down", func(s *collector.State) { s.Up = false; s.LastError = "connection refused" }, "down", Critical, "algod is down (connection refused)"},
+		{"downfor", func(s *collector.State) {
+			s.Up, s.LastError, s.DownSince = false, "connection refused", now.Add(-(7*time.Hour + 20*time.Minute)).UnixNano()
+		}, "down", Critical, "algod is down for 7h20m0s (connection refused)"},
 		{"stalled", func(s *collector.State) { s.RoundAt = now.Add(-45 * time.Second).UnixNano() }, "stalled", Critical, "last round is"},
 		{"catchup", func(s *collector.State) { s.RoundAt = now.Add(-45 * time.Second).UnixNano(); s.Catchup = true }, "catchup", Warn, "catchup"},
 		{"token", func(s *collector.State) {
@@ -68,6 +81,50 @@ func TestRules(t *testing.T) {
 		if !found {
 			t.Errorf("%s: reasons %+v", c.name, st.Reasons)
 		}
+	}
+}
+
+// algod.top's own problems reach every node's health. finish used to take
+// the Status by value while add wrote to Evaluate's copy, so all of these
+// were lost and a paused store showed as OK.
+func TestDaemonProblems(t *testing.T) {
+	cases := []struct {
+		name  string
+		d     Daemon
+		mod   func(*collector.State)
+		level Level
+		text  string
+	}{
+		{"paused", Daemon{Paused: true}, nil, Critical, "paused writes at the disk floor"},
+		{"dropped", Daemon{DroppedSeries: map[string]map[string]int64{"n": {"m_d": 1, "m_c": 1, "m_b": 1, "m_a": 1}}}, nil, Warn,
+			"dropped series over the cap: m_a, m_b, m_c, ..."},
+		{"floor", Daemon{FloorDeleted: map[string]string{"n": "raw history is 12 days instead of 30"}}, nil, Warn, "raw history is 12 days"},
+		{"shared", Daemon{SharedVolume: map[string]float64{"n": 0.1}}, nil, Warn, "shares a volume with this node at 10% free"},
+		{"projected", Daemon{ProjectedOver: true}, nil, Warn, "projected algod.top disk use"},
+		{"missed", Daemon{}, func(s *collector.State) { s.MissedScrapes, s.Reachable = 3, false }, Warn, "missed scrapes"},
+		{"down", Daemon{Paused: true}, func(s *collector.State) { s.Up = false }, Critical, "paused writes"},
+	}
+	for _, c := range cases {
+		s := base()
+		s.Reachable = true
+		if c.mod != nil {
+			c.mod(&s)
+		}
+		st := Evaluate(&s, Context{Daemon: c.d})
+		found := false
+		for _, r := range st.Reasons {
+			if r.Rule == "algodtop" && r.Level == c.level && strings.Contains(r.Text, c.text) {
+				found = true
+			}
+		}
+		if !found || st.Level < c.level {
+			t.Errorf("%s: level %v, reasons %+v", c.name, st.Level, st.Reasons)
+		}
+	}
+	s := base()
+	s.Unavailable = []string{"disk_io"}
+	if st := Evaluate(&s, Context{}); len(st.Disabled) != 1 || st.Disabled[0].Rule != "disk_io" {
+		t.Errorf("disabled %+v", st.Disabled)
 	}
 }
 
@@ -148,5 +205,38 @@ func TestRenewedKeyIsNotExpiring(t *testing.T) {
 	st := Evaluate(&s, Context{})
 	if st.Level != Critical || !strings.Contains(st.Summary(), "a later key is installed but has not voted") {
 		t.Fatal(st.Summary())
+	}
+}
+
+// algod retries block catchup every few rounds while it cannot reach the
+// network. Those attempts must not hide a stall. Only fast catchup, which
+// holds the round while it restores the ledger, excuses an old round.
+func TestCatchupDoesNotHideAStall(t *testing.T) {
+	now := time.Now()
+	has := func(st Status, rule string, l Level, text string) bool {
+		for _, r := range st.Reasons {
+			if r.Rule == rule && r.Level == l && strings.Contains(r.Text, text) {
+				return true
+			}
+		}
+		return false
+	}
+
+	s := base()
+	s.RoundAt, s.Catchup = now.Add(-45*time.Second).UnixNano(), true
+	st := Evaluate(&s, Context{Now: now})
+	if st.Level != Critical || !has(st, "stalled", Critical, "last round is 45s old, and catchup is not moving it") || !has(st, "catchup", Warn, "catchup is running") {
+		t.Errorf("block catchup with an old round: %+v", st)
+	}
+
+	s.RoundAt = now.Add(-2 * time.Second).UnixNano()
+	if st := Evaluate(&s, Context{Now: now}); st.Level != Warn || has(st, "stalled", Critical, "") {
+		t.Errorf("block catchup that moves the round: %+v", st)
+	}
+
+	s.RoundAt, s.Catchpoint = now.Add(-10*time.Minute).UnixNano(), "52180000#ABCDEF"
+	st = Evaluate(&s, Context{Now: now})
+	if st.Level != Warn || !has(st, "catchup", Warn, "fast catchup to catchpoint 52180000#ABCDEF is running") {
+		t.Errorf("fast catchup: %+v", st)
 	}
 }

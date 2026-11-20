@@ -51,15 +51,27 @@ func sinkConn(c net.Conn) {
 	}
 }
 
+// wireConns is how many connections share the wire traffic when
+// Options.WireRedial is set, so that one closing leaves others open, as
+// when a real node loses one peer of several.
+const wireConns = 4
+
 // wireLoop sends each second's traffic to the sink at addr.
 func (f *Fake) wireLoop(addr string) {
 	defer f.wg.Done()
-	c, err := net.Dial("tcp", addr)
-	if err != nil {
-		return
+	n := 1
+	if f.o.WireRedial > 0 {
+		n = wireConns
 	}
-	defer c.Close()
-	go io.Copy(io.Discard, c)
+	conns := make([]net.Conn, n)
+	defer func() {
+		for _, c := range conns {
+			if c != nil {
+				c.Close()
+			}
+		}
+	}()
+	next, redialed := 0, time.Now()
 	zero := make([]byte, 64<<10)
 	t := time.NewTicker(time.Second)
 	defer t.Stop()
@@ -79,19 +91,37 @@ func (f *Fake) wireLoop(addr string) {
 			if down || dIn < 0 || dOut < 0 {
 				continue
 			}
-			var hdr [16]byte
-			binary.BigEndian.PutUint64(hdr[:8], uint64(dIn))
-			binary.BigEndian.PutUint64(hdr[8:], uint64(dOut))
-			c.SetWriteDeadline(now.Add(2 * time.Second))
-			if _, err := c.Write(hdr[:]); err != nil {
-				return
+			if f.o.WireRedial > 0 && now.Sub(redialed) >= f.o.WireRedial {
+				if conns[next] != nil {
+					conns[next].Close()
+					conns[next] = nil
+				}
+				next, redialed = (next+1)%n, now
 			}
-			for n := uint64(dOut); n > 0; {
-				k := min(n, uint64(len(zero)))
-				if _, err := c.Write(zero[:k]); err != nil {
+			for i := range conns {
+				if conns[i] == nil {
+					c, err := net.Dial("tcp", addr)
+					if err != nil {
+						return
+					}
+					conns[i] = c
+					go io.Copy(io.Discard, c)
+				}
+				var hdr [16]byte
+				binary.BigEndian.PutUint64(hdr[:8], uint64(dIn/float64(n)))
+				binary.BigEndian.PutUint64(hdr[8:], uint64(dOut/float64(n)))
+				c := conns[i]
+				c.SetWriteDeadline(now.Add(2 * time.Second))
+				if _, err := c.Write(hdr[:]); err != nil {
 					return
 				}
-				n -= k
+				for k := uint64(dOut / float64(n)); k > 0; {
+					m := min(k, uint64(len(zero)))
+					if _, err := c.Write(zero[:m]); err != nil {
+						return
+					}
+					k -= m
+				}
 			}
 		}
 	}
