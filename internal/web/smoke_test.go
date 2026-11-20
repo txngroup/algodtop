@@ -251,6 +251,12 @@ func newHub(t *testing.T) *testHub {
 			t.Fatal(err)
 		}
 	}
+	// A busy node's disconnects: more than the events table draws at first.
+	for i := 0; i < 600; i++ {
+		ip := fmt.Sprintf("198.51.100.%d", i%250+1)
+		ev(model.Event{Time: real.Add(-5*time.Hour + time.Duration(i)*25*time.Second).UnixNano(), Node: "alpha", Kind: model.EvDisconnect, Severity: model.SevInfo, Msg: "disconnect out ws " + ip + " reason=gone",
+			Attrs: map[string]any{"ip": ip, "network": "ws", "direction": "out", "reason": "gone"}})
+	}
 	if _, err := db.PutAnnotation(model.Annotation{Node: "alpha", Start: real.Add(-90 * time.Minute).UnixNano(), End: real.Add(-80 * time.Minute).UnixNano(), Text: "run 2", Created: real.UnixNano()}); err != nil {
 		t.Fatal(err)
 	}
@@ -444,6 +450,16 @@ func TestSmokePages(t *testing.T) {
 			}
 			if pg.id == "fleet" && strings.Count(dom, `<li class="critical">`) < 2 {
 				t.Errorf("%s: health reasons are not listed one per line", pg.path)
+			}
+			if pg.path == "/events?kind=disconnect" {
+				// The table draws 500 of the 608 disconnects and offers the rest.
+				rows := 0
+				if i := strings.Index(dom, "<tbody>"); i >= 0 {
+					rows = strings.Count(dom[i:], "<tr")
+				}
+				if rows != 500 || !strings.Contains(dom, ", showing 500") || !strings.Contains(dom, ">show all ") {
+					t.Errorf("%s: %d rows drawn, want 500 with a button for the rest:\n%.3000s", pg.path, rows, dom)
+				}
 			}
 		})
 	}

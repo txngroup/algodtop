@@ -156,7 +156,8 @@ macOS notes:
 
 - The stdlib has no process-info API. algod.top runs one `ps -o pid=,rss=,time=,... -p PID1,PID2,...` for all nodes at once. It computes CPU from the cumulative `time=` field, because `%cpu` on macOS is a decaying average.
 - Disk I/O per process needs `proc_pid_rusage` in libproc, which needs cgo.
-- For network, algod.top runs one `nettop -L 1` for all algod PIDs every 60 s. A single sample prints cumulative bytes per process at once, in about 0.1 s. A long-lived `nettop` in logging mode was tried first, but through a pipe its output sits in a stdio buffer and arrives late.
+- For network, algod.top runs one `nettop -L 1` for all algod PIDs every 60 s. A single sample prints cumulative bytes per socket at once, in about 0.1 s. A long-lived `nettop` in logging mode was tried first, but through a pipe its output sits in a stdio buffer and arrives late.
+- nettop's per-process line sums only the sockets that are open now, so it falls each time a peer disconnects. The store would read each fall as a counter reset and count the whole sum again, which charted a node's steady 50 kB/s as spikes of 2 MB/s. algod.top therefore reads the per-socket lines, with `-n` so that a socket keeps the same name from one poll to the next, and adds each socket's growth since the last poll, as sock_diag does on Linux. It misses the bytes a socket moved between the last poll and its close.
 
 Windows notes:
 
@@ -814,7 +815,7 @@ The terminal UI talks to the daemon over the unix socket with the same API as th
    - bytes received and sent per session, with per-peer usage
 
    With per-peer usage, the current peers table adds peer ID, rates, open streams and supported protocols. The clusters list shows each cluster's timeline.
-4. Events. This is a filterable table of events, annotations and silences, with a timeline strip. The user can add an annotation from here, or by selecting a range on any chart. A CSV link downloads every event of the range, node and kinds shown, which the table caps at the newest 2000.
+4. Events. This is a filterable table of events, annotations and silences, with a timeline strip. The user can add an annotation from here, or by selecting a range on any chart. A CSV link downloads every event of the range, node and kinds shown. The table draws 500 rows, and buttons draw more or all of them. A busy fleet logs thousands of connect, disconnect and log warning events a day. Building 2000 rows took about 0.7 s in Chrome, and 500 rows about 0.2 s, and a live page pays that again for each new event. The table keeps its sort and length while new events arrive.
 5. Compare. It overlays two time ranges for one node, aligned to their start, such as run 2 vs run 3. It can also overlay two nodes over the same range. For each metric it shows a summary table of mean, p50, p99, and the difference.
 6. Explorer. The user picks any stored metric and label filter and gets a chart. It covers questions nobody anticipated, without code changes.
 7. Settings. Nodes, retention and auth, read-only by default. Edits require login and write the config file atomically. Alert channels are never editable here (section 11).
