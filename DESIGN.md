@@ -282,6 +282,8 @@ Each line is JSON. The tailer runs a byte-level prefilter first, because the noi
 
 The remaining lines become message templates. The tailer replaces addresses, numbers, base32 IDs, hashes, durations and peer IDs with placeholders. Host names with a port, such as relays from SRV records, become `<addr>` like IP addresses, so each relay does not get its own template. Each template gets a per-minute count, stored as a series in the chunk store under the template caps (section 6). This keeps "what is the node complaining about" cheap to chart over the whole history.
 
+An IPv6 address becomes `<addr>` whole, with its brackets and port, as in `[2001:db8::1]:4160`, and so does one that ends in `::`. A date with weekday and month names becomes `<date>`. A failed relay handshake logs the HTTP response headers, and their `Date` would otherwise start a new template each day. Either change starts a new template series once for the lines it affects.
+
 Specific extractors turn known lines into events with attributes. Each extractor is a small Go function with a test fixture taken from a real log. The first set covers:
 
 - `/Network/ConnectPeer` and `/Network/DisconnectPeer`: Address, Incoming, Reason, MessageDelay. These lines appear in `node.log` even with telemetry disabled in `logging.config`.
