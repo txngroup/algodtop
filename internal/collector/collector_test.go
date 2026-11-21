@@ -457,19 +457,27 @@ func TestLogCapsStartFromStore(t *testing.T) {
 	for _, tm := range []string{"b", "c", "a"} {
 		c.add(&logparse.Line{Kind: logparse.KindTemplate, Level: "warn", Template: tm})
 	}
-	got := map[string]float64{}
-	for _, s := range c.samples() {
-		switch s.Name {
-		case "log_txpool_invalid_total":
-			got["app="+s.Labels.Get("app")] = s.Value
-		case "log_template_lines_total":
-			got["template="+s.Labels.Get("template")] = s.Value
-		case "log_template_drops_total":
-			got["drops"] = s.Value
+	flush := func() map[string]float64 {
+		got := map[string]float64{}
+		for _, s := range c.samples() {
+			switch s.Name {
+			case "log_txpool_invalid_total":
+				got["app="+s.Labels.Get("app")] = s.Value
+			case "log_template_lines_total":
+				got["template="+s.Labels.Get("template")] = s.Value
+			case "log_template_drops_total":
+				got["drops"] = s.Value
+			}
 		}
+		return got
 	}
-	want := map[string]float64{"app=1": 1, "app=3": 1, "app=other": 2, "template=a": 1, "template=b": 1, "drops": 1}
-	if !maps.Equal(got, want) {
-		t.Fatalf("got %v, want %v", got, want)
+	// The series the store lacks start at 0, so their first lines count.
+	want := map[string]float64{"app=1": 1, "app=3": 0, "app=other": 2, "template=a": 1, "template=b": 0, "drops": 0}
+	if got := flush(); !maps.Equal(got, want) {
+		t.Fatalf("first flush got %v, want %v", got, want)
+	}
+	want = map[string]float64{"app=1": 1, "app=3": 1, "app=other": 2, "template=a": 1, "template=b": 1, "drops": 1}
+	if got := flush(); !maps.Equal(got, want) {
+		t.Fatalf("second flush got %v, want %v", got, want)
 	}
 }
