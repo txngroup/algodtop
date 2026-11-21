@@ -4,6 +4,8 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -363,6 +365,34 @@ func TestCaps(t *testing.T) {
 		t.Fatalf("series %d want 3", got)
 	}
 	if db.Dropped(node)["m"] != 2 {
+		t.Fatalf("drops %v", db.Dropped(node))
+	}
+	db.Close()
+}
+
+// A store that a full cap of app IDs reached before app=other existed
+// still takes app=other, so the lines past the cap are counted. Any other
+// new app is still dropped.
+func TestCapAdmitsSpill(t *testing.T) {
+	dir := t.TempDir()
+	c := newClock("2026-11-03T00:00:00Z")
+	caps := Caps{PerName: 200, PerNode: 100, NameCaps: map[string]int{"flood": 3}, Spill: map[string]string{"flood": "app=other"}}
+	db, _ := Open(Options{Dir: dir, Now: c.Now, Caps: caps})
+	b := &model.Batch{Node: "n", Group: model.GroupLog, Time: c.t.UnixNano()}
+	for _, app := range []string{"1", "2", "3", "other", "4"} {
+		b.Samples = append(b.Samples, model.Sample{Name: "flood", Labels: model.Labels{{Name: "app", Value: app}}, Kind: model.KindCounter, Value: 1})
+	}
+	db.Append(b)
+	node, _ := db.NodeID("n")
+	var apps []string
+	for _, m := range db.Find(node, "flood") {
+		apps = append(apps, m.Labels.Get("app"))
+	}
+	sort.Strings(apps)
+	if strings.Join(apps, ",") != "1,2,3,other" {
+		t.Fatalf("apps %v", apps)
+	}
+	if db.Dropped(node)["flood"] != 1 {
 		t.Fatalf("drops %v", db.Dropped(node))
 	}
 	db.Close()
