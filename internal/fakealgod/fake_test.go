@@ -166,6 +166,43 @@ func TestChurnKeepsDirections(t *testing.T) {
 	}
 }
 
+// As in algod, a SlowConnection disconnect is logged twice with the same
+// details, microseconds apart, and only for ws peers.
+func TestSlowConnectionLoggedTwice(t *testing.T) {
+	dir := t.TempDir()
+	f, err := Start(Options{DataDir: dir, Peers: 20, ChurnEvery: time.Millisecond, RoundEvery: time.Hour, LogTraceRate: 0, Seed: 3})
+	if err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(400 * time.Millisecond)
+	f.Close()
+	b, err := os.ReadFile(filepath.Join(dir, "node.log"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// json.Marshal sorts the keys, so "time" comes last and the rest of
+	// a repeated line matches its twin.
+	var slow []string
+	for _, l := range strings.Split(string(b), "\n") {
+		if strings.Contains(l, `"SlowConnection"`) {
+			slow = append(slow, l)
+		}
+	}
+	if len(slow) == 0 || len(slow)%2 != 0 {
+		t.Fatalf("%d SlowConnection lines, want pairs", len(slow))
+	}
+	for i := 0; i < len(slow); i += 2 {
+		a, _, _ := strings.Cut(slow[i], `"time":`)
+		b, _, _ := strings.Cut(slow[i+1], `"time":`)
+		if a != b || slow[i] == slow[i+1] {
+			t.Errorf("pair %d:\n%s\n%s", i/2, slow[i], slow[i+1])
+		}
+		if strings.Contains(a, `"Address":"/`) {
+			t.Errorf("SlowConnection on a p2p peer: %s", a)
+		}
+	}
+}
+
 // A closed account keeps its key installed. The key stops voting, the
 // account reads empty and offline, and the log names it each round.
 func TestClosedAccount(t *testing.T) {

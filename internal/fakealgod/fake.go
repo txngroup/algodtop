@@ -429,9 +429,25 @@ func (f *Fake) loop() {
 			if !f.down && len(f.peers) > 0 {
 				i := f.rnd.Intn(len(f.peers))
 				old := f.peers[i]
-				reason := []string{"ReadError", "LeastPerformingPeer", "IdleConnection", "PeerNotRespondingToPing"}[f.rnd.Intn(4)]
-				f.writeLogLocked(map[string]any{"details": map[string]any{"Address": old.addr, "Incoming": old.dir == "inbound", "Reason": reason, "MessageDelay": 773255546},
-					"file": "telemetry.go", "level": "info", "msg": "/Network/DisconnectPeer"})
+				reason := []string{"ReadError", "LeastPerformingPeer", "IdleConnection", "PeerNotRespondingToPing", "SlowConnection"}[f.rnd.Intn(5)]
+				if reason == "SlowConnection" && old.net != "ws" {
+					reason = "LeastPerformingPeer"
+				}
+				disc := map[string]any{"details": map[string]any{"Address": old.addr, "Incoming": old.dir == "inbound", "Reason": reason, "MessageDelay": 773255546},
+					"file": "telemetry.go", "level": "info", "msg": "/Network/DisconnectPeer"}
+				f.writeLogLocked(disc)
+				if reason == "SlowConnection" {
+					// algod's ws network removes a slow peer twice and logs
+					// the same disconnect each time, microseconds apart. The
+					// two lines are not always in time order.
+					at, _ := time.Parse("2006-01-02T15:04:05.000000Z", disc["time"].(string))
+					step := 70 * time.Microsecond
+					if f.rnd.Intn(2) == 0 {
+						step = -step
+					}
+					disc["time"] = at.Add(step).Format("2006-01-02T15:04:05.000000Z")
+					f.writeLineLocked(disc)
+				}
 				if reason == "ReadError" {
 					f.writeLogLocked(map[string]any{"file": "wsPeer.go", "level": "warning",
 						"msg": fmt.Sprintf("peer[%s] line=523 read err: stream reset: connection closed: read tcp4 192.0.2.10:4190->%s: read: connection reset by peer", old.addr, ipOf(old.addr))})
@@ -459,10 +475,15 @@ func ipOf(addr string) string {
 }
 
 func (f *Fake) writeLogLocked(m map[string]any) {
+	m["time"] = time.Now().UTC().Format("2006-01-02T15:04:05.000000Z")
+	f.writeLineLocked(m)
+}
+
+// writeLineLocked writes m with the time it already has.
+func (f *Fake) writeLineLocked(m map[string]any) {
 	if f.logF == nil {
 		return
 	}
-	m["time"] = time.Now().UTC().Format("2006-01-02T15:04:05.000000Z")
 	b, _ := json.Marshal(m)
 	f.logF.Write(append(b, '\n'))
 }
