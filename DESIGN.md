@@ -634,6 +634,8 @@ The hub names an agent's node `<remote>/<node>` unless the remote's `names` maps
 
 `algod.top remote upgrade <host>`, `algod.top remote sync <host>` and `algod.top remote remove <host>` cover the rest of the lifecycle. Each finds the saved remote by its SSH host as well as by `--name`, so `remote upgrade node1` finds a remote saved as `partmon1`. For a system agent, whose config path is under `/etc`, the SSH user cannot write the config. `sync` prints the alert settings to merge on the host, and `remove` drops the remote from the hub and prints the uninstall command, with the remote's `su` or `sudo`.
 
+When the host does not answer over SSH, `remove` still drops the remote from the hub config after it confirms. It changes nothing on the host. For a user-level agent it says the binary and service stay there, and prints the `remote remove --path` command to run once the host answers. For a system agent it prints the uninstall command as usual, in its Unix form unless the saved agent path is a Windows path. An interrupted command, or a host the config has no remote for, leaves the config alone.
+
 ### Upgrades
 
 `algod.top upgrade`, run on the hub, installs a release everywhere: on the hub's machine, then on every agent in its config. The newest release is the default, and `--version` names another. Each daemon and agent installs the release itself:
