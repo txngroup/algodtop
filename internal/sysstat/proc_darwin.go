@@ -40,10 +40,22 @@ func (p *platformState) init() {}
 
 func (p *platformState) close() {}
 
-func cmd(name string, args ...string) *exec.Cmd {
-	c := exec.Command(name, args...)
-	c.Env = append(os.Environ(), "LC_ALL=C", "LANG=C")
-	return c
+// cmdTimeout caps one command, so a hung ps or lsof cannot stall a pass.
+const cmdTimeout = 20 * time.Second
+
+// output runs a command in the C locale and returns its stdout. Cancelling
+// ctx kills the command.
+func output(ctx context.Context, env []string, name string, args ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(ctx, cmdTimeout)
+	defer cancel()
+	c := exec.CommandContext(ctx, name, args...)
+	c.Env = append(os.Environ(), env...)
+	c.WaitDelay = time.Second
+	return c.Output()
+}
+
+func run(ctx context.Context, name string, args ...string) ([]byte, error) {
+	return output(ctx, []string{"LC_ALL=C", "LANG=C"}, name, args...)
 }
 
 func joinPIDs(pids []int) string {
@@ -56,13 +68,13 @@ func joinPIDs(pids []int) string {
 
 // procs runs one ps for every PID. CPU comes from the cumulative time=
 // field, because %cpu on macOS is a decaying average.
-func (p *platformState) procs(pids []int) map[int]Proc {
+func (p *platformState) procs(ctx context.Context, pids []int) map[int]Proc {
 	out := map[int]Proc{}
 	if len(pids) == 0 {
 		return out
 	}
 	list := joinPIDs(pids)
-	b, err := cmd("ps", "-o", "pid=,rss=,time=,lstart=", "-p", list).Output()
+	b, err := run(ctx, "ps", "-o", "pid=,rss=,time=,lstart=", "-p", list)
 	if err != nil && len(b) == 0 {
 		return out
 	}
@@ -85,7 +97,7 @@ func (p *platformState) procs(pids []int) map[int]Proc {
 		out[pid] = pr
 	}
 	// Threads: ps -M prints one line per thread, each with the PID.
-	if b, err := cmd("ps", "-M", "-p", list).Output(); err == nil || len(b) > 0 {
+	if b, err := run(ctx, "ps", "-M", "-p", list); err == nil || len(b) > 0 {
 		counts := map[int]int{}
 		for i, l := range strings.Split(string(b), "\n") {
 			f := strings.Fields(l)
@@ -111,7 +123,7 @@ func (p *platformState) procs(pids []int) map[int]Proc {
 		p.lsof = cache[map[int]int]{}
 		p.lsofOf = list
 	}
-	fds := p.lsof.get(5*time.Minute, func() map[int]int { return lsofCounts(list) })
+	fds := p.lsof.get(5*time.Minute, func() map[int]int { return lsofCounts(ctx, list) })
 	for pid, n := range fds {
 		if pr, ok := out[pid]; ok {
 			pr.Handles = float64(n)
@@ -121,8 +133,8 @@ func (p *platformState) procs(pids []int) map[int]Proc {
 	return out
 }
 
-func lsofCounts(list string) map[int]int {
-	b, _ := cmd("lsof", "-n", "-P", "-F", "f", "-p", list).Output()
+func lsofCounts(ctx context.Context, list string) map[int]int {
+	b, _ := run(ctx, "lsof", "-n", "-P", "-F", "f", "-p", list)
 	counts := map[int]int{}
 	cur := 0
 	for _, l := range strings.Split(string(b), "\n") {
@@ -163,7 +175,7 @@ func parseCPUTime(s string) float64 {
 // output sits in a stdio buffer when stdout is a pipe and arrives late.
 // -n keeps addresses numeric: nettop resolves names on some runs and not
 // on others, and a socket whose name changes would be counted twice.
-func (p *platformState) netBytes(pids []int) map[int]NetIO {
+func (p *platformState) netBytes(ctx context.Context, pids []int) map[int]NetIO {
 	if len(pids) == 0 {
 		return map[int]NetIO{}
 	}
@@ -171,19 +183,15 @@ func (p *platformState) netBytes(pids []int) map[int]NetIO {
 	for _, pid := range pids {
 		args = append(args, "-p", strconv.Itoa(pid))
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-	c := exec.CommandContext(ctx, "nettop", args...)
-	c.Env = append(os.Environ(), "LC_ALL=C")
-	b, err := c.Output()
+	b, err := output(ctx, []string{"LC_ALL=C"}, "nettop", args...)
 	if err != nil && len(b) == 0 {
 		return map[int]NetIO{}
 	}
 	return p.nettop.update(parseNettop(string(b), pids), pids)
 }
 
-func interfaces() (float64, float64, error) {
-	b, err := cmd("netstat", "-ibn").Output()
+func interfaces(ctx context.Context) (float64, float64, error) {
+	b, err := run(ctx, "netstat", "-ibn")
 	if err != nil {
 		return 0, 0, err
 	}
@@ -213,8 +221,8 @@ func interfaces() (float64, float64, error) {
 	return in, out, nil
 }
 
-func loadAvg() (float64, float64, float64, bool) {
-	b, err := cmd("sysctl", "-n", "vm.loadavg").Output()
+func loadAvg(ctx context.Context) (float64, float64, float64, bool) {
+	b, err := run(ctx, "sysctl", "-n", "vm.loadavg")
 	if err != nil {
 		return 0, 0, 0, false
 	}
@@ -229,7 +237,7 @@ func loadAvg() (float64, float64, float64, bool) {
 }
 
 func listAlgod() []algod.Process {
-	b, err := cmd("ps", "-axo", "pid=,args=").Output()
+	b, err := run(context.Background(), "ps", "-axo", "pid=,args=")
 	if err != nil {
 		return nil
 	}

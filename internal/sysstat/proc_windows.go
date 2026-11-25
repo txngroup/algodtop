@@ -3,6 +3,7 @@
 package sysstat
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"syscall"
@@ -76,7 +77,7 @@ type ioCounters struct {
 
 func filetimeNS(ft syscall.Filetime) int64 { return ft.Nanoseconds() }
 
-func (p *platformState) procs(pids []int) map[int]Proc {
+func (p *platformState) procs(_ context.Context, pids []int) map[int]Proc {
 	out := map[int]Proc{}
 	threads := threadCounts()
 	for _, pid := range pids {
@@ -141,9 +142,9 @@ func threadCounts() map[uint32]uint32 {
 	return out
 }
 
-func (p *platformState) netBytes(pids []int) map[int]NetIO {
+func (p *platformState) netBytes(_ context.Context, pids []int) map[int]NetIO {
 	out := map[int]NetIO{}
-	in, o, err := interfaces()
+	in, o, err := interfaces(context.Background())
 	if err != nil {
 		return out
 	}
@@ -164,7 +165,7 @@ const (
 	ifTableStart = 8
 )
 
-func interfaces() (float64, float64, error) {
+func interfaces(context.Context) (float64, float64, error) {
 	if err := procGetIfTable2.Find(); err != nil {
 		return 0, 0, err
 	}
@@ -186,7 +187,7 @@ func interfaces() (float64, float64, error) {
 	return in, out, nil
 }
 
-func loadAvg() (float64, float64, float64, bool) { return 0, 0, 0, false }
+func loadAvg(context.Context) (float64, float64, float64, bool) { return 0, 0, 0, false }
 
 func listAlgod() []algod.Process {
 	var out []algod.Process
