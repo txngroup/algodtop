@@ -488,9 +488,17 @@ func (d *Daemon) pullRemote(ctx context.Context, run *remoteRun, cursorPath stri
 			replayTo, old.Names = c, parseNamesKey(k)
 		}
 	}
+	saved := cursor
 	renamed := func(n string) bool { return hubName(old, n) != hubName(run.cfg, n) }
 	sink := &daemonSink{d: d, rename: func(n string) string { return hubName(run.cfg, n) }, onRound: run.noteRound}
 	seen := newEventDedup()
+	// pulled holds the hub names of the nodes this pull has seen data for,
+	// in case an agent-wide event arrives before the first status poll.
+	pulled := map[string]bool{}
+	// pending holds agent-wide events until the agent's nodes are known.
+	// The saved cursor waits for them, so a hub crash pulls them again.
+	var pending []model.Event
+	var pendingSince time.Time
 	for {
 		rctx, cancel := context.WithTimeout(ctx, 90*time.Second)
 		resp, err := d.get(rctx, run, "/agent/v1/batches?wait=30s&since="+cursor)
@@ -517,6 +525,11 @@ func (d *Daemon) pullRemote(ctx context.Context, run *remoteRun, cursorPath stri
 			replayTo = ""
 		}
 		for _, it := range items {
+			if n := it.NodeName(); n != "" {
+				pulled[hubName(run.cfg, n)] = true
+			}
+		}
+		for _, it := range items {
 			if skipOld && !renamed(it.NodeName()) {
 				continue
 			}
@@ -525,9 +538,17 @@ func (d *Daemon) pullRemote(ctx context.Context, run *remoteRun, cursorPath stri
 				// Catch-up data advances the node's own head in order.
 				sink.Batch(it.Batch)
 			case it.Event != nil:
-				if !seen.add(*it.Event) {
-					sink.Event(*it.Event)
+				if seen.add(*it.Event) {
+					break
 				}
+				if it.Event.Node != "" {
+					sink.Event(*it.Event)
+					break
+				}
+				if len(pending) == 0 {
+					pendingSince = time.Now()
+				}
+				pending = append(pending, *it.Event)
 			case it.Session != nil:
 				sink.Session(*it.Session)
 			case it.Usage != nil:
@@ -539,14 +560,28 @@ func (d *Daemon) pullRemote(ctx context.Context, run *remoteRun, cursorPath stri
 				sink.Annotate(*it.Annotation)
 			}
 		}
+		if len(pending) > 0 {
+			// An agent with no nodes never names one: its events keep no node.
+			if names := run.nodeNames(pulled); len(names) > 0 || time.Since(pendingSince) > time.Minute {
+				for _, ev := range pending {
+					for _, e := range agentEvents(ev, run.cfg.Name, names) {
+						d.emitEvent(e)
+					}
+				}
+				pending = nil
+			}
+		}
 		run.mu.Lock()
 		run.lastOK = time.Now()
 		run.mu.Unlock()
 		if next != "" && next != cursor {
+			cursor = next
+		}
+		if cursor != saved && len(pending) == 0 {
 			if err := d.Flush(); err != nil {
 				return err
 			}
-			cursor = next
+			saved = cursor
 			line := cursor
 			if key != "" {
 				line = key + " " + cursor
@@ -557,6 +592,54 @@ func (d *Daemon) pullRemote(ctx context.Context, run *remoteRun, cursorPath stri
 			return ctx.Err()
 		}
 	}
+}
+
+// nodeNames is the hub names of the agent's nodes: from its last status,
+// or from the data pulled so far before the first status arrives.
+func (r *remoteRun) nodeNames(pulled map[string]bool) []string {
+	var out []string
+	r.mu.Lock()
+	for _, v := range r.views {
+		out = append(out, v.Name)
+	}
+	r.mu.Unlock()
+	if len(out) == 0 {
+		for n := range pulled {
+			out = append(out, n)
+		}
+		sort.Strings(out)
+	}
+	return out
+}
+
+// agentEvents attributes an agent-wide event, such as the agent's own
+// start, monitor gap or buffer deletion, to the agent's nodes on the hub.
+// Kept without a node, it would match every node, and an agent's restart
+// would shade the hub's own nodes' charts as "algod.top was down". Each of
+// the agent's nodes gets a copy, since its data has the same gap. With no
+// node known yet, the one copy keeps no node and still names the agent.
+func agentEvents(e model.Event, remote string, nodes []string) []model.Event {
+	e.Msg = "agent " + remote + ": " + e.Msg
+	attrs := map[string]any{}
+	for k, v := range e.Attrs {
+		attrs[k] = v
+	}
+	attrs["agent"] = remote
+	if len(nodes) == 0 {
+		e.Attrs = attrs
+		return []model.Event{e}
+	}
+	out := make([]model.Event, 0, len(nodes))
+	for _, n := range nodes {
+		c := e
+		c.Node = n
+		c.Attrs = make(map[string]any, len(attrs))
+		for k, v := range attrs {
+			c.Attrs[k] = v
+		}
+		out = append(out, c)
+	}
+	return out
 }
 
 // eventDedup drops events a re-pull delivers twice.
