@@ -24,6 +24,7 @@ import (
 	"algod.top/internal/config"
 	"algod.top/internal/daemon"
 	"algod.top/internal/fakealgod"
+	"algod.top/internal/model"
 	"algod.top/internal/tui"
 	"algod.top/internal/web"
 )
@@ -595,6 +596,27 @@ func TestTLSAgent(t *testing.T) {
 		getJSON(t, "http://"+r.addr+"/api/series?node=edge/alpha&metric=algodtop_round&fn=last&from=-2m&points=60&tier=raw", &series)
 		return len(series.Series) == 1 && len(series.Series[0].Avg) > 2
 	})
+	// The agent's own start event lands on its node, naming the agent,
+	// rather than on every node as the hub's own events do.
+	var evs struct {
+		Events []model.Event `json:"events"`
+	}
+	waitFor(t, "agent start event on its node", 30*time.Second, func() bool {
+		evs.Events = nil
+		getJSON(t, "http://"+r.addr+"/api/events?node=edge/alpha&kind=algodtop-start&from=-5m", &evs)
+		for _, e := range evs.Events {
+			if e.Node == "edge/alpha" && strings.HasPrefix(e.Msg, "agent edge: algod.top ") && e.Attrs["agent"] == "edge" {
+				return true
+			}
+		}
+		return false
+	})
+	getJSON(t, "http://"+r.addr+"/api/events?node=other&kind=algodtop-start&from=-5m", &evs)
+	for _, e := range evs.Events {
+		if strings.HasPrefix(e.Msg, "agent ") {
+			t.Errorf("agent event on another node: %+v", e)
+		}
+	}
 
 	// Names give the agent's node a hub name of its own, such as the SSH
 	// node it replaced. The hub pulls the agent's buffer again, so the data
