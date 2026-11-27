@@ -152,3 +152,43 @@ func TestAccessLine(t *testing.T) {
 		t.Fatalf("%+v", l)
 	}
 }
+
+func TestTemplateSpans(t *testing.T) {
+	cases := map[string]string{
+		// IPv6 peers, bracketed with a port and bare.
+		"peer[[2001:db8:1::5]:4160] line=12 read err: read: connection reset by peer":                               "peer[<addr>] line=<n> read err: read: connection reset by peer",
+		"failed to write CloseMessage to connection for [2001:db8::9]:4160, err: write: broken pipe":                "failed to write CloseMessage to connection for <addr>, err: write: broken pipe",
+		"wsPeer readLoop: received a TS response for a stale request from [2001:db8:ab::]:4160. 12 bytes discarded": "wsPeer readLoop: received a TS response for a stale request from <addr>. <n> bytes discarded",
+		"listening on [::]:4160":             "listening on <addr>",
+		"dial from 2001:db8:5f:: failed":     "dial from <addr> failed",
+		"route via 2001:db8::abcd: no route": "route via <addr>: no route",
+		"[::ffff:192.0.2.1]:4160 refused":    "<addr> refused",
+		// Brackets around something else stay.
+		"peer[203.0.113.9:4160] read err: EOF": "peer[<addr>] read err: EOF",
+		"slice [1:2] out of range":             "slice [1:2] out of range",
+		"state a::b changed":                   "state a::b changed",
+		"at 12:34:56 the clock moved":          "at <n>:<n>:<n> the clock moved",
+		// Dates with weekday and month names.
+		`Headers = http.Header{"Date":[]string{"Sat, 21 Nov 2026 23:36:25 GMT"}}, Body = <html>`: `Headers = http.Header{"Date":[]string{"<date>"}}, Body = <html>`,
+		"cert expires Mon, 02 Jan 2006 15:04:05 -0700 soon":                                      "cert expires <date> soon",
+		"since Tue, 05 May 2026 08:00:00 CEST":                                                   "since <date>",
+		"started Wed Jan  7 15:04:05 UTC 2026":                                                   "started <date>",
+		"started Thu Dec 31 23:59:59 2026, ok":                                                   "started <date>, ok",
+		// A relay behind TLS.
+		"ws connect(wss://relay.example.net:443/v1/mainnet-v1.0/gossip) fail": "ws connect(<url>) fail",
+		// A weekday word without a date stays.
+		"Mon, the first day": "Mon, the first day",
+	}
+	for in, want := range cases {
+		if got := Template(in); got != want {
+			t.Errorf("Template(%q)\n got %q\nwant %q", in, got, want)
+		}
+	}
+	// A relay's failed handshake on two days is one template.
+	const line = `ws connect(wss://relay.example.net:443/v1/mainnet-v1.0/gossip) fail - bad handshake, Status code = 404, Headers = http.Header{"Content-Type":[]string{"text/html"}, "Date":[]string{"%s"}}`
+	a := Template(strings.Replace(line, "%s", "Sat, 21 Nov 2026 23:36:25 GMT", 1))
+	b := Template(strings.Replace(line, "%s", "Mon, 01 Dec 2026 01:02:03 GMT", 1))
+	if a != b {
+		t.Errorf("two days, two templates:\n%q\n%q", a, b)
+	}
+}
