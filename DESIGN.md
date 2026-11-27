@@ -607,6 +607,8 @@ The pull protocol is the same over SSH and TLS:
 
 Alerts for an agent's nodes run on the agent, so a hub on a sleeping laptop does not silence them. The hub shows the agent's alert events, and fires only one alert of its own for those nodes: "agent unreachable". Its reason says how long the hub has gone without an answer and why the last connection ended, with what ssh printed on one line. Hub-local, REST and no-install nodes alert from the hub. Each alert therefore fires from exactly one place.
 
+While an agent is unreachable, the hub still holds the agent's last report for each of its nodes, and that report says the node is up. The hub marks those nodes with `stale_since`, its last answer from the agent. The web UI and the terminal UI then show "-" for peers, CPU, RSS and bandwidth, as for a down node, and say that participation, peers and uptime are unknown while the agent is unreachable. Round and lag stay, because they say when the hub last heard a block from the node.
+
 ### TLS agent
 
 For hosts the hub cannot reach over SSH, the agent can listen on TCP:
@@ -806,7 +808,7 @@ The terminal UI talks to the daemon over the unix socket with the same API as th
    - the last notable event. Peer connects and disconnects, log warnings and log rotations do not count. algod rotates `node.log` each time it reaches its size limit, several times a day on a busy node, so a rotation would soon hide a restart or config change.
 
    A sortable table view shows the same data.
-2. Node. A header strip shows live round, lag, version, uptime and the last effective config change. For a down node, the strip shows how long it has been down in place of its uptime, and no change vs 24 h ago, because its live values read 0. Peers and participation say that algod is down, rather than that the admin token is missing or that no keys are installed. Below it are the time-range controls: 1h, 6h, 24h, 7d, 30d, 1y, all, custom, "since last restart", and the full-resolution toggle. Collapsible sections of synchronized charts follow:
+2. Node. A header strip shows live round, lag, version, uptime and the last effective config change. For a down node, the strip shows how long it has been down in place of its uptime, and no change vs 24 h ago, because its live values read 0. Peers and participation say that algod is down, rather than that the admin token is missing or that no keys are installed. A node whose agent is unreachable gets the same treatment (section 12), and its uptime reads unknown, with how long the hub has gone without hearing from the agent. Below it are the time-range controls: 1h, 6h, 24h, 7d, 30d, 1y, all, custom, "since last restart", and the full-resolution toggle. Collapsible sections of synchronized charts follow:
    - Consensus: round time, votes and proposals, transactions per block, pool size
    - Network WS: peers, bytes by direction, disconnect reasons as stacked bars
    - Network P2P: connections, gossip streams, pubsub peers, DHT, evictions, setup timeouts, resource manager blocks

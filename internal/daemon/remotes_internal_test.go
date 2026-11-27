@@ -40,6 +40,33 @@ func TestDownReason(t *testing.T) {
 	}
 }
 
+// An agent out of reach leaves the hub holding its last report. The view
+// says since when, so the UI does not show that report's CPU and peers as
+// current. A reachable agent's views carry no such mark.
+func TestViewsMarkUnreachableAgentStale(t *testing.T) {
+	last := time.Now().Add(-14 * time.Hour)
+	v := api.NodeView{}
+	v.Name, v.Up, v.CPU = "edge/mainnet", true, 26.6
+	rs := &remoteSet{runs: map[string]*remoteRun{
+		"edge": {cfg: config.Remote{Name: "edge"}, lastOK: last, lastErr: "no route to host", views: []api.NodeView{v}},
+		"core": {cfg: config.Remote{Name: "core"}, lastOK: time.Now(), views: []api.NodeView{v}},
+	}}
+	got := rs.views()
+	if len(got) != 2 {
+		t.Fatalf("got %d views", len(got))
+	}
+	core, edge := got[0], got[1]
+	if edge.StaleSince != last.UnixNano() {
+		t.Errorf("unreachable agent: stale_since %d, want %d", edge.StaleSince, last.UnixNano())
+	}
+	if len(edge.Health.Reasons) == 0 || edge.Health.Reasons[0].Rule != "agent_unreachable" {
+		t.Errorf("unreachable agent reasons: %+v", edge.Health.Reasons)
+	}
+	if core.StaleSince != 0 {
+		t.Errorf("reachable agent marked stale: %d", core.StaleSince)
+	}
+}
+
 // The hub keeps its agents in a map. The node pickers in the web UI list
 // nodes in the order views returns, so it must not change between calls.
 // Each agent's own nodes keep the agent's order.
