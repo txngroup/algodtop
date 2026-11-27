@@ -12,6 +12,7 @@ import (
 	"io/fs"
 	"log"
 	"maps"
+	"math"
 	"net"
 	"net/http"
 	"os"
@@ -268,7 +269,9 @@ func (d *Daemon) Run(ctx context.Context) error {
 	go func() { d.writer(); close(writerDone) }()
 
 	d.host = collector.NewHost(collector.HostOptions{ProcEvery: cfg.Intervals.Proc.D(), NetEvery: cfg.Intervals.ProcNet.D(), NTPServer: ntpServer(cfg),
-		NTPEvery: cfg.NTP.Interval.D()}, d.sink(), d.localNodes)
+		NTPEvery: cfg.NTP.Interval.D(), DiskHistory: func(node string, from, to time.Time) []collector.DiskReading {
+			return diskHistory(ctx, d.qe, node, from, to)
+		}}, d.sink(), d.localNodes)
 	var bg sync.WaitGroup
 	bg.Add(1)
 	go func() { defer bg.Done(); d.host.Run(ctx) }()
@@ -558,6 +561,32 @@ func (d *Daemon) stopNodes() {
 		go func(n string) { defer wg.Done(); d.stopNode(n) }(n)
 	}
 	wg.Wait()
+}
+
+// diskHistory reads a node's stored disk free and total bytes, for the
+// disk fill forecast. Both gauges come from one batch, so the same range
+// and point count put them in the same buckets.
+func diskHistory(ctx context.Context, qe *query.Engine, node string, from, to time.Time) []collector.DiskReading {
+	read := func(metric string) *query.Series {
+		r, err := qe.Run(ctx, query.Request{Node: node, Metric: metric, From: from.UnixNano(), To: to.UnixNano(), Points: 1000})
+		if err != nil || len(r.Series) != 1 {
+			return nil
+		}
+		return &r.Series[0]
+	}
+	free, total := read("host_disk_free_bytes"), read("host_disk_total_bytes")
+	if free == nil || total == nil || len(free.T) != len(total.T) {
+		return nil
+	}
+	var out []collector.DiskReading
+	for i, t := range free.T {
+		f, tot := free.Avg[i], total.Avg[i]
+		if math.IsNaN(f) || math.IsNaN(tot) || t != total.T[i] {
+			continue
+		}
+		out = append(out, collector.DiskReading{T: time.Unix(0, t), Free: f, Total: tot})
+	}
+	return out
 }
 
 // lastStoredRound returns the newest stored round, for header backfill.
