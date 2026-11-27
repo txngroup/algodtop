@@ -508,6 +508,9 @@ type logCounts struct {
 	// of their own: those the store already has, then new ones while the
 	// cap has room.
 	slotsT, slotsF map[string]bool
+	// known holds the series, as name and label string, that the store
+	// has or that a flush has written. See emit.
+	known map[string]bool
 }
 
 type warnAgg struct {
@@ -519,8 +522,12 @@ type warnAgg struct {
 func newLogCounts(capT, capF int) *logCounts {
 	return &logCounts{capT: capT, capF: capF, templates: map[string]float64{}, trace: map[string]float64{}, flood: map[string]float64{},
 		http: map[string]float64{}, extracts: map[string]float64{}, levels: map[string]float64{}, warn: map[string]*warnAgg{},
-		slotsT: map[string]bool{}, slotsF: map[string]bool{}}
+		slotsT: map[string]bool{}, slotsF: map[string]bool{}, known: map[string]bool{}}
 }
+
+// logMetrics are the series names samples writes.
+var logMetrics = []string{"log_template_lines_total", "log_http_requests_total", "log_trace_lines_total", "log_txpool_invalid_total",
+	"log_extract_total", "log_lines_total", "log_unparsed_lines_total", "log_template_drops_total"}
 
 // seed fills the slots from the store. The store's caps never free a
 // series, and the counts start empty at each restart. Without the seed, the
@@ -528,6 +535,11 @@ func newLogCounts(capT, capF int) *logCounts {
 // then dropped them, so their lines were in neither their own series nor
 // "other". New templates were lost the same way.
 func (c *logCounts) seed(stored func(string) []model.Labels) {
+	for _, name := range logMetrics {
+		for _, ls := range stored(name) {
+			c.known[name+"\x00"+ls.String()] = true
+		}
+	}
 	for _, ls := range stored("log_txpool_invalid_total") {
 		if app := ls.Get("app"); app != "other" {
 			c.slotsF[app] = true
@@ -613,6 +625,20 @@ func (c *logCounts) add(l *logparse.Line) {
 
 func (c *logCounts) samples() []model.Sample {
 	var out []model.Sample
+	// emit writes a new series as 0 for one flush and its count from the
+	// next. A counter's increase needs an earlier point, so the store and
+	// queries never count a series' first value. That is right for algod's
+	// counters, which ran before algod.top looked, but a log count is 0
+	// before its first line. Before, a template seen once never showed in
+	// the template counts, and the first minute of every new app ID or
+	// template was lost. The count shows one flush late instead.
+	emit := func(name string, ls model.Labels, v float64) {
+		if k := name + "\x00" + ls.String(); !c.known[k] {
+			c.known[k] = true
+			v = 0
+		}
+		out = append(out, model.Sample{Name: name, Labels: ls, Kind: model.KindCounter, Value: v})
+	}
 	add := func(name string, m map[string]float64, label string) {
 		keys := make([]string, 0, len(m))
 		for k := range m {
@@ -620,22 +646,22 @@ func (c *logCounts) samples() []model.Sample {
 		}
 		sort.Strings(keys)
 		for _, k := range keys {
-			out = append(out, model.Sample{Name: name, Labels: model.Labels{{Name: label, Value: k}}, Kind: model.KindCounter, Value: m[k]})
+			emit(name, model.Labels{{Name: label, Value: k}}, m[k])
 		}
 	}
 	for k, v := range c.templates {
 		level, tmpl, _ := strings.Cut(k, "|")
-		out = append(out, model.Sample{Name: "log_template_lines_total", Labels: model.Labels{{Name: "level", Value: level}, {Name: "template", Value: tmpl}}, Kind: model.KindCounter, Value: v})
+		emit("log_template_lines_total", model.Labels{{Name: "level", Value: level}, {Name: "template", Value: tmpl}}, v)
 	}
 	for k, v := range c.http {
 		path, code, _ := strings.Cut(k, "|")
-		out = append(out, model.Sample{Name: "log_http_requests_total", Labels: model.Labels{{Name: "path", Value: path}, {Name: "status", Value: code}}, Kind: model.KindCounter, Value: v})
+		emit("log_http_requests_total", model.Labels{{Name: "path", Value: path}, {Name: "status", Value: code}}, v)
 	}
 	add("log_trace_lines_total", c.trace, "type")
 	add("log_txpool_invalid_total", c.flood, "app")
 	add("log_extract_total", c.extracts, "type")
 	add("log_lines_total", c.levels, "level")
-	out = append(out, model.Sample{Name: "log_unparsed_lines_total", Kind: model.KindCounter, Value: c.bad},
-		model.Sample{Name: "log_template_drops_total", Kind: model.KindCounter, Value: c.templDrops})
+	emit("log_unparsed_lines_total", nil, c.bad)
+	emit("log_template_drops_total", nil, c.templDrops)
 	return out
 }

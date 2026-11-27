@@ -22,14 +22,27 @@ func Template(msg string) string {
 			i++
 			continue
 		}
+		// Go's net errors join the local and remote address with "->",
+		// as in "dial tcp4 0.0.0.0:4160->192.0.2.1:4160". Without the
+		// split the local side kept its trailing "-" and became
+		// "<n>.<n>.<n>.<n>:<n>-" rather than "<addr>".
+		if arrowAt(msg, i) {
+			b.WriteString("->")
+			i += 2
+			continue
+		}
 		j := i
-		for j < len(msg) && isWordByte(msg[j]) {
+		for j < len(msg) && isWordByte(msg[j]) && !arrowAt(msg, j) {
 			j++
 		}
 		b.WriteString(classify(msg[i:j]))
 		i = j
 	}
 	return collapse(b.String())
+}
+
+func arrowAt(msg string, i int) bool {
+	return msg[i] == '-' && i+1 < len(msg) && msg[i+1] == '>'
 }
 
 func isWordByte(c byte) bool {

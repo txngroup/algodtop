@@ -200,7 +200,7 @@ Today no algod series carries a per-peer label, but a future version could add o
 
 New series beyond either cap are dropped, the drop is counted, and both front ends show a warning naming the metric. Per-peer data goes into the peer-session store (below), not into series.
 
-Log-derived series have their own caps: templates per node (default 2000) and app IDs per flood counter (default 100, with the rest summed into `other`). The store never frees a series, while the tailer's counts start empty at each restart. So the tailer starts its caps from the templates and app IDs the store already holds. A value new to the store gets a series only while the cap has room. Otherwise its lines go to `other` or to `log_template_drops_total`, rather than to a series the store would drop.
+Log-derived series have their own caps: templates per node (default 2000) and app IDs per flood counter (default 100, with the rest summed into `other`). The store never frees a series, while the tailer's counts start empty at each restart. So the tailer starts its caps from the templates and app IDs the store already holds. A value new to the store gets a series only while the cap has room. Otherwise its lines go to `other` or to `log_template_drops_total`, rather than to a series the store would drop. The store's name cap always admits `app=other` itself. A store that an older version filled with a full cap of app IDs, or that a lower `flood_app_ids` left over the cap, would otherwise drop `other` too, and those lines would be in no series.
 
 ### Metric renames
 
@@ -280,7 +280,7 @@ Each line is JSON. The tailer runs a byte-level prefilter first, because the noi
 - "Pending transaction in pool no longer valid" floods (100k lines in 10 minutes are possible) are counted per minute and per app ID, and never stored line by line.
 - HTTP access lines are counted by path and status.
 
-The remaining lines become message templates. The tailer replaces addresses, numbers, base32 IDs, hashes, durations and peer IDs with placeholders. Host names with a port, such as relays from SRV records, become `<addr>` like IP addresses, so each relay does not get its own template. Each template gets a per-minute count, stored as a series in the chunk store under the template caps (section 6). This keeps "what is the node complaining about" cheap to chart over the whole history.
+The remaining lines become message templates. The tailer replaces addresses, numbers, base32 IDs, hashes, durations and peer IDs with placeholders. Host names with a port, such as relays from SRV records, become `<addr>` like IP addresses, so each relay does not get its own template. Go's net errors join a local and a remote address with `->`, as in `dial tcp4 0.0.0.0:4160->192.0.2.1:4160`, and both sides become `<addr>`. Each template gets a per-minute count, stored as a series in the chunk store under the template caps (section 6). A counter's increase needs an earlier point, so a series' first stored value never counts. That suits algod's counters, which ran before algod.top looked. A log count is 0 before its first line, so the tailer writes a new log series as 0 for one minute and its count from the next. A template seen once still shows in the counts, one minute late. This keeps "what is the node complaining about" cheap to chart over the whole history.
 
 Specific extractors turn known lines into events with attributes. Each extractor is a small Go function with a test fixture taken from a real log. The first set covers:
 
