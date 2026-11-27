@@ -101,6 +101,36 @@ func TestNodeScreenDown(t *testing.T) {
 	golden(t, "node-down", Render(m))
 }
 
+// A node whose agent the hub cannot reach keeps the agent's last report.
+// Its row shows the round and lag, and no peers, CPU, RSS or rates.
+func TestStaleAgentNode(t *testing.T) {
+	m := fixture()
+	n := &m.Nodes[1]
+	n.Kind, n.Remote = "agent", "edge"
+	n.StaleSince = m.Now.Add(-(14*time.Hour + 36*time.Minute)).UnixNano()
+	n.Health = health.Status{Level: health.Critical, Reasons: []health.Reason{{Rule: "agent_unreachable", Level: health.Critical, Text: "agent edge unreachable for 14h36m0s: no answer"}}}
+	var row string
+	for _, l := range Render(m) {
+		if strings.HasPrefix(strings.TrimSpace(l), "testnet") {
+			row = l
+		}
+	}
+	f := strings.Fields(row)
+	if len(f) < 11 || f[3] != "61022817" || f[5] != "2.80s" {
+		t.Fatalf("round and round time should stay: %q", row)
+	}
+	for i := 6; i <= 10; i++ {
+		if f[i] != "-" {
+			t.Errorf("column %d is %q, want -: %q", i, f[i], row)
+		}
+	}
+	m.Screen, m.Node, m.H = ScreenNode, "testnet", 6
+	head := Render(m)[1]
+	if !strings.Contains(head, "agent unreachable 14h 36m") || strings.Contains(head, " up ") {
+		t.Errorf("node header: %q", head)
+	}
+}
+
 func TestTimeCursor(t *testing.T) {
 	m := fixture()
 	m.Cursor = time.Date(2026, 11, 3, 9, 30, 0, 0, time.UTC).UnixNano()

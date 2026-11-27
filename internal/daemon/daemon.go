@@ -162,7 +162,8 @@ func New(o Options) (*Daemon, error) {
 		infoDays = max(infoDays, n.KeepRawDays)
 	}
 	db, err := store.Open(store.Options{Dir: dir, Retention: ret, Caps: store.Caps{PerName: cfg.Caps.PerName, PerNode: cfg.Caps.PerNode, NameCaps: map[string]int{
-		"log_template_lines_total": max(cfg.Caps.Templates, 2000), "log_txpool_invalid_total": max(cfg.Caps.FloodAppIDs, 100) + 1}},
+		"log_template_lines_total": max(cfg.Caps.Templates, 2000), "log_txpool_invalid_total": max(cfg.Caps.FloodAppIDs, 100) + 1},
+		Spill: map[string]string{"log_txpool_invalid_total": "app=other"}},
 		GroupCommit: cfg.Intervals.GroupCommit.D(), DiskFloor: floor, AtFloor: cfg.Disk.AtFloor, Logf: d.logf, NoRollups: o.Agent, AddrRetention: addrRet, InfoLogDays: infoDays})
 	if err != nil {
 		return nil, fmt.Errorf("open store %s: %w", dir, err)

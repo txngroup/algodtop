@@ -186,7 +186,7 @@ A series is (node, metric name, sorted label set). algod.top stores a kind with 
 algod does not emit a `histogram` TYPE. Each `_bucket`, `_sum` and `_count` is its own family typed `counter`, for example `# TYPE libp2p_swarm_dial_latency_seconds_bucket counter`. algodtop groups a family as a histogram when it finds `<base>_bucket` series with an `le` label plus matching `<base>_sum` and `<base>_count`. The 407 family names on Mainnet count those suffix families separately.
 
 - Counter. algod.top stores the raw cumulative value, and the query layer computes rates. A restart resets every counter at once, so algod.top marks a reset on every counter of a node when its PID changes. A REST-only node has no PID, so a drop in most of its counters in one scrape marks the restart. A value that goes down without a restart is also treated as a reset of that series. The rate across a reset is the new value divided by the interval. Each reset is stored as an event, so a dip in a rate chart is visibly a restart.
-- Gauge. algod.top stores the value as reported.
+- Gauge. algod.top stores the value as reported. A query with `fn=rate` or `fn=increase` reads a gauge as a counter, with a fall or a restart as a reset. In the rollups it uses each bucket's last value. libp2p types `libp2p_rcmgr_blocked_resources` as a gauge, but it counts blocks since algod started. On a Mainnet node with about 85 P2P peers it climbed from about 3,000 to 9,200 over 14 days, so the node page charts its rate per minute.
 - Histogram. algod.top stores each bucket, `_sum` and `_count` as a counter. Queries derive heatmaps and percentiles (p50, p90, p99) from bucket deltas.
 
 Series come and go. The bucket count on Mainnet changes between scrapes as new label values (dial outcomes, protocols) appear. The chunk format records presence per sample (section 8), and a series absent from a scrape is a gap, not a zero.
@@ -200,7 +200,7 @@ Today no algod series carries a per-peer label, but a future version could add o
 
 New series beyond either cap are dropped, the drop is counted, and both front ends show a warning naming the metric. Per-peer data goes into the peer-session store (below), not into series.
 
-Log-derived series have their own caps: templates per node (default 2000) and app IDs per flood counter (default 100, with the rest summed into `other`). The store never frees a series, while the tailer's counts start empty at each restart. So the tailer starts its caps from the templates and app IDs the store already holds. A value new to the store gets a series only while the cap has room. Otherwise its lines go to `other` or to `log_template_drops_total`, rather than to a series the store would drop.
+Log-derived series have their own caps: templates per node (default 2000) and app IDs per flood counter (default 100, with the rest summed into `other`). The store never frees a series, while the tailer's counts start empty at each restart. So the tailer starts its caps from the templates and app IDs the store already holds. A value new to the store gets a series only while the cap has room. Otherwise its lines go to `other` or to `log_template_drops_total`, rather than to a series the store would drop. The store's name cap always admits `app=other` itself. A store that an older version filled with a full cap of app IDs, or that a lower `flood_app_ids` left over the cap, would otherwise drop `other` too, and those lines would be in no series.
 
 ### Metric renames
 
@@ -229,6 +229,8 @@ An event has a time, node, kind, severity, short message, and a JSON attribute m
 A peer session is (node, network ws/p2p, direction, remote address, P2P peer ID if known, start, end, end reason). Sessions come from two sources. Log connect and disconnect events give exact times and reasons. `/v2/node/peers` diffs fill in what the log level hides. The session store keeps the per-peer history that the reset-cluster analysis needed.
 
 A session already open when algod.top first looks has an unknown start. It is marked open before, and the UIs show its length as a lower bound. This covers a peer in the first poll and a log disconnect with no connect before it. Without the mark, such a disconnect read as a session of 0 s.
+
+algod removes a slow ws peer twice and logs the same `SlowConnection` disconnect each time, under a millisecond apart. The two lines are not always in time order. A disconnect for a peer with no open session, with the same reason and within 1 s of the last disconnect for that peer, is that repeat. algod.top drops it. Before, each one stored a second disconnect event and a 0 s session marked open before. Three mainnet nodes each had about 20 of these in 30 days.
 
 ### Per-peer usage
 
@@ -280,7 +282,9 @@ Each line is JSON. The tailer runs a byte-level prefilter first, because the noi
 - "Pending transaction in pool no longer valid" floods (100k lines in 10 minutes are possible) are counted per minute and per app ID, and never stored line by line.
 - HTTP access lines are counted by path and status.
 
-The remaining lines become message templates. The tailer replaces addresses, numbers, base32 IDs, hashes, durations and peer IDs with placeholders. Host names with a port, such as relays from SRV records, become `<addr>` like IP addresses, so each relay does not get its own template. Each template gets a per-minute count, stored as a series in the chunk store under the template caps (section 6). This keeps "what is the node complaining about" cheap to chart over the whole history.
+The remaining lines become message templates. The tailer replaces addresses, numbers, base32 IDs, hashes, durations and peer IDs with placeholders. Host names with a port, such as relays from SRV records, become `<addr>` like IP addresses, so each relay does not get its own template. Go's net errors join a local and a remote address with `->`, as in `dial tcp4 0.0.0.0:4160->192.0.2.1:4160`, and both sides become `<addr>`. Each template gets a per-minute count, stored as a series in the chunk store under the template caps (section 6). A counter's increase needs an earlier point, so a series' first stored value never counts. That suits algod's counters, which ran before algod.top looked. A log count is 0 before its first line, so the tailer writes a new log series as 0 for one minute and its count from the next. A template seen once still shows in the counts, one minute late. This keeps "what is the node complaining about" cheap to chart over the whole history.
+
+An IPv6 address becomes `<addr>` whole, with its brackets and port, as in `[2001:db8::1]:4160`, and so does one that ends in `::`. A date with weekday and month names becomes `<date>`. A failed relay handshake logs the HTTP response headers, and their `Date` would otherwise start a new template each day. Either change starts a new template series once for the lines it affects.
 
 Specific extractors turn known lines into events with attributes. Each extractor is a small Go function with a test fixture taken from a real log. The first set covers:
 
@@ -425,7 +429,7 @@ The API is plain JSON over HTTP, served by stdlib `net/http` with the pattern ro
 | Endpoint | Returns |
 |---|---|
 | `GET /api/nodes` | Nodes with live status and health summary |
-| `GET /api/series?node=&metric=&match=label:value&from=&to=&points=&tier=&fn=rate\|avg\|min\|max\|p99&by=label` | Time series |
+| `GET /api/series?node=&metric=&match=label:value&from=&to=&points=&tier=&fn=rate\|increase\|avg\|min\|max\|last\|p99&by=label` | Time series |
 | `GET /api/metrics?node=&q=` | Metric names and label values, for the explorer |
 | `GET /api/events?node=&kind=&from=&to=` | Events |
 | `GET /api/sessions?node=&addr=&from=&to=` | Peer sessions |
@@ -605,6 +609,8 @@ The pull protocol is the same over SSH and TLS:
 
 Alerts for an agent's nodes run on the agent, so a hub on a sleeping laptop does not silence them. The hub shows the agent's alert events, and fires only one alert of its own for those nodes: "agent unreachable". Its reason says how long the hub has gone without an answer and why the last connection ended, with what ssh printed on one line. Hub-local, REST and no-install nodes alert from the hub. Each alert therefore fires from exactly one place.
 
+While an agent is unreachable, the hub still holds the agent's last report for each of its nodes, and that report says the node is up. The hub marks those nodes with `stale_since`, its last answer from the agent. The web UI and the terminal UI then show "-" for peers, CPU, RSS and bandwidth, as for a down node, and say that participation, peers and uptime are unknown while the agent is unreachable. Round and lag stay, because they say when the hub last heard a block from the node.
+
 ### TLS agent
 
 For hosts the hub cannot reach over SSH, the agent can listen on TCP:
@@ -633,6 +639,8 @@ The agent must run as the account that owns the algod data directory. Package in
 The hub names an agent's node `<remote>/<node>` unless the remote's `names` maps it to another name. When `remote add` replaces an SSH node whose data directory matches one of the agent's nodes, it maps that node to the SSH node's name, so the history continues under one name. `--node-name` sets the name for an agent with one node, for remotes added before this existed. When a remote's names change, the hub pulls the agent's whole buffer again, so data already pulled under the old name is stored again under the new one. The cursor file records the names it was written under, which is how the hub notices. During that re-pull it skips items for nodes whose name did not change, up to the old cursor, so their events and sessions are not stored twice. Repeated samples are harmless, because raw merges keep one sample per timestamp and late windows rebuild their rollups from raw.
 
 `algod.top remote upgrade <host>`, `algod.top remote sync <host>` and `algod.top remote remove <host>` cover the rest of the lifecycle. Each finds the saved remote by its SSH host as well as by `--name`, so `remote upgrade node1` finds a remote saved as `partmon1`. For a system agent, whose config path is under `/etc`, the SSH user cannot write the config. `sync` prints the alert settings to merge on the host, and `remove` drops the remote from the hub and prints the uninstall command, with the remote's `su` or `sudo`.
+
+When the host does not answer over SSH, `remove` still drops the remote from the hub config after it confirms. It changes nothing on the host. For a user-level agent it says the binary and service stay there, and prints the `remote remove --path` command to run once the host answers. For a system agent it prints the uninstall command as usual, in its Unix form unless the saved agent path is a Windows path. An interrupted command, or a host the config has no remote for, leaves the config alone.
 
 ### Upgrades
 
@@ -804,7 +812,7 @@ The terminal UI talks to the daemon over the unix socket with the same API as th
    - the last notable event. Peer connects and disconnects, log warnings and log rotations do not count. algod rotates `node.log` each time it reaches its size limit, several times a day on a busy node, so a rotation would soon hide a restart or config change.
 
    A sortable table view shows the same data.
-2. Node. A header strip shows live round, lag, version, uptime and the last effective config change. For a down node, the strip shows how long it has been down in place of its uptime, and no change vs 24 h ago, because its live values read 0. Peers and participation say that algod is down, rather than that the admin token is missing or that no keys are installed. Below it are the time-range controls: 1h, 6h, 24h, 7d, 30d, 1y, all, custom, "since last restart", and the full-resolution toggle. Collapsible sections of synchronized charts follow:
+2. Node. A header strip shows live round, lag, version, uptime and the last effective config change. For a down node, the strip shows how long it has been down in place of its uptime, and no change vs 24 h ago, because its live values read 0. Peers and participation say that algod is down, rather than that the admin token is missing or that no keys are installed. A node whose agent is unreachable gets the same treatment (section 12), and its uptime reads unknown, with how long the hub has gone without hearing from the agent. Below it are the time-range controls: 1h, 6h, 24h, 7d, 30d, 1y, all, custom, "since last restart", and the full-resolution toggle. Collapsible sections of synchronized charts follow:
    - Consensus: round time, votes and proposals, transactions per block, pool size
    - Network WS: peers, bytes by direction, disconnect reasons as stacked bars
    - Network P2P: connections, gossip streams, pubsub peers, DHT, evictions, setup timeouts, resource manager blocks

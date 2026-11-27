@@ -143,6 +143,7 @@ func (rs *remoteSet) views() []api.NodeView {
 				v.Lag = v.State.Lag(agentNow)
 			}
 			if !reachable {
+				v.StaleSince = r.since().UnixNano()
 				v.Health.Reasons = append([]healthReason{{Rule: "agent_unreachable", Level: 2, Text: r.downReason(time.Now())}}, v.Health.Reasons...)
 				v.Health.Level = 2
 				v.Summary = v.Health.Summary()
@@ -179,15 +180,21 @@ func (rs *remoteSet) views() []api.NodeView {
 // downReason says how long the agent has been out of reach and why. The
 // caller holds r.mu.
 func (r *remoteRun) downReason(now time.Time) string {
-	since := r.lastOK
-	if since.IsZero() {
-		since = r.started
-	}
+	since := r.since()
 	why := r.lastErr
 	if why == "" {
 		why = "no answer"
 	}
 	return fmt.Sprintf("agent %s unreachable for %s: %s", r.cfg.Name, now.Sub(since).Round(time.Second), why)
+}
+
+// since is the hub's last answer from the agent, or when this run began
+// for an agent never reached. The caller holds r.mu.
+func (r *remoteRun) since() time.Time {
+	if r.lastOK.IsZero() {
+		return r.started
+	}
+	return r.lastOK
 }
 
 // remoteErr is one line saying why a connection to an agent ended. It
