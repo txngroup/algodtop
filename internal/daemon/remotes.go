@@ -126,6 +126,9 @@ func (rs *remoteSet) views() []api.NodeView {
 		runs = append(runs, r)
 	}
 	rs.mu.Unlock()
+	// Map order changes from call to call, and the node lists in the UI
+	// follow this order.
+	sort.Slice(runs, func(i, j int) bool { return runs[i].cfg.Name < runs[j].cfg.Name })
 	var out []api.NodeView
 	for _, r := range runs {
 		r.mu.Lock()

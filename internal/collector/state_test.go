@@ -26,7 +26,7 @@ func renewed() []PartKeyState {
 
 func TestMarkKeysPicksTheVotingRenewal(t *testing.T) {
 	keys := renewed()
-	markKeys(keys, nil, 6608504)
+	markKeys(keys, nil, nil, 6608504)
 	want := map[string][2]bool{"old-q": {false, true}, "old-u": {false, true}, "new-u": {true, false}, "new-q": {true, false}}
 	for _, k := range keys {
 		if w := want[k.ID]; k.Active != w[0] || k.Superseded != w[1] {
@@ -46,7 +46,7 @@ func TestMarkKeysUnvotedRenewal(t *testing.T) {
 		{ID: "old", Address: "A", First: 100, Last: 1000, LastVote: 900},
 		{ID: "new", Address: "A", First: 950, Last: 5000},
 	}
-	markKeys(keys, nil, 960)
+	markKeys(keys, nil, nil, 960)
 	if !keys[0].Active || keys[1].Active || keys[0].Superseded {
 		t.Fatalf("%+v", keys)
 	}
@@ -58,7 +58,7 @@ func TestMarkKeysUnvotedRenewal(t *testing.T) {
 // The on-chain vote key decides when the account is listed.
 func TestMarkKeysOnChainWins(t *testing.T) {
 	keys := renewed()
-	markKeys(keys, []AccountState{{Address: "AAAA", VoteKey: "vq1"}}, 6608504)
+	markKeys(keys, []AccountState{{Address: "AAAA", VoteKey: "vq1"}}, nil, 6608504)
 	for _, k := range keys {
 		if k.ID == "old-q" && !k.Active || k.ID == "new-q" && k.Active {
 			t.Errorf("%s: active %v", k.ID, k.Active)
@@ -70,11 +70,50 @@ func TestMarkKeysOnChainWins(t *testing.T) {
 // lasts longest stands for the account.
 func TestExpiryKeysWithoutRound(t *testing.T) {
 	keys := renewed()
-	markKeys(keys, nil, 0)
+	markKeys(keys, nil, nil, 0)
 	for _, k := range ExpiryKeys(keys) {
 		if k.ID != "new-q" && k.ID != "new-u" {
 			t.Errorf("picked %s", k.ID)
 		}
+	}
+}
+
+// algod logs a closed account that still has a key installed several
+// times a round. Its keys stop being active and stop counting toward an
+// expiry until the reports stop. A report replayed from an old part of
+// the log does not count.
+func TestClosedAccountKeys(t *testing.T) {
+	now := time.Unix(1_800_000_000, 0)
+	n := &Node{o: Options{Name: "n", Sink: &recSink{}, Now: func() time.Time { return now }}}
+	n.st.Round = 6608504
+	n.st.Keys = renewed()
+	markKeys(n.st.Keys, nil, nil, n.st.Round)
+	tl := newTailer(n, nil)
+	report := func(at time.Time) {
+		tl.line([]byte(`{"file":"node.go","level":"info","msg":"node.VotingKeys: Address: AAAA - Account was closed but still has a participation key active.","time":"` + at.UTC().Format(time.RFC3339Nano) + `"}`))
+	}
+	report(now.Add(-time.Hour))
+	if exp := ExpiryKeys(n.State().Keys); len(exp) != 2 {
+		t.Fatalf("an hour-old report closed the account: %+v", exp)
+	}
+	report(now)
+	for _, k := range n.State().Keys {
+		if k.Closed != (k.Address == "AAAA") || k.Closed && (k.Active || k.Superseded) {
+			t.Errorf("%s: closed %v active %v superseded %v", k.ID, k.Closed, k.Active, k.Superseded)
+		}
+	}
+	if exp := ExpiryKeys(n.State().Keys); len(exp) != 1 || exp[0].ID != "new-u" {
+		t.Fatalf("expiry keys %+v", exp)
+	}
+	// The reports stop, as when the account is funded again.
+	now = now.Add(closedFor + time.Minute)
+	n.mu.Lock()
+	closed := n.closedLocked()
+	n.mu.Unlock()
+	keys := n.State().Keys
+	markKeys(keys, nil, closed, n.st.Round)
+	if exp := ExpiryKeys(keys); len(exp) != 2 || exp[0].ID != "new-q" || !exp[0].Active {
+		t.Fatalf("after the reports stopped: %+v", exp)
 	}
 }
 
@@ -213,5 +252,39 @@ func TestPeerRateUsesThePollGap(t *testing.T) {
 	}
 	if got := at(120, 100, 45600); !got.RateUnknown {
 		t.Fatalf("a total that went down: %+v", got)
+	}
+}
+
+// A node that stays down across a restart of algod.top keeps the time it
+// went down. It used to count from the restart, so a node down for hours
+// read as down for seconds.
+func TestDownSinceSurvivesARestart(t *testing.T) {
+	dir, stateDir := t.TempDir(), t.TempDir()
+	open := func(sink *recSink) *Node {
+		return NewNode(Options{Name: "n", Source: &LocalSource{Dir: dir}, Sink: sink, StateDir: stateDir})
+	}
+	went := time.Now().Add(-3 * time.Hour)
+	first := open(&recSink{})
+	first.update(func(s *State) { s.Up = true })
+	first.markDown(went, "process not running, no live algod.pid")
+	first.savePersisted()
+
+	sink := &recSink{}
+	second := open(sink)
+	second.checkPID(0, 0, time.Now(), true)
+	if st := second.State(); st.Up || st.DownSince != went.UnixNano() {
+		t.Fatalf("after a restart: up %v, down since %v, want %v", st.Up, time.Unix(0, st.DownSince), went)
+	}
+	if len(sink.events) != 0 {
+		t.Fatalf("a node still down logged %+v", sink.events)
+	}
+	// Coming back records the whole stretch, and the state file forgets it.
+	second.markUp(time.Now())
+	if len(sink.events) != 1 || sink.events[0].Kind != model.EvNodeUp || sink.events[0].Attrs["down_since"] != went.UnixNano() {
+		t.Fatalf("events %+v", sink.events)
+	}
+	second.savePersisted()
+	if st := open(&recSink{}).State(); st.DownSince != 0 {
+		t.Fatalf("down since %v after algod came back", time.Unix(0, st.DownSince))
 	}
 }

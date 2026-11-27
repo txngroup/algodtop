@@ -414,6 +414,8 @@ func (t *tailer) extract(l *logparse.Line) {
 				}
 			}
 		}
+	case "closed-account":
+		n.noteClosedAccount(e.Addr, l.Time)
 	case "catchup-start":
 		n.noteCatchup(true)
 	case "catchup-end":

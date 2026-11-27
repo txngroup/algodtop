@@ -100,6 +100,7 @@ type Node struct {
 	names        map[string]bool // metric names in the last scrape
 	oldNames     map[string]bool // names before a version change
 	tail         *tailer
+	closedSeen   map[string]time.Time // accounts algod last reported closed, by address
 	persist      persisted
 	wake         chan struct{}
 }
@@ -115,6 +116,10 @@ type persisted struct {
 	Sessions        []model.Session `json:"open_sessions,omitempty"`
 	Tail            *tailState      `json:"tail,omitempty"`
 	LastRound       uint64          `json:"last_round,omitempty"`
+	// DownSince is when algod.top last saw algod go down, 0 while it is up.
+	// A restart of algod.top keeps it, so a node that stayed down says
+	// how long rather than counting from the restart.
+	DownSince int64 `json:"down_since,omitempty"`
 }
 
 // NewNode returns a collector. Run starts it.
@@ -225,6 +230,7 @@ func (n *Node) loadPersisted() {
 	n.versionKey = n.persist.Version
 	n.lastRound = n.persist.LastRound
 	n.st.GenesisHash = n.persist.GenesisHash
+	n.st.DownSince = n.persist.DownSince
 }
 
 func (n *Node) savePersisted() {
@@ -254,6 +260,7 @@ func (n *Node) savePersisted() {
 	n.persist.Version = n.versionKey
 	n.persist.GenesisHash = n.st.GenesisHash
 	n.persist.LastRound = n.lastRound
+	n.persist.DownSince = n.st.DownSince
 	n.persist.Sessions = sessions
 	if tail != nil {
 		n.persist.Tail = tail
@@ -804,6 +811,48 @@ func (n *Node) noteCatchup(on bool) {
 	}
 }
 
+// closedFor is how long algod's report of a closed account holds. algod
+// repeats it several times a round for as long as the key is installed,
+// so a report this old means the account exists again or the key is gone.
+const closedFor = 10 * time.Minute
+
+// noteClosedAccount records algod's report that addr no longer exists
+// while a participation key for it is still installed. The first report
+// marks the account's keys at once, rather than at the next poll.
+func (n *Node) noteClosedAccount(addr string, at time.Time) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	if n.closedSeen == nil {
+		n.closedSeen = map[string]time.Time{}
+	}
+	if at.After(n.closedSeen[addr]) {
+		n.closedSeen[addr] = at
+	}
+	for _, k := range n.st.Keys {
+		if k.Address == addr && !k.Closed {
+			keys := append([]PartKeyState(nil), n.st.Keys...)
+			markKeys(keys, n.st.Accounts, n.closedLocked(), n.st.Round)
+			n.st.Keys = keys
+			return
+		}
+	}
+}
+
+// closedLocked returns the accounts algod has reported closed within
+// closedFor. The caller holds n.mu.
+func (n *Node) closedLocked() map[string]bool {
+	now := n.o.Now()
+	out := map[string]bool{}
+	for a, at := range n.closedSeen {
+		if now.Sub(at) > closedFor {
+			delete(n.closedSeen, a)
+			continue
+		}
+		out[a] = true
+	}
+	return out
+}
+
 func b2f(b bool) float64 {
 	if b {
 		return 1
@@ -1184,7 +1233,10 @@ func (n *Node) pollParticipation(ctx context.Context, c *algod.Client, now time.
 		ks.DaysLeft = float64(ks.RoundsLeft) * rt / 86400
 		out = append(out, ks)
 	}
-	markKeys(out, st.Accounts, st.Round)
+	n.mu.Lock()
+	closed := n.closedLocked()
+	n.mu.Unlock()
+	markKeys(out, st.Accounts, closed, st.Round)
 	// One series per account: a renewed account has two keys, and only
 	// the one it votes with counts down to a lapse.
 	for _, k := range ExpiryKeys(out) {
@@ -1251,7 +1303,7 @@ func (n *Node) pollAccounts(ctx context.Context, c *algod.Client, now time.Time)
 	n.update(func(s *State) {
 		s.Accounts = out
 		keys := append([]PartKeyState(nil), s.Keys...)
-		markKeys(keys, out, s.Round)
+		markKeys(keys, out, n.closedLocked(), s.Round)
 		s.Keys = keys
 	})
 	n.batch(model.GroupREST, now, samples)

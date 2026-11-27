@@ -98,6 +98,46 @@ func TestWireSink(t *testing.T) {
 	}
 }
 
+// With WireRedial the sink sees the connections come and go, one at a
+// time, and still gets the traffic.
+func TestWireRedial(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	var rd, wr, conns atomic.Int64
+	go ServeWireSink(acceptCount{countLn{ln, &rd, &wr}, &conns})
+	f, err := Start(Options{WireTo: ln.Addr().String(), Uptime: time.Minute, WireRedial: time.Second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	time.Sleep(3500 * time.Millisecond)
+	// Four at the first tick, then one more at each later tick that is a
+	// second after the last redial.
+	if got := conns.Load(); got < wireConns+1 || got > wireConns+3 {
+		t.Errorf("sink accepted %d connections, want %d to %d", got, wireConns+1, wireConns+3)
+	}
+	out := f.appOut / 86400 * 3 * wireOverhead
+	if got := float64(rd.Load()); got < out*0.9 || got > out*1.1 {
+		t.Errorf("sink read %.0f bytes, want about %.0f", got, out)
+	}
+}
+
+type acceptCount struct {
+	net.Listener
+	n *atomic.Int64
+}
+
+func (l acceptCount) Accept() (net.Conn, error) {
+	c, err := l.Listener.Accept()
+	if err == nil {
+		l.n.Add(1)
+	}
+	return c, err
+}
+
 // Churn replaces a peer with one of the same direction and network, so a
 // node keeps its outgoing count, and a node always has an outgoing peer.
 func TestChurnKeepsDirections(t *testing.T) {
@@ -125,6 +165,30 @@ func TestChurnKeepsDirections(t *testing.T) {
 				t.Errorf("seed %d: %v became %v", seed, before, after)
 				break
 			}
+		}
+	}
+}
+
+// A closed account keeps its key installed. The key stops voting, the
+// account reads empty and offline, and the log names it each round.
+func TestClosedAccount(t *testing.T) {
+	dir := t.TempDir()
+	closed, open := Address("closed"), Address("open")
+	f, err := Start(Options{DataDir: dir, RoundEvery: 20 * time.Millisecond, Seed: 1,
+		Accounts: []Account{{Address: closed, Amount: 5e9, KeyDays: 30, Closed: true}, {Address: open, Amount: 5e9, KeyDays: 30}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	time.Sleep(100 * time.Millisecond)
+	b, _ := os.ReadFile(filepath.Join(dir, "node.log"))
+	if !strings.Contains(string(b), "node.VotingKeys: Address: "+closed+" - Account was closed") || strings.Contains(string(b), "Address: "+open) {
+		t.Errorf("node.log does not name only the closed account")
+	}
+	for _, k := range f.partKeys() {
+		behind := f.Round() - k["last-vote"].(uint64)
+		if (k["address"] == closed) != (behind > 1000) {
+			t.Errorf("%s last voted %d rounds ago", k["address"], behind)
 		}
 	}
 }

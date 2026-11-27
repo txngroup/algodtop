@@ -22,6 +22,16 @@ func TestOK(t *testing.T) {
 	}
 }
 
+// A key whose account was closed can never vote, so its expiry is not a
+// problem.
+func TestClosedAccountKeyDoesNotExpire(t *testing.T) {
+	s := base()
+	s.Keys = []collector.PartKeyState{{Address: "ABCDEFGHIJ", RoundsLeft: 10, DaysLeft: 1, Closed: true}}
+	if st := Evaluate(&s, Context{}); st.Level != OK {
+		t.Fatalf("%+v", st.Reasons)
+	}
+}
+
 func TestRules(t *testing.T) {
 	now := time.Now()
 	cases := []struct {
@@ -31,7 +41,10 @@ func TestRules(t *testing.T) {
 		level Level
 		text  string
 	}{
-		{"down", func(s *collector.State) { s.Up = false; s.LastError = "connection refused" }, "down", Critical, "algod is down"},
+		{"down", func(s *collector.State) { s.Up = false; s.LastError = "connection refused" }, "down", Critical, "algod is down (connection refused)"},
+		{"downfor", func(s *collector.State) {
+			s.Up, s.LastError, s.DownSince = false, "connection refused", now.Add(-(7*time.Hour + 20*time.Minute)).UnixNano()
+		}, "down", Critical, "algod is down for 7h20m0s (connection refused)"},
 		{"stalled", func(s *collector.State) { s.RoundAt = now.Add(-45 * time.Second).UnixNano() }, "stalled", Critical, "last round is"},
 		{"catchup", func(s *collector.State) { s.RoundAt = now.Add(-45 * time.Second).UnixNano(); s.Catchup = true }, "catchup", Warn, "catchup"},
 		{"token", func(s *collector.State) {
