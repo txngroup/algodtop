@@ -74,6 +74,11 @@ func TestTemplates(t *testing.T) {
 		"unexpected state at ledger.go:412": "unexpected state at ledger.go:412",
 		// libp2p DHT refresh keys are mostly padding and can lack a digit.
 		"starting refreshing cpl 3 with key CIQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPQ (routing table size was 12)": "starting refreshing cpl <n> with key <id> (routing table size was <n>)",
+		// Both sides of a Go net error's local->remote pair.
+		"failed to dial 12D3KooWBuS5F7v2sBgtLKWCshaSUEJzTR4NLK4Kzhfn2mEkmRrW: dial tcp4 0.0.0.0:4160->198.51.100.20:4160: i/o timeout": "failed to dial <peer>: dial tcp4 <addr>-><addr>: i/o timeout",
+		"read tcp 192.0.2.4:51234->203.0.113.9:4160: read: connection reset by peer":                                                   "read tcp <addr>-><addr>: read: connection reset by peer",
+		// An arrow between words is kept as written.
+		"state a->b": "state a->b",
 		// Upper-case words stay.
 		"BROADCAST_QUEUE_FULL dropped TX": "BROADCAST_QUEUE_FULL dropped TX",
 	}

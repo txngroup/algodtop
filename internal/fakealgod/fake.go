@@ -140,7 +140,12 @@ type metricLine struct {
 	text    string // name{labels}
 	value   float64
 	counter bool
+	grows   bool // typed gauge, but grows with uptime like a counter
 }
+
+// growingGauges are typed gauge in algod's output, but count up from the
+// process start like counters.
+var growingGauges = map[string]bool{"libp2p_rcmgr_blocked_resources": true}
 
 // Start runs a fake algod.
 func Start(o Options) (*Fake, error) {
@@ -265,7 +270,7 @@ func (f *Fake) parseFixture() {
 		if j := strings.IndexByte(base, '{'); j >= 0 {
 			base = base[:j]
 		}
-		f.lines = append(f.lines, metricLine{text: name, value: v, counter: kinds[base]})
+		f.lines = append(f.lines, metricLine{text: name, value: v, counter: kinds[base], grows: growingGauges[base]})
 		switch name {
 		case "algod_network_received_bytes_total", "algod_network_p2p_received_bytes_total":
 			f.appIn += v
@@ -765,7 +770,7 @@ func (f *Fake) serveMetrics(w http.ResponseWriter) {
 			lastType = base
 		}
 		v := l.value
-		if l.counter {
+		if l.counter || l.grows {
 			v = float64(int64(v * scale))
 		}
 		fmt.Fprintf(&b, "%s %s\n", l.text, strconv.FormatFloat(v, 'g', -1, 64))

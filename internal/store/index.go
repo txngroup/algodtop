@@ -31,6 +31,12 @@ type Caps struct {
 	// NameCaps overrides PerName for metrics with their own cap, such as
 	// log templates.
 	NameCaps map[string]int
+	// Spill gives, per metric name, the label set (Labels.String) of the
+	// series that sums what the name cap turned away, such as app=other.
+	// The name cap always admits it. A store filled by an older version,
+	// or before a lower cap, can hold a full cap of other values, and
+	// without the exemption the sum had nowhere to go.
+	Spill map[string]string
 }
 
 // index maps series IDs to (node, name, labels). The file is append-only:
@@ -170,7 +176,8 @@ func (ix *index) lookup(node uint32, s *model.Sample, g model.Group) (uint32, bo
 	if c, ok := ix.caps.NameCaps[s.Name]; ok {
 		perName = c
 	}
-	if ix.count[node] >= ix.caps.PerNode || len(ix.byNode[node][s.Name]) >= perName {
+	full := len(ix.byNode[node][s.Name]) >= perName && ix.caps.Spill[s.Name] != ls
+	if ix.count[node] >= ix.caps.PerNode || full {
 		d := ix.drops[node]
 		if d == nil {
 			d = map[string]int64{}
