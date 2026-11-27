@@ -219,3 +219,88 @@ func TestRestartMidWindowKeepsRecentData(t *testing.T) {
 		}
 	}
 }
+
+// libp2p_rcmgr_blocked_resources is typed gauge but counts up from algod's
+// start. rate and increase on such a gauge read it as a counter, in raw and
+// in the rollups, and a fall is a reset.
+func TestRateOfCountingGauge(t *testing.T) {
+	start, _ := time.Parse(time.RFC3339, "2026-11-01T00:00:00Z")
+	now := start
+	db, err := store.Open(store.Options{Dir: t.TempDir(), Now: func() time.Time { return now }, Retention: store.DefaultRetention})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	// 3 blocks per 10 s sample, 0.3/s. algod restarts at 15:00 and the
+	// count starts again from 0.
+	const perHour = 360
+	for i := 0; i < 30*perHour; i++ {
+		v := float64(i) * 3
+		if i >= 15*perHour {
+			v = float64(i-15*perHour) * 3
+		}
+		db.Append(&model.Batch{Node: "n", Group: model.GroupMetrics, Time: now.UnixNano(), Samples: []model.Sample{
+			{Name: "blocked", Kind: model.KindGauge, Value: v}}})
+		now = now.Add(10 * time.Second)
+	}
+	db.Tick()
+	e := NewEngine(db, 2, 5*time.Second)
+	run := func(fn string, from, to time.Time, points int, tier string) *Result {
+		t.Helper()
+		r, err := e.Run(context.Background(), Request{Node: "n", Metric: "blocked", Fn: fn, From: from.UnixNano(), To: to.UnixNano(), Points: points, Tier: tier})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(r.Series) != 1 {
+			t.Fatalf("%s: %d series", fn, len(r.Series))
+		}
+		return r
+	}
+	check := func(r *Result, what string) {
+		t.Helper()
+		n := 0
+		for i, v := range r.Series[0].Avg {
+			if math.IsNaN(v) {
+				continue
+			}
+			n++
+			if math.Abs(v-0.3) > 0.01 {
+				t.Fatalf("%s: rate[%d] = %v want 0.3 (parts %+v)", what, i, v, r.Parts)
+			}
+		}
+		if n == 0 {
+			t.Fatalf("%s: no points", what)
+		}
+	}
+	// A minute per point on each side of the restart.
+	check(run("rate", start.Add(13*time.Hour), start.Add(14*time.Hour+59*time.Minute), 120, ""), "before the restart")
+	check(run("rate", start.Add(15*time.Hour+time.Minute), start.Add(17*time.Hour), 119, ""), "after the restart")
+	check(run("rate", now.Add(-time.Hour), now, 60, "raw"), "raw")
+	// A day at 100 points reads the rollups.
+	r := run("rate", now.Add(-24*time.Hour), start.Add(14*time.Hour), 100, "")
+	if r.Parts[0].Tier == "raw" {
+		t.Fatalf("parts %+v, want a rollup tier first", r.Parts)
+	}
+	check(r, "rollup")
+	// The plain value is still the gauge's.
+	if r := run("", start.Add(2*time.Hour), start.Add(3*time.Hour), 1, ""); math.Abs(r.Series[0].Avg[0]-(2.5*perHour*3)) > 10 {
+		t.Fatalf("avg = %v", r.Series[0].Avg[0])
+	}
+	// increase over a range that holds the restart agrees across tiers.
+	// Each loses only the step at the restart, 3 blocks.
+	from, to := now.Add(-26*time.Hour), now.Add(-2*time.Hour)
+	want := 0.3*to.Sub(from).Seconds() - 3
+	for _, pts := range []int{1, 10, 100, 1000} {
+		for _, tier := range []string{"", "raw"} {
+			s := 0.0
+			for _, v := range run("increase", from, to, pts, tier).Series[0].Avg {
+				if !math.IsNaN(v) {
+					s += v
+				}
+			}
+			if math.Abs(s-want) > 1e-6 {
+				t.Errorf("points=%d tier=%q: increase %v, want about %v", pts, tier, s, want)
+			}
+		}
+	}
+}
