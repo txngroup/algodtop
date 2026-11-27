@@ -6,7 +6,7 @@ import { h, s, clear, sortableTable, inlineBar, showTip, hideTip } from "../dom.
 import { get } from "../api.js";
 import { rangeOf, setParams, navigate } from "../state.js";
 import { fmt, fmtDur, fmtShortTime, fmtDateTime, fmtClock, ns } from "../format.js";
-import { rangeBar, nodePicker } from "../common.js";
+import { rangeBar, nodePicker, staleFor } from "../common.js";
 import { linear, timeTicks } from "../chart/scale.js";
 import { slot } from "../colors.js";
 
@@ -40,6 +40,12 @@ export function mount(root, app, r) {
   }
 
   async function drawCurrent() {
+    const sn = app.byName(name);
+    if (sn && sn.stale_since) {
+      clear(cur);
+      cur.append(h("p", { class: "note" }, "This node's agent has been unreachable for " + staleFor(sn) + ", so its current peers are unknown. Its past sessions are below."));
+      return;
+    }
     let res;
     try {
       res = await get("/api/peers", { node: name });

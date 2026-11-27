@@ -5,6 +5,7 @@
 package sysstat
 
 import (
+	"context"
 	"runtime"
 	"sync"
 	"time"
@@ -57,13 +58,16 @@ func Available(stat string) bool { return Methods()[stat] != "" }
 // Collector holds per-platform state such as the long-lived nettop process
 // on macOS or socket counters on Linux.
 type Collector struct {
-	mu sync.Mutex
-	p  platformState
+	ctx    context.Context
+	cancel context.CancelFunc
+	mu     sync.Mutex
+	p      platformState
 }
 
 // New returns a collector.
 func New() *Collector {
 	c := &Collector{}
+	c.ctx, c.cancel = context.WithCancel(context.Background())
 	c.p.init()
 	return c
 }
@@ -72,25 +76,27 @@ func New() *Collector {
 func (c *Collector) Procs(pids []int) map[int]Proc {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.p.procs(pids)
+	return c.p.procs(c.ctx, pids)
 }
 
 // NetBytes returns cumulative per-process network bytes.
 func (c *Collector) NetBytes(pids []int) map[int]NetIO {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.p.netBytes(pids)
+	return c.p.netBytes(c.ctx, pids)
 }
 
 // Interfaces returns total bytes received and sent on non-loopback
 // interfaces.
-func (c *Collector) Interfaces() (in, out float64, err error) { return interfaces() }
+func (c *Collector) Interfaces() (in, out float64, err error) { return interfaces(c.ctx) }
 
 // Load returns the load averages, or ok=false where there is none.
-func (c *Collector) Load() (l1, l5, l15 float64, ok bool) { return loadAvg() }
+func (c *Collector) Load() (l1, l5, l15 float64, ok bool) { return loadAvg(c.ctx) }
 
-// Close stops helper processes.
+// Close stops helper processes. It kills a command still running for a
+// pass first, so it does not wait out that command.
 func (c *Collector) Close() {
+	c.cancel()
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.p.close()
