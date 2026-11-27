@@ -148,7 +148,9 @@ func start(t *testing.T, cfg *config.Config, agent bool, opts ...func(*daemon.Op
 				t.Errorf("daemon shutdown: %v", err)
 			}
 		case <-time.After(15 * time.Second):
-			t.Error("daemon did not shut down within 15 s")
+			// Name the stuck phase in the CI log.
+			buf := make([]byte, 1<<20)
+			t.Errorf("daemon did not shut down within 15 s; goroutines:\n%s", buf[:runtime.Stack(buf, true)])
 		}
 	})
 	return r

@@ -109,6 +109,9 @@ func (h *Host) ClockOffset() (float64, bool) {
 
 // Run collects until ctx is done.
 func (h *Host) Run(ctx context.Context) {
+	// Cancelling ctx kills a ps or nettop that a pass is waiting on.
+	stop := context.AfterFunc(ctx, h.sys.Close)
+	defer stop()
 	defer h.sys.Close()
 	proc := time.NewTicker(h.o.ProcEvery)
 	netT := time.NewTicker(h.o.NetEvery)
@@ -119,17 +122,23 @@ func (h *Host) Run(ctx context.Context) {
 	var lastNTP, lastSize time.Time
 	h.procPass()
 	h.diskPass(true)
-	// Two early network passes give a first rate within 20 s.
-	early := []*time.Timer{time.AfterFunc(3*time.Second, h.procPass), time.AfterFunc(5*time.Second, h.netPass), time.AfterFunc(20*time.Second, h.netPass)}
-	defer func() {
-		for _, t := range early {
-			t.Stop()
-		}
-	}()
+	// Two early network passes give a first rate within 20 s. They run in
+	// this loop rather than on timer goroutines, so none starts after Run
+	// returns and none holds up shutdown.
+	earlyProc := time.After(3 * time.Second)
+	earlyNet := time.After(5 * time.Second)
+	var earlyNet2 <-chan time.Time
 	for {
 		select {
 		case <-ctx.Done():
 			return
+		case <-earlyProc:
+			h.procPass()
+		case <-earlyNet:
+			h.netPass()
+			earlyNet2 = time.After(15 * time.Second)
+		case <-earlyNet2:
+			h.netPass()
 		case <-proc.C:
 			h.procPass()
 		case <-netT.C:

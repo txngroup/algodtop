@@ -234,7 +234,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	defer cancel()
 	d.runCtx, d.stop = ctx, cancel
 
-	var listeners []*http.Server
+	var listeners []*webServer
 	sock := cfg.SocketPath()
 	if d.o.Agent {
 		sock = filepath.Join(filepath.Dir(sock), "agent.sock")
@@ -297,9 +297,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	deadline := time.Now().Add(10 * time.Second)
 	sctx, scancel := context.WithDeadline(context.Background(), deadline)
 	defer scancel()
-	for _, s := range listeners {
-		s.Shutdown(sctx)
-	}
+	shutdownAll(sctx, listeners)
 	d.stopNodes()
 	d.remotes.wait()
 	bg.Wait()
@@ -327,16 +325,6 @@ func ntpServer(cfg *config.Config) string {
 		return cfg.NTP.Server
 	}
 	return "pool.ntp.org"
-}
-
-func newHTTPServer(h http.Handler) *http.Server {
-	srv := &http.Server{Handler: h, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 120 * time.Second}
-	p := new(http.Protocols)
-	p.SetHTTP1(true)
-	// The unix socket also accepts HTTP/2 without TLS for the SSH relay.
-	p.SetUnencryptedHTTP2(true)
-	srv.Protocols = p
-	return srv
 }
 
 func (d *Daemon) listenAddr() string {
@@ -377,7 +365,7 @@ func (d *Daemon) authConfig() api.AuthConfig {
 	return ac
 }
 
-func (d *Daemon) tcpListener(addr string) (*http.Server, net.Listener, error) {
+func (d *Daemon) tcpListener(addr string) (*webServer, net.Listener, error) {
 	cfg := d.Config()
 	ac := d.authConfig()
 	noAuth := ac.PasswordHash == "" && ac.ReadOnlyPasswordHash == "" && len(ac.ReadOnlyTokenHashes) == 0

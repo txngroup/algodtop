@@ -4,6 +4,7 @@ package sysstat
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -55,7 +56,7 @@ var bootTime = func() int64 {
 	return 0
 }()
 
-func (p *platformState) procs(pids []int) map[int]Proc {
+func (p *platformState) procs(_ context.Context, pids []int) map[int]Proc {
 	out := map[int]Proc{}
 	for _, pid := range pids {
 		if pr, ok := readProc(pid); ok {
@@ -119,7 +120,7 @@ func readProc(pid int) (Proc, bool) {
 	return pr, true
 }
 
-func (p *platformState) netBytes(pids []int) map[int]NetIO {
+func (p *platformState) netBytes(_ context.Context, pids []int) map[int]NetIO {
 	out := map[int]NetIO{}
 	if p.diag != nil {
 		if m, err := p.diag.bytes(pids); err == nil {
@@ -141,7 +142,7 @@ func (p *platformState) netBytes(pids []int) map[int]NetIO {
 	return out
 }
 
-func interfaces() (float64, float64, error) { return readNetDev("/proc/net/dev") }
+func interfaces(context.Context) (float64, float64, error) { return readNetDev("/proc/net/dev") }
 
 // procInterfaces sums the interfaces of a process's network namespace,
 // which is the host's unless the process runs in a container. Any user
@@ -177,7 +178,7 @@ func readNetDev(path string) (float64, float64, error) {
 	return in, out, nil
 }
 
-func loadAvg() (float64, float64, float64, bool) {
+func loadAvg(context.Context) (float64, float64, float64, bool) {
 	b, err := os.ReadFile("/proc/loadavg")
 	if err != nil {
 		return 0, 0, 0, false
