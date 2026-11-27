@@ -126,3 +126,40 @@ func TestFloorRisingFromStore(t *testing.T) {
 		t.Error("judged a process that started 2 days ago")
 	}
 }
+
+// diskHistory pairs the stored free and total gauges bucket by bucket.
+func TestDiskHistoryFromStore(t *testing.T) {
+	const gb = 1e9
+	end := time.Date(2026, 11, 20, 12, 0, 0, 0, time.UTC)
+	from := end.Add(-48 * time.Hour)
+	now := from
+	db, err := store.Open(store.Options{Dir: t.TempDir(), Now: func() time.Time { return now }, Retention: store.DefaultRetention})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	for ; now.Before(end); now = now.Add(10 * time.Minute) {
+		used := 400*gb + float64(now.Sub(from))/float64(24*time.Hour)*10*gb
+		db.Append(&model.Batch{Node: "n1", Group: model.GroupHost, Time: now.UnixNano(), Samples: []model.Sample{
+			{Name: "host_disk_free_bytes", Kind: model.KindGauge, Value: 1000*gb - used},
+			{Name: "host_disk_total_bytes", Kind: model.KindGauge, Value: 1000 * gb},
+		}})
+	}
+	db.Tick()
+	qe := query.NewEngine(db, 2, 10*time.Second)
+	got := diskHistory(context.Background(), qe, "n1", end.Add(-7*24*time.Hour), end)
+	if len(got) < 200 {
+		t.Fatalf("got %d readings, want most of 288", len(got))
+	}
+	for i, r := range got {
+		if r.Total != 1000*gb || r.Free < 570*gb || r.Free > 600*gb || r.T.Before(from.Add(-time.Hour)) || !r.T.Before(end) {
+			t.Fatalf("reading %d: %+v", i, r)
+		}
+		if i > 0 && (!r.T.After(got[i-1].T) || r.Free > got[i-1].Free) {
+			t.Fatalf("reading %d out of order: %+v after %+v", i, r, got[i-1])
+		}
+	}
+	if got := diskHistory(context.Background(), qe, "missing", from, end); got != nil {
+		t.Errorf("unknown node: got %d readings", len(got))
+	}
+}

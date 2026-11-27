@@ -21,6 +21,16 @@ type HostOptions struct {
 	NTPServer string        // pool.ntp.org, "" disables
 	NTPEvery  time.Duration // 10 min
 	Now       func() time.Time
+	// DiskHistory returns a node's stored disk readings from from to to,
+	// oldest first. It seeds the disk fill forecast once per data dir, so
+	// a restart keeps the forecast's 7 days. nil starts from nothing.
+	DiskHistory func(node string, from, to time.Time) []DiskReading
+}
+
+// DiskReading is one stored reading of a data dir's disk, in bytes.
+type DiskReading struct {
+	T           time.Time
+	Free, Total float64
 }
 
 // Host collects process and host stats for every local node in one pass,
@@ -331,6 +341,7 @@ func (h *Host) diskPass(sizes bool) {
 			total += files
 			samples = append(samples, model.Sample{Name: "host_datadir_bytes", Labels: model.Labels{{Name: "sub", Value: "(files)"}}, Kind: model.KindGauge, Value: files})
 		}
+		h.seedDisk(n.o.Name, dir, now, float64(u.Total))
 		n.batch(model.GroupHost, now, samples)
 		days := h.daysUntilFull(dir, now, float64(u.Total-u.Free), float64(u.Total))
 		n.update(func(s *State) {
@@ -341,6 +352,29 @@ func (h *Host) diskPass(sizes bool) {
 			s.DiskDays = days
 		})
 	}
+}
+
+// seedDisk fills a data dir's fit from the store the first time the dir
+// is seen. It keeps only readings of a disk the same size, since a data
+// dir moved to another disk has another disk's history.
+func (h *Host) seedDisk(node, dir string, now time.Time, total float64) {
+	h.mu.Lock()
+	_, seen := h.diskHist[dir]
+	h.mu.Unlock()
+	if seen || h.o.DiskHistory == nil {
+		return
+	}
+	var hist []diskPoint
+	for _, r := range h.o.DiskHistory(node, now.Add(-7*24*time.Hour), now) {
+		if r.Total == total && r.Free <= r.Total && r.T.Before(now) {
+			hist = append(hist, diskPoint{float64(r.T.Unix()), r.Total - r.Free})
+		}
+	}
+	h.mu.Lock()
+	if _, ok := h.diskHist[dir]; !ok {
+		h.diskHist[dir] = hist
+	}
+	h.mu.Unlock()
 }
 
 // daysUntilFull fits a line to the last 7 days of used space.
