@@ -416,6 +416,13 @@ func (m *Model) row(n api.NodeView, selected bool) string {
 				cells[10] = "-"
 			}
 		}
+		// An unreachable agent leaves its last report, however old. Its
+		// round and lag still say when the hub last heard a block.
+		if n.StaleSince != 0 && !useHist {
+			for i := 6; i <= 10; i++ {
+				cells[i] = "-"
+			}
+		}
 		if useHist {
 			cells[11] = m.Style.c(cOrange, "history")
 			if p.Up == 0 {
@@ -592,7 +599,9 @@ func renderNode(m *Model) []string {
 	// good scrape. A down node keeps the start of its last process, which
 	// says nothing about now.
 	up := "up -"
-	if !n.Up {
+	if n.StaleSince != 0 {
+		up = "agent unreachable " + Dur(max(0, m.Now.Sub(time.Unix(0, n.StaleSince))))
+	} else if !n.Up {
 		up = "down" + downFor(*n, m.Now)
 	} else if st := cmp.Or(n.StartTime, n.UpSince); st != 0 {
 		up = "up " + Dur(m.Now.Sub(time.Unix(0, st)))

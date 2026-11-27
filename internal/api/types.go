@@ -28,6 +28,11 @@ type NodeView struct {
 	HistoryFrom int64 `json:"history_from,omitempty"`
 	// MemoryCreep is set when the daily minimum RSS rose three days running.
 	MemoryCreep bool `json:"memory_creep,omitempty"`
+	// StaleSince is set on an agent node while the hub cannot reach its
+	// agent: the hub's last answer from the agent, in unix ns. The other
+	// fields are the agent's last report, so live values such as CPU and
+	// peers are unknown now.
+	StaleSince int64 `json:"stale_since,omitempty"`
 }
 
 // DaemonStatus is the header line: host, uptime, store size.

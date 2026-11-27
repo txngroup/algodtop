@@ -1,17 +1,20 @@
 package logparse
 
 import (
+	"net/netip"
 	"strings"
+	"time"
 )
 
 // Template replaces the variable parts of a message with placeholders:
 // addresses, numbers, base32 IDs, hashes, durations, peer IDs, multiaddrs,
-// IP addresses, host names with a port and hex. Messages that differ only
-// in those parts share a template.
+// IP addresses, host names with a port, dates and hex. Messages that
+// differ only in those parts share a template.
 func Template(msg string) string {
 	if len(msg) > 400 {
 		msg = msg[:400]
 	}
+	msg = replaceSpans(msg)
 	var b strings.Builder
 	b.Grow(len(msg))
 	i := 0
@@ -22,8 +25,17 @@ func Template(msg string) string {
 			i++
 			continue
 		}
+		// Go's net errors join the local and remote address with "->",
+		// as in "dial tcp4 0.0.0.0:4160->192.0.2.1:4160". Without the
+		// split the local side kept its trailing "-" and became
+		// "<n>.<n>.<n>.<n>:<n>-" rather than "<addr>".
+		if arrowAt(msg, i) {
+			b.WriteString("->")
+			i += 2
+			continue
+		}
 		j := i
-		for j < len(msg) && isWordByte(msg[j]) {
+		for j < len(msg) && isWordByte(msg[j]) && !arrowAt(msg, j) {
 			j++
 		}
 		b.WriteString(classify(msg[i:j]))
@@ -32,11 +44,20 @@ func Template(msg string) string {
 	return collapse(b.String())
 }
 
+func arrowAt(msg string, i int) bool {
+	return msg[i] == '-' && i+1 < len(msg) && msg[i+1] == '>'
+}
+
 func isWordByte(c byte) bool {
 	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '.' || c == ':' || c == '/' || c == '-' || c == '_' || c == '+' || c == '=' || c == '@'
 }
 
 func classify(w string) string {
+	// An IPv6 address can end in "::", which the loop below would take
+	// for punctuation.
+	if ip, suffix := splitIPv6(w); ip {
+		return "<addr>" + suffix
+	}
 	// Keep trailing sentence punctuation outside the token.
 	suffix := ""
 	for len(w) > 1 && (w[len(w)-1] == '.' || w[len(w)-1] == ':' || w[len(w)-1] == ',') {
@@ -48,7 +69,7 @@ func classify(w string) string {
 		return "<maddr>" + suffix
 	case strings.HasPrefix(w, "12D3KooW") || strings.HasPrefix(w, "Qm") && len(w) == 46:
 		return "<peer>" + suffix
-	case strings.HasPrefix(w, "http://") || strings.HasPrefix(w, "https://") || strings.HasPrefix(w, "ws://"):
+	case strings.HasPrefix(w, "http://") || strings.HasPrefix(w, "https://") || strings.HasPrefix(w, "ws://") || strings.HasPrefix(w, "wss://"):
 		return "<url>" + suffix
 	case isIPPort(w) || isHostPort(w):
 		return "<addr>" + suffix
@@ -287,4 +308,115 @@ func digitShare(w string) float64 {
 		}
 	}
 	return float64(d) / float64(len(w))
+}
+
+// replaceSpans puts placeholders in for the variable parts that the word
+// splitter would cut apart: a bracketed IPv6 address with its port, as in
+// "[2001:db8::1]:4160", and a date with weekday and month names, as in an
+// HTTP Date header. Without it, the halves of an IPv6 address became
+// "[<addr>]:<n>" or kept hex digits, and a failed relay handshake that
+// logs the response headers got a new template each day.
+func replaceSpans(msg string) string {
+	var b strings.Builder
+	last := 0
+	for i := 0; i < len(msg); i++ {
+		n, ph := 0, ""
+		switch c := msg[i]; {
+		case c == '[':
+			n, ph = bracketAddrLen(msg[i:]), "<addr>"
+		case c >= 'A' && c <= 'Z' && (i == 0 || !isWordByte(msg[i-1])):
+			n, ph = dateLen(msg[i:]), "<date>"
+		}
+		if n == 0 {
+			continue
+		}
+		if last == 0 {
+			b.Grow(len(msg))
+		}
+		b.WriteString(msg[last:i])
+		b.WriteString(ph)
+		i += n - 1
+		last = i + 1
+	}
+	if last == 0 {
+		return msg
+	}
+	b.WriteString(msg[last:])
+	return b.String()
+}
+
+// bracketAddrLen returns the length of a bracketed IPv6 address and its
+// optional port at the start of s, or 0.
+func bracketAddrLen(s string) int {
+	end := strings.IndexByte(s, ']')
+	if end < 3 || end > 50 {
+		return 0
+	}
+	ip, err := netip.ParseAddr(s[1:end])
+	if err != nil || !ip.Is6() {
+		return 0
+	}
+	n := end + 1
+	if n < len(s) && s[n] == ':' {
+		d := 0
+		for n+1+d < len(s) && d < 5 && s[n+1+d] >= '0' && s[n+1+d] <= '9' {
+			d++
+		}
+		if d > 0 {
+			n += 1 + d
+		}
+	}
+	return n
+}
+
+// splitIPv6 reports whether w is an IPv6 address followed by sentence
+// punctuation, and returns that punctuation. It wants a digit, so a word
+// such as "a::b" stays.
+func splitIPv6(w string) (bool, string) {
+	if strings.Count(w, ":") < 2 || !hasDigit(w) {
+		return false, ""
+	}
+	for k := len(w); k > 0 && len(w)-k <= 2; k-- {
+		if k < len(w) && !strings.ContainsRune(".,:", rune(w[k])) {
+			break
+		}
+		if ip, err := netip.ParseAddr(w[:k]); err == nil && ip.Is6() {
+			return true, w[k:]
+		}
+	}
+	return false, ""
+}
+
+// dateLayouts are the formats with weekday and month names that Go code
+// writes into errors: HTTP Date headers, and time.Time in the C and Unix
+// date styles.
+var dateLayouts = []string{time.RFC1123Z, time.RFC1123, time.UnixDate, time.ANSIC}
+
+// dateLen returns the length of a date in one of dateLayouts at the start
+// of s, or 0. A layout with a zone name also tries one byte more, for
+// four-letter zones such as CEST.
+func dateLen(s string) int {
+	if len(s) < len(time.ANSIC) || s[3] != ',' && s[3] != ' ' {
+		return 0
+	}
+	switch s[:3] {
+	case "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun":
+	default:
+		return 0
+	}
+	for _, layout := range dateLayouts {
+		tries := []int{len(layout)}
+		if strings.Contains(layout, "MST") {
+			tries = []int{len(layout) + 1, len(layout)}
+		}
+		for _, n := range tries {
+			if n > len(s) {
+				continue
+			}
+			if _, err := time.Parse(layout, s[:n]); err == nil {
+				return n
+			}
+		}
+	}
+	return 0
 }

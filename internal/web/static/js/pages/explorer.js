@@ -128,7 +128,7 @@ export function mount(root, app, r) {
     const type = fn === "heatmap" ? "heatmap" : q.get("type") || "line";
     const meta = metrics.find((m) => m.name === metric);
     let unit = guessUnit(metric);
-    if (meta && meta.kind === "counter" && (fn === "" || fn === "rate") && !unit.endsWith("/s")) unit = unit === "" ? "/s" : unit;
+    if (meta && (fn === "rate" || (meta.kind === "counter" && fn === "")) && !unit.endsWith("/s")) unit = unit === "" ? "/s" : unit;
     if (fn === "increase") unit = unit === "B/s" ? "bytes" : "";
     const spec = {
       id: "explore", title: metric, unit, type, height: 300, band: type === "line",

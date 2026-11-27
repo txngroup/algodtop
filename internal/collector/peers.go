@@ -185,10 +185,23 @@ type sessionTracker struct {
 	prevPoll map[string]PeerInfo
 	prevAt   time.Time                // when prevPoll was taken
 	pending  map[string]model.Session // log disconnects awaiting a poll
+	// closed holds the last log disconnect per key, to spot a repeat.
+	closed map[string]closedLog
 }
 
+// closedLog is a log disconnect that ended a session.
+type closedLog struct {
+	at     time.Time
+	reason string
+}
+
+// repeatWindow is how far apart two identical disconnect lines for one
+// peer can be and still count as one disconnect. algod logs a slow ws
+// peer's disconnect twice, under a millisecond apart.
+const repeatWindow = time.Second
+
 func newSessionTracker(n *Node) *sessionTracker {
-	t := &sessionTracker{n: n, live: map[string]*model.Session{}, last: map[string][2]int64{}, pending: map[string]model.Session{}}
+	t := &sessionTracker{n: n, live: map[string]*model.Session{}, last: map[string][2]int64{}, pending: map[string]model.Session{}, closed: map[string]closedLog{}}
 	for _, s := range n.persist.Sessions {
 		s := s
 		t.live[sessKey(s.Network, s.Direction, s.Addr)] = &s
@@ -297,8 +310,11 @@ func (t *sessionTracker) logConnect(at time.Time, addr, ip string, incoming bool
 	t.live[k] = &model.Session{Node: t.n.o.Name, Network: netw, Direction: dir, Addr: NormalizeAddr(addr), IP: ip, Start: at.UnixNano(), Source: "log"}
 }
 
-// logDisconnect ends a session with the exact time and reason.
-func (t *sessionTracker) logDisconnect(at time.Time, addr, ip string, incoming bool, reason string) model.Session {
+// logDisconnect ends a session with the exact time and reason. It
+// reports false for a repeat of the disconnect just logged for the same
+// peer, which ends nothing: algod removes a slow ws peer twice and logs
+// both, and the lines are not always in time order.
+func (t *sessionTracker) logDisconnect(at time.Time, addr, ip string, incoming bool, reason string) (model.Session, bool) {
 	if ip == "" {
 		ip = IPOf(addr)
 	}
@@ -311,6 +327,9 @@ func (t *sessionTracker) logDisconnect(at time.Time, addr, ip string, incoming b
 	netw := NetOf(addr)
 	k := sessKey(netw, dir, addr)
 	s, ok := t.live[k]
+	if c, seen := t.closed[k]; !ok && seen && c.reason == reason && absDur(at.Sub(c.at)) < repeatWindow {
+		return model.Session{}, false
+	}
 	if !ok {
 		// Started before monitoring began: the start is unknown, so the
 		// session is marked open before and its length is a lower bound.
@@ -327,7 +346,22 @@ func (t *sessionTracker) logDisconnect(at time.Time, addr, ip string, incoming b
 	t.n.o.Sink.Session(*s)
 	delete(t.live, k)
 	delete(t.prevPoll, k)
-	return *s
+	if len(t.closed) >= 1000 {
+		for ck, c := range t.closed {
+			if absDur(at.Sub(c.at)) >= repeatWindow {
+				delete(t.closed, ck)
+			}
+		}
+	}
+	t.closed[k] = closedLog{at: at, reason: reason}
+	return *s, true
+}
+
+func absDur(d time.Duration) time.Duration {
+	if d < 0 {
+		return -d
+	}
+	return d
 }
 
 // closeAll ends every open session, when algod goes down.
