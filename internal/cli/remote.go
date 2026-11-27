@@ -354,7 +354,10 @@ func (r *remoteCmd) sync(ctx context.Context) int {
 func (r *remoteCmd) remove(ctx context.Context) int {
 	h, err := r.ssh.Detect(ctx)
 	if err != nil {
-		return errf("%v", err)
+		if ctx.Err() != nil {
+			return errf("%v", err)
+		}
+		return r.removeOffline(err)
 	}
 	r.host = h
 	path := r.agentPath()
@@ -363,11 +366,7 @@ func (r *remoteCmd) remove(ctx context.Context) int {
 		if !r.confirm(fmt.Sprintf("drop %q from the hub config? The system service on %s keeps running until you remove it there.", r.name, r.hostArg)) {
 			return 1
 		}
-		if h.OS == "windows" {
-			fmt.Printf("To stop the agent on %s, as an administrator: ssh %s %s service uninstall --agent\n", r.hostArg, shellJoin(r.hostArg), remote.RemoteBinary(path))
-		} else {
-			fmt.Printf("To stop the agent on %s: %s\n", r.hostArg, sshT(r.hostArg, rootCommand(r.knownRoot(), path, "service", "uninstall", "--system", "--agent")))
-		}
+		r.printSystemUninstall(path, h.OS == "windows")
 	} else {
 		sp := remote.PlanService(h, path)
 		if !r.confirm(fmt.Sprintf("stop the agent service on %s, remove %s and the service file, and drop %q from the hub config? (the agent's buffer is kept)", r.hostArg, path, r.name)) {
@@ -378,6 +377,44 @@ func (r *remoteCmd) remove(ctx context.Context) int {
 		}
 		r.ssh.Shell(ctx, "rm -f "+strings.Replace(path, "~", "$HOME", 1))
 	}
+	return r.dropRemote()
+}
+
+// removeOffline drops a remote whose host does not answer, such as a
+// decommissioned one. It changes nothing on the host.
+func (r *remoteCmd) removeOffline(sshErr error) int {
+	x, ok := r.saved()
+	if !ok {
+		return errf("%v\nthe hub config has no remote %q to drop", sshErr, r.name)
+	}
+	fmt.Printf("cannot reach %s: %v\n", r.hostArg, sshErr)
+	path := r.agentPath()
+	windows := strings.Contains(path, `\`) || strings.Contains(x.AgentConfig, `\`)
+	if r.systemAgent() {
+		if !r.confirm(fmt.Sprintf("drop %q from the hub config? The system service on %s keeps running until you remove it there.", r.name, r.hostArg)) {
+			return 1
+		}
+		r.printSystemUninstall(path, windows)
+	} else {
+		if !r.confirm(fmt.Sprintf("drop %q from the hub config only? The agent binary %s and its service stay on %s.", r.name, path, r.hostArg)) {
+			return 1
+		}
+		fmt.Printf("To remove the agent once %s answers: %s remote remove %s --path %s\n", r.hostArg, prog, shellJoin(r.hostArg), shellJoin(path))
+	}
+	return r.dropRemote()
+}
+
+// printSystemUninstall prints the command that stops a system agent.
+func (r *remoteCmd) printSystemUninstall(path string, windows bool) {
+	if windows {
+		fmt.Printf("To stop the agent on %s, as an administrator: ssh %s %s service uninstall --agent\n", r.hostArg, shellJoin(r.hostArg), remote.RemoteBinary(path))
+		return
+	}
+	fmt.Printf("To stop the agent on %s: %s\n", r.hostArg, sshT(r.hostArg, rootCommand(r.knownRoot(), path, "service", "uninstall", "--system", "--agent")))
+}
+
+// dropRemote removes the remote from the hub config and saves it.
+func (r *remoteCmd) dropRemote() int {
 	keep := r.cfg.Remotes[:0]
 	for _, x := range r.cfg.Remotes {
 		if x.Name != r.name {
