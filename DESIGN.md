@@ -230,6 +230,8 @@ A peer session is (node, network ws/p2p, direction, remote address, P2P peer ID 
 
 A session already open when algod.top first looks has an unknown start. It is marked open before, and the UIs show its length as a lower bound. This covers a peer in the first poll and a log disconnect with no connect before it. Without the mark, such a disconnect read as a session of 0 s.
 
+algod removes a slow ws peer twice and logs the same `SlowConnection` disconnect each time, under a millisecond apart. The two lines are not always in time order. A disconnect for a peer with no open session, with the same reason and within 1 s of the last disconnect for that peer, is that repeat. algod.top drops it. Before, each one stored a second disconnect event and a 0 s session marked open before. Three mainnet nodes each had about 20 of these in 30 days.
+
 ### Per-peer usage
 
 Some algod builds extend `/v2/node/peers` with five optional fields per peer. Released versions do not have them yet. algod.top reads them when they are present, so per-peer traffic appears as soon as a node runs a build that has them.

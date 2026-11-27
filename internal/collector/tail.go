@@ -389,7 +389,10 @@ func (t *tailer) extract(l *logparse.Line) {
 			Attrs: map[string]any{"addr": NormalizeAddr(e.Addr), "ip": ip, "direction": dirWord(e.Incoming), "network": NetOf(e.Addr)}})
 	case "disconnect":
 		ip := firstNonEmpty(e.IP, IPOf(e.Addr))
-		s := n.sess.logDisconnect(l.Time, e.Addr, ip, e.Incoming, e.Reason)
+		s, ok := n.sess.logDisconnect(l.Time, e.Addr, ip, e.Incoming, e.Reason)
+		if !ok {
+			return
+		}
 		attrs := map[string]any{"addr": NormalizeAddr(e.Addr), "ip": ip, "direction": dirWord(e.Incoming), "network": NetOf(e.Addr),
 			"reason": e.Reason, "message_delay": e.Delay, "start": s.Start}
 		msg := fmt.Sprintf("disconnect %s %s %s reason=%s", dirWord(e.Incoming), NetOf(e.Addr), ip, e.Reason)

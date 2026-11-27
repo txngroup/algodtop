@@ -150,18 +150,69 @@ func TestLogDisconnectWithoutConnectIsOpenBefore(t *testing.T) {
 	n := &Node{o: Options{Name: "n", Sink: sink, PeersEvery: 30 * time.Second}}
 	tr := newSessionTracker(n)
 	now := time.Unix(1_800_000_000, 0)
-	s := tr.logDisconnect(now, "/ip4/1.2.3.4/tcp/4190", "", false, "ReadError")
+	s, _ := tr.logDisconnect(now, "/ip4/1.2.3.4/tcp/4190", "", false, "ReadError")
 	if !s.OpenBefore || s.Start != s.End || s.End != now.UnixNano() {
 		t.Fatalf("unknown start: %+v", s)
 	}
 	// A session whose connect the log saw has a real start.
 	tr.logConnect(now, "/ip4/5.6.7.8/tcp/4190", "", true)
-	s = tr.logDisconnect(now.Add(time.Minute), "/ip4/5.6.7.8/tcp/4190", "", true, "IdleConnection")
+	s, _ = tr.logDisconnect(now.Add(time.Minute), "/ip4/5.6.7.8/tcp/4190", "", true, "IdleConnection")
 	if s.OpenBefore || s.Start != now.UnixNano() {
 		t.Fatalf("known start: %+v", s)
 	}
 	if len(sink.sessions) != 2 {
 		t.Fatalf("%d sessions stored, want 2", len(sink.sessions))
+	}
+}
+
+// algod removes a slow ws peer twice and logs the same disconnect each
+// time, under a millisecond apart and not always in time order. The
+// repeat is one disconnect: one event and one session with its real start.
+func TestRepeatedDisconnectLineCountsOnce(t *testing.T) {
+	sink := &recSink{}
+	n := &Node{o: Options{Name: "n", Sink: sink, PeersEvery: 30 * time.Second}}
+	n.sess = newSessionTracker(n)
+	tl := newTailer(n, nil)
+	at := func(base time.Time, us int) string {
+		return base.Add(time.Duration(us) * time.Microsecond).UTC().Format("2006-01-02T15:04:05.000000Z")
+	}
+	conn := func(ts string) {
+		tl.line([]byte(`{"details":{"Address":"192.0.2.7","Incoming":false,"Endpoint":"relay.example.net:4160"},"file":"telemetry.go","level":"info","msg":"/Network/ConnectPeer","time":"` + ts + `"}`))
+	}
+	disc := func(ts, reason string) {
+		tl.line([]byte(`{"details":{"Address":"192.0.2.7","Incoming":false,"Endpoint":"relay.example.net:4160","MessageDelay":233255577,"Reason":"` + reason + `"},"file":"telemetry.go","level":"info","msg":"/Network/DisconnectPeer","time":"` + ts + `"}`))
+	}
+	t0 := time.Date(2026, 11, 23, 12, 0, 0, 0, time.UTC)
+	t1 := t0.Add(time.Hour)
+	t2 := t1.Add(time.Minute)
+	conn(at(t0, 0))
+	disc(at(t1, 0), "SlowConnection")
+	disc(at(t1, 68), "SlowConnection")
+	// Out of order: the later line comes first.
+	conn(at(t1, 500_000))
+	disc(at(t2, 120), "SlowConnection")
+	disc(at(t2, 0), "SlowConnection")
+	// A real reconnect and disconnect soon after still counts.
+	conn(at(t2, 300_000))
+	disc(at(t2, 600_000), "LeastPerformingPeer")
+
+	var discs []model.Event
+	for _, e := range sink.events {
+		if e.Kind == model.EvDisconnect {
+			discs = append(discs, e)
+		}
+	}
+	if len(discs) != 3 {
+		t.Fatalf("%d disconnect events, want 3: %+v", len(discs), discs)
+	}
+	want := [][2]time.Time{{t0, t1}, {t1.Add(500 * time.Millisecond), t2.Add(120 * time.Microsecond)}, {t2.Add(300 * time.Millisecond), t2.Add(600 * time.Millisecond)}}
+	if len(sink.sessions) != len(want) {
+		t.Fatalf("%d sessions, want %d: %+v", len(sink.sessions), len(want), sink.sessions)
+	}
+	for i, s := range sink.sessions {
+		if s.OpenBefore || s.Start != want[i][0].UnixNano() || s.End != want[i][1].UnixNano() {
+			t.Errorf("session %d: %+v, want %v to %v", i, s, want[i][0], want[i][1])
+		}
 	}
 }
 
