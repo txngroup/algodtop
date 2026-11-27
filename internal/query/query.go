@@ -528,12 +528,18 @@ type Sample struct {
 }
 
 // samplesFor turns stored points into values for fn.
+//
+// rate and increase also work on a gauge, for a gauge that only counts up.
+// libp2p types libp2p_rcmgr_blocked_resources as a gauge, but it counts
+// blocks since algod started, so its plain value says little. A gauge that
+// falls, or a restart between two samples, is a reset, as for a counter.
 func samplesFor(p store.Points, part Part, tier store.Tier, fn string, kind model.Kind, resets []int64) []Sample {
 	var out []Sample
 	inPart := func(t int64) bool { return t >= part.From && t < part.To }
+	counting := kind == model.KindGauge && (fn == "rate" || fn == "increase")
 	if tier == store.TierRaw {
 		vals := p.Cols[0]
-		if kind.IsCumulative() && (fn == "rate" || fn == "increase" || fn == "avg" || fn == "max" || fn == "min") {
+		if counting || kind.IsCumulative() && (fn == "rate" || fn == "increase" || fn == "avg" || fn == "max" || fn == "min") {
 			ri := 0
 			for i := 1; i < len(p.T); i++ {
 				t0, t1 := p.T[i-1], p.T[i]
@@ -565,6 +571,33 @@ func samplesFor(p store.Points, part Part, tier store.Tier, fn string, kind mode
 		return out
 	}
 	res := tier.Res()
+	if counting {
+		// Each bucket's last value stands in for a counter's. It is read at
+		// the end of the bucket, so a restart in (t0+res, t1+res] falls
+		// between two of them.
+		last := p.Cols[store.ColLast]
+		ri := 0
+		for i := 1; i < len(p.T); i++ {
+			t0, t1 := p.T[i-1], p.T[i]
+			for ri < len(resets) && resets[ri] <= t0+res {
+				ri++
+			}
+			dt := float64(t1-t0) / 1e9
+			if dt <= 0 || !inPart(t1) {
+				continue
+			}
+			d := last[i] - last[i-1]
+			if last[i] < last[i-1] || (ri < len(resets) && resets[ri] <= t1+res) {
+				d = last[i]
+			}
+			if fn == "increase" {
+				out = append(out, Sample{T: t1, V: d, Lo: math.NaN(), Hi: math.NaN(), W: 1})
+				continue
+			}
+			out = append(out, Sample{T: t1, V: d / dt, Lo: math.NaN(), Hi: math.NaN(), W: dt})
+		}
+		return out
+	}
 	if kind == model.KindGauge {
 		for i, t := range p.T {
 			if !inPart(t) {

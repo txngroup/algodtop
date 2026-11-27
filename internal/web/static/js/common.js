@@ -7,6 +7,20 @@ import { get, canWrite, send } from "./api.js";
 import { PRESETS, setParams, encodeTime, rangeOf, parseDur } from "./state.js";
 import { fmtDur, toLocalInput, ns, shortAddr } from "./format.js";
 
+// known reports whether a node's live values, such as CPU, peers and
+// rates, describe now. A down node reads 0 for them. A node whose agent
+// the hub cannot reach keeps the agent's last report, however old.
+export function known(n) {
+  return !!n && n.up && !n.stale_since;
+}
+
+// staleFor is how long the hub has gone without hearing from a node's
+// agent, or "" when it hears from it.
+export function staleFor(n) {
+  const t = n && ns(n.stale_since);
+  return t ? fmtDur(Math.max(0, Date.now() - t) / 1000) : "";
+}
+
 export function healthLevel(n) {
   if (!n) return "down";
   if (!n.up) return "down";
@@ -73,7 +87,7 @@ export function healthReasons(n) {
 export function participation(n) {
   const keys = n.keys || [];
   const accts = n.accounts || [];
-  if (!keys.length && !accts.length) return n.up ? "not participating" : "unknown while algod is down";
+  if (!keys.length && !accts.length) return n.stale_since ? "unknown while its agent is unreachable" : n.up ? "not participating" : "unknown while algod is down";
   const parts = [];
   for (const a of accts) {
     let st = a.status || "?";
