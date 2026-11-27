@@ -187,8 +187,11 @@ export function sections(page, node) {
           q: [{ metric: "algod_network_p2p_inbound_evictions_total", fn: "rate", name: (l) => l.state || "evictions" }] },
         { id: "setup-to", title: "Stream setup timeouts", unit: "/s", type: "line", sub: "Dialed connections closed for carrying no gossip stream",
           q: [{ metric: "algod_network_p2p_stream_setup_timeouts_total", fn: "rate", name: "timeouts", color: PAL[5] }] },
-        { id: "rcmgr", title: "Resource manager blocks", unit: "blocks", type: "line",
-          q: [{ metric: "libp2p_rcmgr_blocked_resources", name: (l) => [l.resource, l.dir, l.scope].filter(Boolean).join(" "), color: (l, i) => slot(i) }] },
+        // libp2p types this as a gauge, but it counts blocks since algod
+        // started, so its plain value is a line that only climbs.
+        { id: "rcmgr", title: "Resource manager blocks", unit: "/min", type: "line", minStep: 60e3,
+          sub: "Connections, streams and file descriptors the libp2p resource manager refused at a limit",
+          q: [{ metric: "libp2p_rcmgr_blocked_resources", fn: "rate", scale: 60, name: (l) => [l.resource, l.dir, l.scope].filter(Boolean).join(" "), color: (l, i) => slot(i) }] },
         { id: "p2p-disc", title: "P2P disconnect reasons", unit: "disconnects", type: "bars", metrics: [], always: true, logs: true,
           sub: "From node.log disconnect lines", load: disconnectBars("p2p"), emptyText: "No P2P disconnects in this range" },
         { id: "dht-lat", title: "DHT RPC latency", type: "heatmap", unitLabel: "outbound requests per bin", metrics: ["libp2p_io_dht_kad_rpc_outbound_request_latency_milliseconds_bucket"],

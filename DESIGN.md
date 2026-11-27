@@ -186,7 +186,7 @@ A series is (node, metric name, sorted label set). algod.top stores a kind with 
 algod does not emit a `histogram` TYPE. Each `_bucket`, `_sum` and `_count` is its own family typed `counter`, for example `# TYPE libp2p_swarm_dial_latency_seconds_bucket counter`. algodtop groups a family as a histogram when it finds `<base>_bucket` series with an `le` label plus matching `<base>_sum` and `<base>_count`. The 407 family names on Mainnet count those suffix families separately.
 
 - Counter. algod.top stores the raw cumulative value, and the query layer computes rates. A restart resets every counter at once, so algod.top marks a reset on every counter of a node when its PID changes. A REST-only node has no PID, so a drop in most of its counters in one scrape marks the restart. A value that goes down without a restart is also treated as a reset of that series. The rate across a reset is the new value divided by the interval. Each reset is stored as an event, so a dip in a rate chart is visibly a restart.
-- Gauge. algod.top stores the value as reported.
+- Gauge. algod.top stores the value as reported. A query with `fn=rate` or `fn=increase` reads a gauge as a counter, with a fall or a restart as a reset. In the rollups it uses each bucket's last value. libp2p types `libp2p_rcmgr_blocked_resources` as a gauge, but it counts blocks since algod started. On a Mainnet node with about 85 P2P peers it climbed from about 3,000 to 9,200 over 14 days, so the node page charts its rate per minute.
 - Histogram. algod.top stores each bucket, `_sum` and `_count` as a counter. Queries derive heatmaps and percentiles (p50, p90, p99) from bucket deltas.
 
 Series come and go. The bucket count on Mainnet changes between scrapes as new label values (dial outcomes, protocols) appear. The chunk format records presence per sample (section 8), and a series absent from a scrape is a gap, not a zero.
@@ -200,7 +200,7 @@ Today no algod series carries a per-peer label, but a future version could add o
 
 New series beyond either cap are dropped, the drop is counted, and both front ends show a warning naming the metric. Per-peer data goes into the peer-session store (below), not into series.
 
-Log-derived series have their own caps: templates per node (default 2000) and app IDs per flood counter (default 100, with the rest summed into `other`). The store never frees a series, while the tailer's counts start empty at each restart. So the tailer starts its caps from the templates and app IDs the store already holds. A value new to the store gets a series only while the cap has room. Otherwise its lines go to `other` or to `log_template_drops_total`, rather than to a series the store would drop.
+Log-derived series have their own caps: templates per node (default 2000) and app IDs per flood counter (default 100, with the rest summed into `other`). The store never frees a series, while the tailer's counts start empty at each restart. So the tailer starts its caps from the templates and app IDs the store already holds. A value new to the store gets a series only while the cap has room. Otherwise its lines go to `other` or to `log_template_drops_total`, rather than to a series the store would drop. The store's name cap always admits `app=other` itself. A store that an older version filled with a full cap of app IDs, or that a lower `flood_app_ids` left over the cap, would otherwise drop `other` too, and those lines would be in no series.
 
 ### Metric renames
 
@@ -280,7 +280,9 @@ Each line is JSON. The tailer runs a byte-level prefilter first, because the noi
 - "Pending transaction in pool no longer valid" floods (100k lines in 10 minutes are possible) are counted per minute and per app ID, and never stored line by line.
 - HTTP access lines are counted by path and status.
 
-The remaining lines become message templates. The tailer replaces addresses, numbers, base32 IDs, hashes, durations and peer IDs with placeholders. Host names with a port, such as relays from SRV records, become `<addr>` like IP addresses, so each relay does not get its own template. Each template gets a per-minute count, stored as a series in the chunk store under the template caps (section 6). This keeps "what is the node complaining about" cheap to chart over the whole history.
+The remaining lines become message templates. The tailer replaces addresses, numbers, base32 IDs, hashes, durations and peer IDs with placeholders. Host names with a port, such as relays from SRV records, become `<addr>` like IP addresses, so each relay does not get its own template. Go's net errors join a local and a remote address with `->`, as in `dial tcp4 0.0.0.0:4160->192.0.2.1:4160`, and both sides become `<addr>`. Each template gets a per-minute count, stored as a series in the chunk store under the template caps (section 6). A counter's increase needs an earlier point, so a series' first stored value never counts. That suits algod's counters, which ran before algod.top looked. A log count is 0 before its first line, so the tailer writes a new log series as 0 for one minute and its count from the next. A template seen once still shows in the counts, one minute late. This keeps "what is the node complaining about" cheap to chart over the whole history.
+
+An IPv6 address becomes `<addr>` whole, with its brackets and port, as in `[2001:db8::1]:4160`, and so does one that ends in `::`. A date with weekday and month names becomes `<date>`. A failed relay handshake logs the HTTP response headers, and their `Date` would otherwise start a new template each day. Either change starts a new template series once for the lines it affects.
 
 Specific extractors turn known lines into events with attributes. Each extractor is a small Go function with a test fixture taken from a real log. The first set covers:
 
@@ -425,7 +427,7 @@ The API is plain JSON over HTTP, served by stdlib `net/http` with the pattern ro
 | Endpoint | Returns |
 |---|---|
 | `GET /api/nodes` | Nodes with live status and health summary |
-| `GET /api/series?node=&metric=&match=label:value&from=&to=&points=&tier=&fn=rate\|avg\|min\|max\|p99&by=label` | Time series |
+| `GET /api/series?node=&metric=&match=label:value&from=&to=&points=&tier=&fn=rate\|increase\|avg\|min\|max\|last\|p99&by=label` | Time series |
 | `GET /api/metrics?node=&q=` | Metric names and label values, for the explorer |
 | `GET /api/events?node=&kind=&from=&to=` | Events |
 | `GET /api/sessions?node=&addr=&from=&to=` | Peer sessions |
